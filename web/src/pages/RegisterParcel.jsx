@@ -1,20 +1,23 @@
 import { useState } from 'react';
-import api from '../api/client';
+import { useNavigate } from 'react-router-dom';
+import api, { errorMessage } from '../api/client';
+import { useT } from '../i18n';
+import LocationButton from '../components/LocationButton';
 
 const initialForm = {
   gps_lat: '', gps_lng: '', neighbourhood: '', area_sqm: '',
   owner_full_name: '', owner_contact: '', document_type: '', national_id: '',
 };
 
+// FR03 / FR04 / FR05: LandOfficer.createParcelRecord(data) — registers the
+// parcel and generates its signed QR code.
 export default function RegisterParcel() {
+  const { t } = useT();
   const [form, setForm] = useState(initialForm);
-  const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  function update(field) {
-    return (e) => setForm({ ...form, [field]: e.target.value });
-  }
+  const navigate = useNavigate();
+  const field = (name) => ({ value: form[name], onChange: (e) => setForm({ ...form, [name]: e.target.value }) });
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -33,10 +36,14 @@ export default function RegisterParcel() {
           national_id: form.national_id,
         },
       });
-      setResult(data);
-      setForm(initialForm);
+      navigate(`/parcels/${data.parcel_id}`, {
+        state: {
+          qrDataUrl: data.qr_data_url,
+          flash: t('Parcel #{id} registered for {name}. Print the QR code below for the plot marker.', { id: data.parcel_id, name: data.owner_name }),
+        },
+      });
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to register parcel');
+      setError(errorMessage(err, t('Failed to register parcel')));
     } finally {
       setLoading(false);
     }
@@ -44,64 +51,33 @@ export default function RegisterParcel() {
 
   return (
     <div>
-      <h2>Register New Parcel</h2>
+      <h2>{t('Register New Parcel')}</h2>
       <div className="card">
         <form onSubmit={handleSubmit}>
-          <label>
-            Neighbourhood
-            <input value={form.neighbourhood} onChange={update('neighbourhood')} placeholder="e.g. Munuki" required />
-          </label>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <label style={{ flex: 1 }}>
-              GPS Latitude
-              <input value={form.gps_lat} onChange={update('gps_lat')} placeholder="4.8517" required />
-            </label>
-            <label style={{ flex: 1 }}>
-              GPS Longitude
-              <input value={form.gps_lng} onChange={update('gps_lng')} placeholder="31.5825" required />
-            </label>
+          <h3>{t('The plot')}</h3>
+          <label>{t('Neighbourhood')}<input {...field('neighbourhood')} placeholder={t('e.g. Munuki')} required /></label>
+          <div className="field-row">
+            <label>{t('GPS Latitude')}<input {...field('gps_lat')} placeholder="4.8517" inputMode="decimal" required dir="ltr" /></label>
+            <label>{t('GPS Longitude')}<input {...field('gps_lng')} placeholder="31.5825" inputMode="decimal" required dir="ltr" /></label>
           </div>
-          <label>
-            Area (sqm)
-            <input value={form.area_sqm} onChange={update('area_sqm')} placeholder="450" />
-          </label>
-          <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px solid #eee' }} />
-          <label>
-            Owner Full Name
-            <input value={form.owner_full_name} onChange={update('owner_full_name')} required />
-          </label>
-          <label>
-            Owner Contact Number
-            <input value={form.owner_contact} onChange={update('owner_contact')} placeholder="+211..." />
-          </label>
-          <label>
-            Document Type
-            <input value={form.document_type} onChange={update('document_type')} placeholder="Sale Agreement / Inheritance / Grant" />
-          </label>
-          <label>
-            National ID
-            <input value={form.national_id} onChange={update('national_id')} placeholder="SS-1234567" />
-          </label>
+          <LocationButton onLocate={({ lat, lng }) => setForm({ ...form, gps_lat: lat.toFixed(7), gps_lng: lng.toFixed(7) })} />
+          <label>{t('Area (m²)')}<input {...field('area_sqm')} placeholder="450" inputMode="decimal" /></label>
+
+          <h3>{t('The owner')}</h3>
+          <label>{t('Owner Full Name')}<input {...field('owner_full_name')} required /></label>
+          <div className="field-row">
+            <label>
+              {t('National ID')}
+              <input {...field('national_id')} placeholder="SS-1234567" />
+              <span className="hint">{t('Links the parcel to the owner\'s other parcels and to their DLOVS account.')}</span>
+            </label>
+            <label>{t('Owner Contact Number')}<input {...field('owner_contact')} placeholder="+211…" dir="ltr" /></label>
+          </div>
+          <label>{t('Document Type')}<input {...field('document_type')} placeholder={t('Sale Agreement / Inheritance / Grant')} /></label>
           {error && <div className="error-text">{error}</div>}
-          <button className="btn" type="submit" disabled={loading}>
-            {loading ? 'Registering...' : 'Register Parcel + Generate QR'}
-          </button>
+          <button className="btn" type="submit" disabled={loading}>{loading ? t('Registering…') : t('Register Parcel + Generate QR')}</button>
         </form>
       </div>
-
-      {result && (
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Parcel #{result.parcel_id} registered</h3>
-          <p><strong>Owner:</strong> {result.owner_name}</p>
-          <p><strong>Neighbourhood:</strong> {result.neighbourhood}</p>
-          <div className="qr-box">
-            <img src={result.qr_data_url} alt="Parcel QR Code" width={220} height={220} />
-            <p style={{ margin: '8px 0 0', fontSize: '0.85rem', color: '#555' }}>
-              Scan with the DLOVS mobile app or search parcel #{result.parcel_id} to verify.
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
