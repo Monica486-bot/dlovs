@@ -7,9 +7,7 @@ export default function DevCode({ code }) {
   if (!code) return null;
   return (
     <div className="notice info dev-code">
-      <strong>{t('Demo mode:')}</strong>{' '}
-      {t('no SMS provider is configured, so the code is shown here instead of being texted:')}{' '}
-      <code dir="ltr">{code}</code>
+      <span>{t('Demo code:')} <code dir="ltr">{code}</code></span>
     </div>
   );
 }

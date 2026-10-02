@@ -39,7 +39,7 @@ export default function RegisterParcel() {
       navigate(`/parcels/${data.parcel_id}`, {
         state: {
           qrDataUrl: data.qr_data_url,
-          flash: t('Parcel #{id} registered for {name}. Print the QR code below for the plot marker.', { id: data.parcel_id, name: data.owner_name }),
+          flash: t('Parcel #{id} registered for {name}.', { id: data.parcel_id, name: data.owner_name }),
         },
       });
     } catch (err) {
@@ -51,31 +51,28 @@ export default function RegisterParcel() {
 
   return (
     <div>
-      <h2>{t('Register New Parcel')}</h2>
+      <h2>{t('New Parcel Record')}</h2>
+      <p className="page-subtitle">{t('Register a new plot and generate its verification QR code')}</p>
       <div className="card">
         <form onSubmit={handleSubmit}>
-          <h3>{t('The plot')}</h3>
-          <label>{t('Neighbourhood')}<input {...field('neighbourhood')} placeholder={t('e.g. Munuki')} required /></label>
+          <h3>{t('Parcel Details')}</h3>
+          <label>{t('Neighbourhood')}<input {...field('neighbourhood')} required /></label>
           <div className="field-row">
-            <label>{t('GPS Latitude')}<input {...field('gps_lat')} placeholder="4.8517" inputMode="decimal" required dir="ltr" /></label>
-            <label>{t('GPS Longitude')}<input {...field('gps_lng')} placeholder="31.5825" inputMode="decimal" required dir="ltr" /></label>
+            <label>{t('GPS Latitude')}<input {...field('gps_lat')} inputMode="decimal" required dir="ltr" /></label>
+            <label>{t('GPS Longitude')}<input {...field('gps_lng')} inputMode="decimal" required dir="ltr" /></label>
           </div>
           <LocationButton onLocate={({ lat, lng }) => setForm({ ...form, gps_lat: lat.toFixed(7), gps_lng: lng.toFixed(7) })} />
-          <label>{t('Area (m²)')}<input {...field('area_sqm')} placeholder="450" inputMode="decimal" /></label>
+          <label>{t('Parcel size (m²)')}<input {...field('area_sqm')} inputMode="decimal" /></label>
 
-          <h3>{t('The owner')}</h3>
+          <h3>{t('Owner')}</h3>
           <label>{t('Owner Full Name')}<input {...field('owner_full_name')} required /></label>
           <div className="field-row">
-            <label>
-              {t('National ID')}
-              <input {...field('national_id')} placeholder="SS-1234567" />
-              <span className="hint">{t('Links the parcel to the owner\'s other parcels and to their DLOVS account.')}</span>
-            </label>
-            <label>{t('Owner Contact Number')}<input {...field('owner_contact')} placeholder="+211…" dir="ltr" /></label>
+            <label>{t('National ID')}<input {...field('national_id')} /></label>
+            <label>{t('Owner Phone Number')}<input {...field('owner_contact')} dir="ltr" /></label>
           </div>
-          <label>{t('Document Type')}<input {...field('document_type')} placeholder={t('Sale Agreement / Inheritance / Grant')} /></label>
+          <label>{t('Document Type')}<input {...field('document_type')} /></label>
           {error && <div className="error-text">{error}</div>}
-          <button className="btn" type="submit" disabled={loading}>{loading ? t('Registering…') : t('Register Parcel + Generate QR')}</button>
+          <button className="btn" type="submit" disabled={loading}>{loading ? t('Registering…') : t('Save & Generate QR Code')}</button>
         </form>
       </div>
     </div>

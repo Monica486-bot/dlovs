@@ -47,7 +47,7 @@ export default function EditParcel() {
         return;
       }
       await api.put(`/parcels/${id}`, changes);
-      navigate(`/parcels/${id}`, { state: { flash: t('Parcel details updated. The change is recorded in the audit log.') } });
+      navigate(`/parcels/${id}`, { state: { flash: t('Parcel details updated.') } });
     } catch (err) {
       setError(errorMessage(err, t('Failed to update parcel')));
     } finally {
@@ -64,12 +64,11 @@ export default function EditParcel() {
       <p className="breadcrumb"><Link to={`/parcels/${id}`}>{t('← Parcel #{id}', { id })}</Link></p>
       <h2>{t('Edit Parcel #{id}', { id })}</h2>
       {original.status === 'deactivated' ? (
-        <div className="notice danger">{t('Deactivated parcel records cannot be edited.')}</div>
+        <div className="notice danger"><span>{t('Deactivated records cannot be edited.')}</span></div>
       ) : (
         <div className="card">
           <p className="muted" style={{ marginTop: 0 }}>
-            {t('Registered owner:')} <strong>{original.owner_name}</strong>. {t('To change the owner, use')}{' '}
-            <Link to={`/parcels/${id}/transfer`}>{t('Transfer Ownership')}</Link>.
+            {t('Registered owner:')} <strong>{original.owner_name}</strong>
           </p>
           <form onSubmit={submit}>
             <label>{t('Neighbourhood')}<input {...field('neighbourhood')} required /></label>
@@ -78,7 +77,7 @@ export default function EditParcel() {
               <label>{t('GPS Longitude')}<input {...field('gps_lng')} inputMode="decimal" required dir="ltr" /></label>
             </div>
             <LocationButton onLocate={({ lat, lng }) => setForm({ ...form, gps_lat: lat.toFixed(7), gps_lng: lng.toFixed(7) })} />
-            <label>{t('Area (m²)')}<input {...field('area_sqm')} inputMode="decimal" /></label>
+            <label>{t('Parcel size (m²)')}<input {...field('area_sqm')} inputMode="decimal" /></label>
             {error && <div className="error-text">{error}</div>}
             <div className="actions">
               <button className="btn" type="submit" disabled={saving}>{saving ? t('Saving…') : t('Save Changes')}</button>

@@ -21,6 +21,7 @@ export default function MyRequests() {
   return (
     <div>
       <h2>{t('My Requests')}</h2>
+      <p className="page-subtitle">{t('Your transfer requests and plot reports')}</p>
       {error && <div className="error-text">{error}</div>}
 
       <div className="card">
@@ -29,7 +30,7 @@ export default function MyRequests() {
         {transfers?.length > 0 && (
           <div className="table-scroll">
             <table>
-              <thead><tr><th>{t('Date')}</th><th>{t('Parcel')}</th><th>{t('Buyer')}</th><th>{t('Status')}</th><th>{t("Officer's response")}</th></tr></thead>
+              <thead><tr><th>{t('Date')}</th><th>{t('Parcel')}</th><th>{t('New Owner')}</th><th>{t('Status')}</th><th>{t('Response')}</th></tr></thead>
               <tbody>
                 {transfers.map((r) => (
                   <tr key={r.request_id}>
@@ -37,7 +38,7 @@ export default function MyRequests() {
                     <td><Link to={`/my/parcels/${r.parcel_id}`}>#{r.parcel_id}</Link></td>
                     <td>{r.buyer_full_name}</td>
                     <td><StatusBadge status={r.status} /></td>
-                    <td>{r.response_notes || (r.status === 'pending' ? t('Waiting for a land officer') : '—')}</td>
+                    <td>{r.response_notes || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -47,12 +48,12 @@ export default function MyRequests() {
       </div>
 
       <div className="card">
-        <h3>{t('Reports of unregistered plots')}</h3>
+        <h3>{t('Plot reports')}</h3>
         {reports?.length === 0 && <p className="muted">{t('You have not reported any plots.')} <Link to="/my/report">{t('Report a plot')}</Link></p>}
         {reports?.length > 0 && (
           <div className="table-scroll">
             <table>
-              <thead><tr><th>{t('Date')}</th><th>{t('Neighbourhood')}</th><th>{t('Status')}</th><th>{t("Officer's response")}</th></tr></thead>
+              <thead><tr><th>{t('Date')}</th><th>{t('Neighbourhood')}</th><th>{t('Status')}</th><th>{t('Response')}</th></tr></thead>
               <tbody>
                 {reports.map((r) => (
                   <tr key={r.report_id}>
@@ -60,7 +61,7 @@ export default function MyRequests() {
                     <td>{r.neighbourhood}</td>
                     <td><StatusBadge status={r.status} /></td>
                     <td>
-                      {r.response_notes || (r.status === 'open' ? t('Waiting for a land officer') : '—')}
+                      {r.response_notes || '—'}
                       {r.parcel_id && <> · <Link to={`/verify/${r.parcel_id}`}>{t('Parcel #{id}', { id: r.parcel_id })}</Link></>}
                     </td>
                   </tr>

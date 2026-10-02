@@ -28,7 +28,7 @@ export default function ForgotPassword() {
         setStep('staff');
       } else {
         setDevCode(data.dev_code);
-        setMessage(t('If this number has a citizen account, a reset code has been sent by SMS.'));
+        setMessage(t('We sent a code by SMS.'));
         setStep('code');
       }
     } catch (err) {
@@ -58,26 +58,26 @@ export default function ForgotPassword() {
         <h2>{t('Reset your password')}</h2>
         {step === 'phone' && (
           <form onSubmit={requestCode}>
-            <p className="muted">{t('Enter the phone number you registered with. We will text you a code.')}</p>
-            <label>{t('Phone Number')}<input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+211912345678" inputMode="tel" required dir="ltr" /></label>
+            <p className="page-subtitle">{t('We will text you a code.')}</p>
+            <label>{t('Phone Number')}<input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" required dir="ltr" /></label>
             {error && <div className="error-text">{error}</div>}
             <button className="btn block" type="submit" disabled={saving}>{t('Send Code')}</button>
           </form>
         )}
         {step === 'staff' && (
           <div className="notice info">
-            {t('Land officer and administrator passwords are reset by a DLOVS administrator. Contact your administrator for a temporary password.')}
+            <span>{t('Staff passwords are reset by an administrator.')}</span>
           </div>
         )}
         {step === 'code' && (
           <form onSubmit={reset}>
-            <p className="muted">{message}</p>
+            <p className="page-subtitle">{message}</p>
             <DevCode code={devCode} />
             <label>
               {t('Code')}
               <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" required dir="ltr" className="code-input" />
             </label>
-            <label>{t('New password (at least 6 characters)')}<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} autoComplete="new-password" required /></label>
+            <label>{t('New password')}<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} autoComplete="new-password" required /></label>
             {error && <div className="error-text">{error}</div>}
             <button className="btn block" type="submit" disabled={saving || code.length !== 6}>{t('Reset Password')}</button>
           </form>

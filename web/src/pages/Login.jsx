@@ -39,13 +39,13 @@ export default function Login() {
     <div className="auth-page">
       <form className="auth-card" onSubmit={handleSubmit}>
         <h2>{t('Log In')}</h2>
-        <p className="muted">{t('Citizens, land officers, and administrators all log in here.')}</p>
+        <p className="page-subtitle">{t('Welcome back to DLOVS')}</p>
         {params.get('expired') && <div className="notice warning">{t('Your session has ended. Please log in again.')}</div>}
         {params.get('reset') && <div className="notice success">{t('Password reset. You can now log in.')}</div>}
         {params.get('verified') && <div className="notice success">{t('Phone number confirmed. You can now log in.')}</div>}
         <label>
           {t('Phone Number')}
-          <input value={phone_number} onChange={(e) => setPhone(e.target.value)} placeholder="+211912345678" autoComplete="tel" inputMode="tel" required dir="ltr" />
+          <input value={phone_number} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" inputMode="tel" required dir="ltr" />
         </label>
         <label>
           {t('Password')}

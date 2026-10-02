@@ -19,7 +19,7 @@ export default function FlagDispute({ parcelId, onFlagged }) {
       await api.post('/disputes', { parcel_id: Number(parcelId), dispute_type: type, description: description.trim(), platform: 'web' });
       setOpen(false);
       setDescription('');
-      onFlagged?.(t('Dispute flagged. Everyone who checks parcel #{id} will now see a warning, and a land officer will review it.', { id: parcelId }));
+      onFlagged?.(t('Dispute submitted. A land officer will review it.'));
     } catch (err) {
       setError(errorMessage(err, t('Failed to flag dispute')));
     } finally {
@@ -28,39 +28,36 @@ export default function FlagDispute({ parcelId, onFlagged }) {
   }
 
   if (!open) {
-    return <button type="button" className="btn secondary" onClick={() => setOpen(true)}>{t('Flag a Dispute')}</button>;
+    return <button type="button" className="btn danger" onClick={() => setOpen(true)}>{t('Flag Dispute')}</button>;
   }
 
   return (
     <form onSubmit={submit} className="card flag-form">
-      <h3>{t('Flag a dispute on parcel #{id}', { id: parcelId })}</h3>
+      <h3>{t('Flag a Dispute')}</h3>
       <fieldset className="radio-cards">
-        <legend>{t('What kind of problem?')}</legend>
+        <legend>{t('Reason for dispute')}</legend>
         <label className={type === 'ownership' ? 'selected' : ''}>
           <input type="radio" name="dispute_type" value="ownership" checked={type === 'ownership'} onChange={() => setType('ownership')} />
-          <strong>{t('Ownership')}</strong>
-          <span>{t("Someone else claims to own this plot, or it was sold without the owner's consent.")}</span>
+          {t('Wrong Owner')}
         </label>
         <label className={type === 'boundary' ? 'selected' : ''}>
           <input type="radio" name="dispute_type" value="boundary" checked={type === 'boundary'} onChange={() => setType('boundary')} />
-          <strong>{t('Boundary')}</strong>
-          <span>{t("The plot's edges or size are wrong, or overlap with a neighbour.")}</span>
+          {t('Boundary Conflict')}
         </label>
       </fieldset>
       <label>
-        {t('What is happening?')}
+        {t('Describe the issue')}
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={4}
           minLength={10}
           required
-          placeholder={t('Describe the problem, who is involved, and when it started')}
         />
       </label>
       {error && <div className="error-text">{error}</div>}
       <div className="actions">
-        <button className="btn" type="submit" disabled={saving}>{saving ? t('Sending…') : t('Flag Dispute')}</button>
+        <button className="btn" type="submit" disabled={saving}>{saving ? t('Sending…') : t('Submit Dispute')}</button>
         <button className="btn secondary" type="button" onClick={() => setOpen(false)}>{t('Cancel')}</button>
       </div>
     </form>

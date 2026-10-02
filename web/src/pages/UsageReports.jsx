@@ -88,7 +88,10 @@ export default function UsageReports() {
   return (
     <div>
       <div className="page-header">
-        <h2>{t('Usage Reports')}</h2>
+        <div>
+          <h2>{t('Reports')}</h2>
+          <p className="page-subtitle">{t('Generate summary reports across the platform')}</p>
+        </div>
         {report && <button className="btn secondary" onClick={exportAll}>{t('Download CSV')}</button>}
       </div>
       <div className="card">

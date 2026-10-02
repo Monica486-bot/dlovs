@@ -11,12 +11,12 @@ import StatusBadge from './StatusBadge';
 // page and the staff Search page. The search lives in the URL, so Back from a
 // record returns to the same results and a search can be shared as a link.
 const MODES = {
-  any: { label: 'Any', placeholder: 'Parcel ID, neighbourhood, or owner name...' },
-  parcel_id: { label: 'Parcel ID', placeholder: 'e.g. 12' },
-  owner_name: { label: 'Owner name', placeholder: 'e.g. Akoi Deng' },
-  neighbourhood: { label: 'Neighbourhood', placeholder: 'e.g. Munuki' },
-  national_id: { label: 'National ID (exact)', placeholder: 'Full national ID number' },
-  near: { label: 'Near a GPS point', placeholder: '' },
+  any: 'All fields',
+  parcel_id: 'Parcel ID',
+  owner_name: 'Owner name',
+  neighbourhood: 'Neighbourhood',
+  national_id: 'National ID',
+  near: 'Near a GPS point',
 };
 const RADII = [50, 100, 200, 500, 1000];
 
@@ -76,13 +76,13 @@ export default function ParcelSearch({ recordPath }) {
         <form onSubmit={submit}>
           <div className="inline-form">
             <select value={by} onChange={(e) => setBy(e.target.value)} aria-label={t('Search by')}>
-              {Object.entries(MODES).map(([key, mode]) => <option key={key} value={key}>{t(mode.label)}</option>)}
+              {Object.entries(MODES).map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}
             </select>
             {by !== 'near' && (
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={t(MODES[by].placeholder)}
+                placeholder={by === 'any' ? t('Search by owner name or plot location') : ''}
                 aria-label={t('Search terms')}
                 required
               />
@@ -97,8 +97,8 @@ export default function ParcelSearch({ recordPath }) {
           {by === 'near' && (
             <div className="near-fields">
               <div className="field-row">
-                <label>{t('GPS Latitude')}<input value={point.lat} onChange={(e) => setPoint({ ...point, lat: e.target.value })} inputMode="decimal" placeholder="4.8621" required /></label>
-                <label>{t('GPS Longitude')}<input value={point.lng} onChange={(e) => setPoint({ ...point, lng: e.target.value })} inputMode="decimal" placeholder="31.5734" required /></label>
+                <label>{t('GPS Latitude')}<input value={point.lat} onChange={(e) => setPoint({ ...point, lat: e.target.value })} inputMode="decimal" required dir="ltr" /></label>
+                <label>{t('GPS Longitude')}<input value={point.lng} onChange={(e) => setPoint({ ...point, lng: e.target.value })} inputMode="decimal" required dir="ltr" /></label>
               </div>
               <LocationButton onLocate={({ lat, lng }) => setPoint({ ...point, lat: lat.toFixed(6), lng: lng.toFixed(6) })} />
             </div>
@@ -110,10 +110,9 @@ export default function ParcelSearch({ recordPath }) {
 
       {results && results.length === 0 && (
         <div className="notice warning">
-          <strong>{t('This parcel is not registered in DLOVS — proceed with caution.')}</strong>{' '}
-          {t('No parcel matches {what}.', { what: searchedFor })}{' '}
-          {user && !isStaff && <Link to="/my/report">{t('Report this plot to a land officer')}</Link>}
-          {!user && <Link to="/login?next=/my/report">{t('Log in to report this plot to a land officer')}</Link>}
+          <strong>{t('Not registered')}</strong> {t('No parcel matches {what}.', { what: searchedFor })}{' '}
+          {user && !isStaff && <Link to="/my/report">{t('Report this plot')}</Link>}
+          {!user && <Link to="/login?next=/my/report">{t('Report this plot')}</Link>}
         </div>
       )}
 
@@ -155,21 +154,20 @@ export default function ParcelSearch({ recordPath }) {
             <table>
               <thead>
                 <tr>
-                  <th>{t('Parcel')}</th><th>{t('Neighbourhood')}</th><th>{t('Owner')}</th><th>{t('Registered')}</th>
-                  <th>{t('Verified documents')}</th>{isNear && <th>{t('Distance')}</th>}<th>{t('Status')}</th><th></th>
+                  <th>{t('Parcel ID')}</th><th>{t('Owner')}</th><th>{t('Location')}</th><th>{t('Registered')}</th>
+                  {isNear && <th>{t('Distance')}</th>}<th>{t('Status')}</th><th></th>
                 </tr>
               </thead>
               <tbody>
                 {shown.map((p) => (
                   <tr key={p.parcel_id}>
                     <td>#{p.parcel_id}</td>
-                    <td>{p.neighbourhood}</td>
                     <td>{p.owner_name}</td>
+                    <td>{p.neighbourhood}</td>
                     <td>{formatDate(p.registered_date)}</td>
-                    <td>{p.verified_documents}</td>
                     {isNear && <td>{t('{m} m', { m: p.distance_m })}</td>}
                     <td><StatusBadge status={p.status} /></td>
-                    <td><Link className="btn secondary" to={recordPath(p.parcel_id)}>{t('Open Record')}</Link></td>
+                    <td><Link className="view-link" to={recordPath(p.parcel_id)}>{t('View →')}</Link></td>
                   </tr>
                 ))}
               </tbody>

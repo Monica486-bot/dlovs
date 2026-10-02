@@ -51,7 +51,7 @@ export default function Account() {
                 {user?.national_id || t('Not set')}
                 {user?.national_id && (
                   <span className="muted small">
-                    {' · '}{user.national_id_verified ? t('confirmed by a land officer') : t('waiting for a land officer to see your ID card')}
+                    {' · '}{user.national_id_verified ? t('Confirmed') : t('ID check pending')}
                   </span>
                 )}
               </dd>
@@ -62,7 +62,7 @@ export default function Account() {
       <form className="card narrow" onSubmit={submit}>
         <h3>{t('Change password')}</h3>
         <label>{t('Current password')}<input type="password" {...field('current')} autoComplete="current-password" required /></label>
-        <label>{t('New password (at least 6 characters)')}<input type="password" {...field('next')} minLength={6} autoComplete="new-password" required /></label>
+        <label>{t('New password')}<input type="password" {...field('next')} minLength={6} autoComplete="new-password" required /></label>
         <label>{t('Confirm password')}<input type="password" {...field('confirm')} autoComplete="new-password" required /></label>
         {error && <div className="error-text">{error}</div>}
         {success && <div className="success-text">{success}</div>}

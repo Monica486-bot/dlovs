@@ -46,8 +46,8 @@ export default function VerifyPhone() {
   return (
     <div className="auth-page">
       <form className="auth-card" onSubmit={submit}>
-        <h2>{t('Confirm your phone number')}</h2>
-        <p className="muted">{t('We sent a 6-digit code by SMS. It expires in 10 minutes.')}</p>
+        <h2>{t('Verify Your Number')}</h2>
+        <p className="page-subtitle">{t('We sent a 6-digit code to {phone}', { phone })}</p>
         <DevCode code={devCode} />
         <label>
           {t('Phone Number')}
@@ -68,9 +68,9 @@ export default function VerifyPhone() {
         </label>
         {error && <div className="error-text">{error}</div>}
         {info && <div className="success-text">{info}</div>}
-        <button className="btn block" type="submit" disabled={saving || code.length !== 6}>{saving ? t('Checking…') : t('Confirm')}</button>
+        <button className="btn block" type="submit" disabled={saving || code.length !== 6}>{saving ? t('Checking…') : t('Verify & Continue')}</button>
         <div className="auth-links">
-          <button type="button" className="link-button" onClick={resend} disabled={!phone.trim()}>{t('Send a new code')}</button>
+          <button type="button" className="link-button" onClick={resend} disabled={!phone.trim()}>{t('Resend code')}</button>
           <Link to="/login">{t('Back to log in')}</Link>
         </div>
       </form>

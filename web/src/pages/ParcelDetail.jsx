@@ -58,7 +58,7 @@ export default function ParcelDetail() {
 
   return (
     <div>
-      <p className="breadcrumb no-print"><Link to="/parcels/search">{t('← Search')}</Link></p>
+      <p className="breadcrumb no-print"><Link to="/parcels/search">{t('← Parcel Records')}</Link></p>
       <div className="page-header">
         <h2>{t('Parcel #{id}', { id: parcel.parcel_id })} <StatusBadge status={parcel.status} /></h2>
         <div className="actions no-print">
@@ -78,8 +78,7 @@ export default function ParcelDetail() {
       <div className="no-print"><RecordWarnings parcel={parcel} disputes={disputes} /></div>
       {pendingRequest && (
         <div className="notice info no-print">
-          {t('The owner has asked to transfer this parcel to {buyer} (ID {id}).', { buyer: pendingRequest.buyer_full_name, id: pendingRequest.buyer_national_id })}{' '}
-          <Link to="/transfer-requests">{t('See transfer requests')}</Link>
+          <span>{t('Transfer requested to {buyer}', { buyer: pendingRequest.buyer_full_name })} · <Link to="/transfer-requests">{t('View request')}</Link></span>
         </div>
       )}
 
@@ -89,10 +88,10 @@ export default function ParcelDetail() {
         </div>
         {qr && (
           <div className="card qr-card print-area">
-            <h3>{t('Plot marker QR code')}</h3>
+            <h3>{t('Verification QR Code')}</h3>
             <img src={qr} alt={t('QR code for parcel {id}', { id: parcel.parcel_id })} width={220} height={220} />
             <p className="print-caption">
-              {t('DLOVS Parcel #{id}', { id: parcel.parcel_id })} · {parcel.neighbourhood}<br />{t('Scan with the DLOVS app to verify the owner')}
+              {t('DLOVS Parcel #{id}', { id: parcel.parcel_id })} · {parcel.neighbourhood}
             </p>
             <button className="btn no-print" onClick={() => window.print()}>{t('Print')}</button>
           </div>
@@ -103,7 +102,7 @@ export default function ParcelDetail() {
         <div className="page-header">
           <h3 style={{ margin: 0 }}>{t('Documents')}</h3>
           {isOfficer && editable && !uploading && (
-            <button className="btn secondary" onClick={() => setUploading(true)}>{t("Upload on the Owner's Behalf")}</button>
+            <button className="btn secondary" onClick={() => setUploading(true)}>{t('Upload Document')}</button>
           )}
         </div>
         {uploading && <UploadDocument parcelId={parcel.parcel_id} onUploaded={done} onBehalf />}

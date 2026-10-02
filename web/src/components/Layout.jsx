@@ -1,10 +1,11 @@
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
 import LanguageToggle from './LanguageToggle';
 import NotificationBell from './NotificationBell';
+import UserChip from './UserChip';
 
-// Staff (land officer / administrator) layout: sidebar navigation.
+// Staff (land officer / administrator) layout: white header, navy sidebar.
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const { t } = useT();
@@ -18,40 +19,42 @@ export default function Layout({ children }) {
     navigate('/login');
   }
 
-  // parcel and owner pages are reached from Search, so keep it highlighted there
-  const searchActive = ({ isActive }) =>
+  // parcel and owner pages are reached from Parcel Records, so keep it highlighted there
+  const recordsActive = ({ isActive }) =>
     isActive || /^\/(parcels\/\d|owners\/)/.test(location.pathname) ? 'active' : undefined;
 
   return (
     <div className="app-shell">
-      <nav className="sidebar" aria-label={t('Main navigation')}>
-        <h1>
-          DLOVS<br />
-          <span className="sidebar-user">{user?.full_name} · {t(user?.role === 'administrator' ? 'administrator' : 'land officer')}</span>
-        </h1>
-        <div className="nav-links">
+      <header className="app-header">
+        <Link to="/dashboard" className="logo">DLOVS</Link>
+        <div className="header-right">
+          <LanguageToggle />
+          <NotificationBell />
+          <button type="button" className="link-button" onClick={handleLogout}>{t('Log Out')}</button>
+          <UserChip />
+        </div>
+      </header>
+      <div className="app-body">
+        <nav className="sidebar" aria-label={t('Main navigation')}>
           <NavLink to="/dashboard">{t('Dashboard')}</NavLink>
+          <NavLink to="/parcels/search" className={recordsActive}>{t('Parcel Records')}</NavLink>
           {isOfficer && <NavLink to="/parcels/new">{t('Register Parcel')}</NavLink>}
-          <NavLink to="/parcels/search" className={searchActive}>{t('Search / Verify')}</NavLink>
-          <span className="nav-heading">{t('Work queues')}</span>
-          <NavLink to="/documents">{t('Documents')}</NavLink>
+          <NavLink to="/transfer-requests">{t('Transfers')}</NavLink>
           <NavLink to="/disputes">{t('Disputes')}</NavLink>
-          <NavLink to="/transfer-requests">{t('Transfer Requests')}</NavLink>
-          <NavLink to="/reports">{t('Unregistered Plots')}</NavLink>
+          <NavLink to="/documents">{t('Documents')}</NavLink>
           <NavLink to="/id-checks">{t('ID Checks')}</NavLink>
-          <span className="nav-heading">{t('Accountability')}</span>
+          <NavLink to="/reports">{t('Unregistered Plots')}</NavLink>
           <NavLink to="/audit-log">{t('Audit Log')}</NavLink>
-          {isAdmin && <NavLink to="/admin/reports">{t('Usage Reports')}</NavLink>}
-          {isAdmin && <NavLink to="/admin" end>{t('Admin Panel')}</NavLink>}
-        </div>
-        <div className="sidebar-footer">
-          <NotificationBell className="sidebar-bell" />
-          <NavLink to="/account" className="sidebar-small">{t('My Account')}</NavLink>
-          <LanguageToggle className="sidebar-small" />
-          <button className="logout-btn" onClick={handleLogout}>{t('Log Out')}</button>
-        </div>
-      </nav>
-      <main className="main-content">{children}</main>
+          {isAdmin && (
+            <>
+              <span className="sidebar-divider" />
+              <NavLink to="/admin" end>{t('User Accounts')}</NavLink>
+              <NavLink to="/admin/reports">{t('Reports')}</NavLink>
+            </>
+          )}
+        </nav>
+        <main className="main-content">{children}</main>
+      </div>
     </div>
   );
 }

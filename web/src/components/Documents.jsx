@@ -32,7 +32,7 @@ export function DocumentTable({ documents, onChanged, showParcel = false }) {
       setReason('');
       onChanged?.(decision === 'verified'
         ? t('{type} for parcel #{id} verified.', { type: t(doc.document_type), id: doc.parcel_id })
-        : t('{type} for parcel #{id} rejected. The uploader has been told why.', { type: t(doc.document_type), id: doc.parcel_id }));
+        : t('{type} for parcel #{id} rejected.', { type: t(doc.document_type), id: doc.parcel_id }));
     } catch (err) {
       setError(errorMessage(err, t('Review failed')));
     } finally {
@@ -76,7 +76,7 @@ export function DocumentTable({ documents, onChanged, showParcel = false }) {
                   <button type="button" className="btn secondary" onClick={() => view(d.document_id)}>{t('View')}</button>
                   {d.verification_status === 'pending' && d.can_review && rejecting !== d.document_id && (
                     <>
-                      <button type="button" className="btn" disabled={busy === d.document_id} onClick={() => review(d, 'verified')}>{t('Verify')}</button>
+                      <button type="button" className="btn" disabled={busy === d.document_id} onClick={() => review(d, 'verified')}>{t('Approve')}</button>
                       <button type="button" className="btn danger" onClick={() => { setRejecting(d.document_id); setReason(''); }}>{t('Reject')}</button>
                     </>
                   )}
@@ -86,8 +86,8 @@ export function DocumentTable({ documents, onChanged, showParcel = false }) {
                   {rejecting === d.document_id && (
                     <form className="reject-form" onSubmit={(e) => { e.preventDefault(); review(d, 'rejected'); }}>
                       <label>
-                        {t('Why is it rejected?')}
-                        <input value={reason} onChange={(e) => setReason(e.target.value)} required placeholder={t('e.g. The scan is unreadable; upload a clearer copy')} />
+                        {t('Reason')}
+                        <input value={reason} onChange={(e) => setReason(e.target.value)} required />
                       </label>
                       <div className="actions">
                         <button className="btn danger" type="submit" disabled={busy === d.document_id}>{t('Reject Document')}</button>
@@ -135,7 +135,7 @@ export function UploadDocument({ parcelId, onUploaded, onBehalf = false }) {
       setFile(null);
       setType('');
       setInputKey((k) => k + 1);
-      onUploaded?.(t('Document uploaded. A land officer will review it.'));
+      onUploaded?.(t('Document uploaded.'));
     } catch (err) {
       setError(errorMessage(err, t('Upload failed')));
     } finally {
@@ -145,11 +145,6 @@ export function UploadDocument({ parcelId, onUploaded, onBehalf = false }) {
 
   return (
     <form onSubmit={submit} className="upload-form">
-      <p className="muted" style={{ marginTop: 0 }}>
-        {onBehalf
-          ? t("Upload a scan brought in by the owner. Another officer must review it — you can't review documents you uploaded.")
-          : t('Upload a scan or photo of your land documents. It stays private: only you and land officers can open it. Other people only see whether it has been verified.')}
-      </p>
       <div className="field-row">
         <label>
           {t('Document type')}
@@ -159,12 +154,12 @@ export function UploadDocument({ parcelId, onUploaded, onBehalf = false }) {
           </select>
         </label>
         <label>
-          {t('File (PDF, JPG or PNG, up to 5 MB)')}
+          {t('File')} <span className="muted small" style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>{t('PDF, JPG or PNG · up to 5 MB')}</span>
           <input key={inputKey} type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" onChange={(e) => setFile(e.target.files[0] || null)} required />
         </label>
       </div>
       {error && <div className="error-text">{error}</div>}
-      <button className="btn" type="submit" disabled={saving || !file || !type}>{saving ? t('Uploading…') : t('Upload Document')}</button>
+      <button className="btn" type="submit" disabled={saving || !file || !type}>{saving ? t('Uploading…') : t('Submit for Verification')}</button>
     </form>
   );
 }

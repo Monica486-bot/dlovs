@@ -40,23 +40,19 @@ export default function Register() {
   return (
     <div className="auth-page">
       <form className="auth-card wide" onSubmit={submit}>
-        <h2>{t('Create a citizen account')}</h2>
-        <p className="muted">
-          {t('You only need an account to flag disputes, upload your land documents, request transfers, or see the parcels registered to you. Checking a parcel never needs one.')}
-        </p>
+        <h2>{t('Create Account')}</h2>
+        <p className="page-subtitle">{t('Manage your land and flag disputes')}</p>
         <label>{t('Full name')}<input {...field('full_name')} autoComplete="name" required /></label>
         <label>
           {t('Phone Number')}
-          <input {...field('phone_number')} placeholder="+211912345678" autoComplete="tel" inputMode="tel" required dir="ltr" />
-          <span className="hint">{t('With the country code. We will send a code to this number by SMS.')}</span>
+          <input {...field('phone_number')} autoComplete="tel" inputMode="tel" required dir="ltr" />
         </label>
         <label>
           {t('National ID (optional)')}
           <input {...field('national_id')} />
-          <span className="hint">{t('Links your account to parcels registered under this ID. It is never shown to other users, and can only be set once.')}</span>
         </label>
         <div className="field-row">
-          <label>{t('Password (at least 6 characters)')}<input type="password" {...field('password')} minLength={6} autoComplete="new-password" required /></label>
+          <label>{t('Password')}<input type="password" {...field('password')} minLength={6} autoComplete="new-password" required /></label>
           <label>{t('Confirm password')}<input type="password" {...field('confirm')} autoComplete="new-password" required /></label>
         </div>
         {error && <div className="error-text">{error}</div>}

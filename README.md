@@ -206,8 +206,9 @@ confirms it, *My Parcels* shows nothing. (The two demo citizens are already conf
 
 Design decisions that came from the Juba context:
 - **Verification first, account second.** The home page is the public search; an account is only needed to act.
-- **Two layouts.** The public and citizens get a simple top bar; officers get a sidebar organised around their work queues.
-- **Warnings say what to do,** not just what's wrong ("do not pay for it before then").
+- **One header, two layouts.** Every page has the same white header (logo left; name, role and avatar right, as in the
+  Figma screens). Officers and administrators also get a navy sidebar organised around their work queues.
+- **Short, calm status messages** ("Disputed — not available for sale until resolved") instead of paragraphs of warnings.
 - **Arabic with right-to-left layout,** switchable on every page, each language named in its own script.
 - **Text only, no map tiles,** so pages stay light on 2G/3G.
 - **Dates as "2 Aug 2026"** in the user's own time zone, so a land record's date can't be misread.
@@ -216,15 +217,16 @@ Design decisions that came from the Juba context:
 
 | Token | Value | Used for |
 |---|---|---|
-| Navy | `#1F3864` | Headers, primary buttons, navigation (matches the proposal's diagrams) |
-| Light blue | `#2E75B6` | Links, hover, keyboard focus outline |
-| Pale blue | `#DEEAF1` | Info notices, selected options |
-| Background | `#F5F7FA` | Page background |
-| Success | `#14532D` on `#E3F4E7` | Active, verified, completed |
-| Warning | `#5C3D00` on `#FFF4D6` | Disputed, pending, low GPS accuracy |
-| Danger | `#7A1A14` on `#FDE7E5` | Rejected, deactivated, fraud |
+| Navy | `#1C3A5E` | Sidebar, primary buttons, logo, links (from the Figma screens) |
+| Light blue | `#2E75B6` | Keyboard focus outline |
+| Pale blue | `#E8EEF6` | Info notices, selected options |
+| Background | `#F4F6F9` | Page background; cards are white with a `#E3E7EC` border |
+| Success | `#256B29` on `#E7F4EA` | Active, verified, completed |
+| Warning | `#8A5A00` on `#FFF4DC` | Disputed, pending, low GPS accuracy |
+| Danger | `#C62828` on `#FDECEC` | Rejected, deactivated, fraud, Flag Dispute |
 
-- **Type:** system fonts (Segoe UI / Noto Sans Arabic) — nothing to download on slow connections.
+- **Type:** Inter (as in Figma), falling back to system fonts (Segoe UI / Noto Sans Arabic) if it can't be downloaded.
+- **Tables:** small uppercase grey column headings, thin row dividers, a "View →" link per row.
 - **Accessibility:** every field has a visible label, keyboard focus is clearly outlined, status is always written in
   words as well as colour, and text colours meet WCAG AA contrast.
 - **Components:** buttons, cards, notices (four tones), status badges, tabs, filter bars — in `web/src/index.css`.

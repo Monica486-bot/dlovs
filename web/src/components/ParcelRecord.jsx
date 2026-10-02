@@ -14,16 +14,13 @@ export function RecordWarnings({ parcel, disputes }) {
   return (
     <>
       {parcel.status === 'deactivated' && (
-        <div className="notice danger">
-          <strong>{t('Record deactivated.')}</strong>{' '}
-          {t('An administrator has deactivated this record as fraudulent. Do not proceed with any sale.')}
-        </div>
+        <div className="notice danger"><strong>{t('Deactivated — record found to be fraudulent')}</strong></div>
       )}
-      {open.length > 0 && (
-        <div className="notice warning">
-          <strong>{t('Disputed — {n} open dispute(s).', { n: open.length })}</strong>{' '}
-          {t('Someone has challenged this parcel. It cannot be transferred until a land officer resolves the dispute — do not pay for it before then.')}
-        </div>
+      {parcel.status !== 'deactivated' && open.length > 0 && (
+        <div className="notice warning"><strong>{t('Disputed — not available for sale until resolved')}</strong></div>
+      )}
+      {parcel.status === 'active' && open.length === 0 && (
+        <div className="notice success"><strong>{t('Verified — No active disputes')}</strong></div>
       )}
     </>
   );
@@ -62,7 +59,7 @@ export function HistoryTable({ history }) {
             {history.map((h) => (
               <tr key={h.history_id}>
                 <td>{formatDate(h.transfer_date)}</td>
-                <td>{h.previous_owner_name || t('— (first registration)')}</td>
+                <td>{h.previous_owner_name || '—'}</td>
                 <td>{h.new_owner_name}</td>
                 <td>{SERVER_NOTES.includes(h.notes) ? t(h.notes) : h.notes}</td>
               </tr>
@@ -82,18 +79,18 @@ export function DisputesTable({ disputes }) {
       {disputes.length === 0 ? (
         <p className="muted">{t('No disputes on record.')}</p>
       ) : (
-        <table>
+        <div className="table-scroll"><table>
           <thead><tr><th>{t('Reported')}</th><th>{t('Type')}</th><th>{t('Status')}</th></tr></thead>
           <tbody>
             {disputes.map((d) => (
               <tr key={d.dispute_id}>
                 <td>{formatDate(d.created_at)}</td>
-                <td>{t(d.dispute_type)}</td>
+                <td className="cap">{t(d.dispute_type)}</td>
                 <td><StatusBadge status={d.status} /></td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </div>
   );

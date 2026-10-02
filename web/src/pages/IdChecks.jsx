@@ -28,8 +28,8 @@ export default function IdChecks() {
     try {
       await api.put(`/id-checks/${c.user_id}`, { decision, reason: decision === 'rejected' ? reason.trim() : undefined });
       setNotice(decision === 'verified'
-        ? t('{name} can now see the parcels registered to {id}.', { name: c.full_name, id: c.national_id })
-        : t('The ID was removed from {name}\'s account and they have been told why.', { name: c.full_name }));
+        ? t('ID confirmed for {name}.', { name: c.full_name })
+        : t('ID rejected for {name}.', { name: c.full_name }));
       setRejecting(null);
       setReason('');
       load();
@@ -41,9 +41,7 @@ export default function IdChecks() {
   return (
     <div>
       <h2>{t('ID Checks')}</h2>
-      <p className="muted" style={{ marginTop: -8 }}>
-        {t('Citizens who entered a national ID online. Ask to see the ID card in person, check the number and the name, then confirm. Until you do, the account cannot see or act on any land.')}
-      </p>
+      <p className="page-subtitle">{t('Confirm each citizen’s ID card in person')}</p>
       {error && <div className="error-text">{error}</div>}
       {notice && <div className="notice success">{notice}</div>}
       {checks?.length === 0 && <div className="card"><p className="muted" style={{ margin: 0 }}>{t('No ID checks waiting.')}</p></div>}
@@ -54,8 +52,8 @@ export default function IdChecks() {
             <table>
               <thead>
                 <tr>
-                  <th>{t('Account name')}</th><th>{t('Phone')}</th><th>{t('National ID entered')}</th>
-                  <th>{t('Registered owner with this ID')}</th><th>{t('Signed up')}</th><th></th>
+                  <th>{t('Account name')}</th><th>{t('Phone')}</th><th>{t('National ID')}</th>
+                  <th>{t('Registered owner')}</th><th>{t('Signed up')}</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -70,25 +68,25 @@ export default function IdChecks() {
                           {c.registered_owner_names}
                           <div className="muted small">{t('{n} parcel(s)', { n: c.parcels_with_this_id })}</div>
                           {c.registered_owner_names && c.registered_owner_names.toLowerCase() !== c.full_name.toLowerCase() && (
-                            <div className="warning-text">{t('Name differs from the account — check carefully')}</div>
+                            <div className="warning-text">{t('Name differs')}</div>
                           )}
                         </>
                       ) : (
-                        <span className="muted">{t('No land registered to this ID yet')}</span>
+                        <span className="muted">—</span>
                       )}
                     </td>
                     <td>{formatDate(c.created_at)}</td>
                     <td className="cell-actions">
                       {rejecting !== c.user_id ? (
                         <>
-                          <button className="btn" onClick={() => decide(c, 'verified')}>{t('ID Card Checked')}</button>
+                          <button className="btn" onClick={() => decide(c, 'verified')}>{t('Confirm ID')}</button>
                           <button className="btn danger" onClick={() => { setRejecting(c.user_id); setReason(''); }}>{t('Reject')}</button>
                         </>
                       ) : (
                         <form className="reject-form" onSubmit={(e) => { e.preventDefault(); decide(c, 'rejected'); }}>
                           <label>
-                            {t('Why is it rejected?')}
-                            <input value={reason} onChange={(e) => setReason(e.target.value)} required placeholder={t('e.g. The name on the ID card does not match')} />
+                            {t('Reason')}
+                            <input value={reason} onChange={(e) => setReason(e.target.value)} required />
                           </label>
                           <div className="actions">
                             <button className="btn danger" type="submit">{t('Reject ID')}</button>

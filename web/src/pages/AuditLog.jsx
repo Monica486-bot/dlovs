@@ -24,11 +24,9 @@ export default function AuditLog() {
 
   return (
     <div>
-      <h2>{t('Audit Log')}</h2>
-      <p className="muted" style={{ marginTop: -8 }}>
-        {isAdmin
-          ? t('Every officer and administrator action is recorded here. The database refuses any change or deletion.')
-          : t('Your actions — registrations, edits, transfers, document reviews, dispute resolutions — are recorded here. The database refuses any change or deletion.')}
+      <h2>{isAdmin ? t('System Audit Logs') : t('My Audit Log')}</h2>
+      <p className="page-subtitle">
+        {isAdmin ? t('Every officer action across the platform, permanently logged') : t('Every action you take is permanently logged and reviewable by administrators')}
       </p>
       {error && <div className="error-text">{error}</div>}
 
@@ -56,7 +54,7 @@ export default function AuditLog() {
           <div className="table-scroll">
             <table>
               <thead>
-                <tr><th>{t('Time')}</th><th>{t('By')}</th><th>{t('Action')}</th><th>{t('Parcel')}</th><th>{t('Details')}</th></tr>
+                <tr><th>{t('Timestamp')}</th><th>{t('Officer')}</th><th>{t('Action')}</th><th>{t('Parcel ID')}</th><th>{t('Details')}</th></tr>
               </thead>
               <tbody>
                 {shown.map((l) => (

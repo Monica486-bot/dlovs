@@ -31,7 +31,7 @@ export default function TransferRequests() {
     setError('');
     try {
       await api.put(`/transfer-requests/${rejecting}/reject`, { response_notes: notes.trim() });
-      setNotice(t('Request rejected. The owner has been told why.'));
+      setNotice(t('Request rejected.'));
       setRejecting(null);
       load();
     } catch (err) {
@@ -43,10 +43,8 @@ export default function TransferRequests() {
 
   return (
     <div>
-      <h2>{t('Transfer Requests')}</h2>
-      <p className="muted" style={{ marginTop: -8 }}>
-        {t('Owners ask for their parcel to be transferred to a buyer. Meet both parties and check their IDs before processing.')}
-      </p>
+      <h2>{t('Transfers')}</h2>
+      <p className="page-subtitle">{t('Transfer requests from parcel owners')}</p>
       <div className="tabs" role="tablist">
         {['pending', 'completed', 'rejected'].map((s) => (
           <button key={s} role="tab" aria-selected={status === s} className={status === s ? 'active' : ''} onClick={() => { setStatus(s); setNotice(''); }}>{t(s)}</button>
@@ -65,29 +63,29 @@ export default function TransferRequests() {
             {isOfficer && r.status === 'pending' && rejecting !== r.request_id && (
               <div className="actions">
                 {r.parcel_status === 'active' ? (
-                  <Link className="btn" to={`/parcels/${r.parcel_id}/transfer?request=${r.request_id}`}>{t('Process Transfer')}</Link>
+                  <Link className="btn" to={`/parcels/${r.parcel_id}/transfer?request=${r.request_id}`}>{t('Approve Transfer')}</Link>
                 ) : (
                   <button className="btn" disabled title={t('The parcel is {status}', { status: t(r.parcel_status) })}>{t('Process Transfer')}</button>
                 )}
-                <button className="btn danger" onClick={() => { setRejecting(r.request_id); setNotes(''); }}>{t('Reject')}</button>
+                <button className="btn danger" onClick={() => { setRejecting(r.request_id); setNotes(''); }}>{t('Reject Transfer')}</button>
               </div>
             )}
           </div>
           <dl className="facts compact">
-            <dt>{t('From (owner)')}</dt><dd>{r.owner_name} — {t('requested by {name}', { name: r.requested_by_name })} (<span dir="ltr">{r.requested_by_phone}</span>)</dd>
-            <dt>{t('To (buyer)')}</dt><dd>{r.buyer_full_name} · {t('ID {id}', { id: r.buyer_national_id })}{r.buyer_contact && <> · <span dir="ltr">{r.buyer_contact}</span></>}</dd>
+            <dt>{t('Current Owner')}</dt><dd>{r.owner_name}</dd>
+            <dt>{t('New Owner')}</dt><dd>{r.buyer_full_name} · {r.buyer_national_id}{r.buyer_contact && <> · <span dir="ltr">{r.buyer_contact}</span></>}</dd>
             <dt>{t('Requested')}</dt><dd>{formatDate(r.created_at)}</dd>
-            {r.notes && (<><dt>{t('Notes')}</dt><dd>{r.notes}</dd></>)}
+            {r.notes && (<><dt>{t('Note')}</dt><dd>{r.notes}</dd></>)}
             {r.status !== 'pending' && (<><dt>{t('Handled')}</dt><dd>{r.handled_by_name}, {formatDate(r.handled_at)}{r.response_notes && ` — ${r.response_notes}`}</dd></>)}
           </dl>
           {r.status === 'pending' && r.parcel_status !== 'active' && (
-            <p className="warning-text">{t('The parcel is {status}, so it cannot be transferred yet.', { status: t(r.parcel_status) })}</p>
+            <p className="warning-text" style={{ marginBottom: 0 }}>{t('Parcel is {status}', { status: t(r.parcel_status) })}</p>
           )}
           {rejecting === r.request_id && (
             <form onSubmit={reject} className="resolve-form">
               <label>
-                {t('Why is it rejected?')}
-                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} required placeholder={t('e.g. The buyer must come to the land office with their national ID')} />
+                {t('Reason')}
+                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} required />
               </label>
               <div className="actions">
                 <button className="btn danger" type="submit">{t('Reject Request')}</button>

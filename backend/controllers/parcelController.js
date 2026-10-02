@@ -514,7 +514,7 @@ async function updateParcel(req, res) {
 async function getStats(req, res) {
   const isAdmin = req.user.role === 'administrator';
   try {
-    const [parcels, disputes, mine, recent, queues] = await Promise.all([
+    const [parcels, disputes, mine, recent, queues, recentParcels] = await Promise.all([
       pool.query(
         `SELECT COUNT(*)::int AS total,
                 COUNT(*) FILTER (WHERE status = 'active')::int AS active,
@@ -542,6 +542,12 @@ async function getStats(req, res) {
                 (SELECT COUNT(*) FROM "user" WHERE role = 'citizen' AND is_active AND national_id IS NOT NULL
                    AND national_id_verified_at IS NULL)::int AS pending_id_checks`
       ),
+      pool.query(
+        `SELECT p.parcel_id, p.neighbourhood, p.status, o.full_name AS owner_name,
+                GREATEST(p.registered_date, (SELECT MAX(h.transfer_date) FROM ownership_history h WHERE h.parcel_id = p.parcel_id)) AS updated_at
+         FROM parcel p JOIN owner o ON o.owner_id = p.current_owner_id
+         ORDER BY updated_at DESC, p.parcel_id DESC LIMIT 8`
+      ),
     ]);
     res.json({
       parcels: parcels.rows[0],
@@ -552,6 +558,7 @@ async function getStats(req, res) {
       pending_id_checks: queues.rows[0].pending_id_checks,
       my_actions_7_days: mine.rows[0].actions,
       recent_activity: recent.rows,
+      recent_parcels: recentParcels.rows,
     });
   } catch (err) {
     console.error(err);

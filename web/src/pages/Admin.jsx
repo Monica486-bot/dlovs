@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import api, { errorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
+import { formatDate } from '../utils/format';
+import StatusBadge from '../components/StatusBadge';
 
 const ROLES = ['citizen', 'land_officer', 'administrator'];
 const EMPTY_FORM = { full_name: '', phone_number: '', password: '', role: 'land_officer', national_id: '' };
@@ -42,7 +44,7 @@ export default function Admin() {
     }
   }
 
-  const roleName = (r) => t(r.replace('_', ' '));
+  const roleName = (r) => t({ citizen: 'Citizen', land_officer: 'Land Officer', administrator: 'Administrator' }[r]);
 
   function createUser(e) {
     e.preventDefault();
@@ -70,12 +72,12 @@ export default function Admin() {
       await api.put(`/admin/users/${target.user_id}/password`, { new_password: tempPassword });
       setResetting(null);
       setTempPassword('');
-    }, t('Password reset for {name}. Give them the temporary password in person and ask them to change it under My Account.', { name: target.full_name }));
+    }, t('Password reset for {name}.', { name: target.full_name }));
   }
 
   function deactivateParcel(e) {
     e.preventDefault();
-    if (!window.confirm(t('Deactivate parcel #{id} as fraudulent? Everyone who checks it will be told not to proceed with any sale.', { id: parcelId }))) return;
+    if (!window.confirm(t('Deactivate parcel #{id} as fraudulent?', { id: parcelId }))) return;
     run(async () => {
       await api.put(`/admin/parcels/${parcelId}/deactivate`);
       setParcelId('');
@@ -86,43 +88,23 @@ export default function Admin() {
 
   return (
     <div>
-      <h2>{t('Administrator Panel')}</h2>
+      <h2>{t('User Accounts')}</h2>
+      <p className="page-subtitle">{t('All citizens and land officers registered on DLOVS')}</p>
 
       {error && <div className="error-text">{error}</div>}
       {success && <div className="notice success">{success}</div>}
 
-      <div className="card">
-        <h3>{t('Create Staff Account')}</h3>
-        <form onSubmit={createUser} className="form-grid">
-          <label>{t('Full Name')}<input {...field('full_name')} required /></label>
-          <label>{t('Phone Number')}<input {...field('phone_number')} placeholder="+211900000000" required dir="ltr" /></label>
-          <label>{t('Temporary Password')}<input type="password" minLength={6} {...field('password')} required /></label>
-          <label>
-            {t('Role')}
-            <select {...field('role')}>
-              {ROLES.map((r) => <option key={r} value={r}>{roleName(r)}</option>)}
-            </select>
-          </label>
-          <label>{t('National ID (optional)')}<input {...field('national_id')} /></label>
-          <div style={{ alignSelf: 'end' }}>
-            <button className="btn" type="submit">{t('Create Account')}</button>
-          </div>
-        </form>
+      <div className="stat-grid">
+        <div className="stat"><span className="stat-value">{users.length}</span><span className="stat-label">{t('Total Users')}</span></div>
+        <div className="stat"><span className="stat-value">{users.filter((u) => u.role === 'land_officer').length}</span><span className="stat-label">{t('Land Officers')}</span></div>
+        <div className="stat"><span className="stat-value">{users.filter((u) => u.role === 'citizen').length}</span><span className="stat-label">{t('Citizens')}</span></div>
+        <div className="stat stat-danger"><span className="stat-value">{users.filter((u) => !u.is_active).length}</span><span className="stat-label">{t('Suspended')}</span></div>
       </div>
 
       <div className="card">
-        <h3>{t('Deactivate Fraudulent Parcel')}</h3>
-        <form onSubmit={deactivateParcel} className="inline-form">
-          <input value={parcelId} onChange={(e) => setParcelId(e.target.value.replace(/\D/g, ''))} placeholder={t('Parcel ID')} inputMode="numeric" required />
-          <button className="btn danger" type="submit">{t('Deactivate')}</button>
-        </form>
-      </div>
-
-      <div className="card">
-        <h3>{t('User Accounts')}</h3>
         {resetting && (
-          <form onSubmit={resetPassword} className="notice warning">
-            <p style={{ marginTop: 0 }}>{t('Set a temporary password for {name}:', { name: resetting.full_name })}</p>
+          <form onSubmit={resetPassword} className="notice info">
+            <span>{t('Set a temporary password for {name}:', { name: resetting.full_name })}</span>
             <div className="inline-form">
               <input type="text" value={tempPassword} onChange={(e) => setTempPassword(e.target.value)} minLength={6} required aria-label={t('Temporary Password')} />
               <button className="btn" type="submit">{t('Reset Password')}</button>
@@ -133,23 +115,23 @@ export default function Admin() {
         <div className="table-scroll">
           <table>
             <thead>
-              <tr><th>{t('ID')}</th><th>{t('Name')}</th><th>{t('Phone')}</th><th>{t('National ID')}</th><th>{t('Role')}</th><th>{t('Status')}</th><th></th></tr>
+              <tr><th>{t('Name')}</th><th>{t('Role')}</th><th>{t('Phone')}</th><th>{t('National ID')}</th><th>{t('Status')}</th><th>{t('Joined')}</th><th></th></tr>
             </thead>
             <tbody>
               {users.map((u) => {
                 const isMe = u.user_id === me?.user_id;
                 return (
                   <tr key={u.user_id}>
-                    <td>#{u.user_id}</td>
                     <td>{u.full_name}</td>
-                    <td dir="ltr">{u.phone_number}</td>
-                    <td>{u.national_id || '—'}</td>
                     <td>
-                      <select value={u.role} disabled={isMe} onChange={(e) => changeRole(u, e.target.value)} aria-label={t('Role')}>
+                      <select value={u.role} disabled={isMe} onChange={(e) => changeRole(u, e.target.value)} aria-label={t('Role')} style={{ marginTop: 0, minWidth: 140 }}>
                         {ROLES.map((r) => <option key={r} value={r}>{roleName(r)}</option>)}
                       </select>
                     </td>
-                    <td>{u.is_active ? t('active') : t('deactivated')}</td>
+                    <td dir="ltr">{u.phone_number}</td>
+                    <td>{u.national_id || '—'}</td>
+                    <td><StatusBadge status={u.is_active ? 'active' : 'deactivated'} label={u.is_active ? t('Active') : t('Suspended')} /></td>
+                    <td className="nowrap">{formatDate(u.created_at)}</td>
                     <td className="cell-actions">
                       {!isMe && u.role !== 'citizen' && (
                         <button className="btn secondary" onClick={() => { setResetting(u); setTempPassword(''); }}>{t('Reset Password')}</button>
@@ -167,6 +149,35 @@ export default function Admin() {
           </table>
         </div>
       </div>
+      <div className="card">
+        <h3>{t('Create Staff Account')}</h3>
+        <form onSubmit={createUser} className="form-grid">
+          <label>{t('Full Name')}<input {...field('full_name')} required /></label>
+          <label>{t('Phone Number')}<input {...field('phone_number')} required dir="ltr" /></label>
+          <label>{t('Temporary Password')}<input type="password" minLength={6} {...field('password')} required /></label>
+          <label>
+            {t('Role')}
+            <select {...field('role')}>
+              {ROLES.map((r) => <option key={r} value={r}>{roleName(r)}</option>)}
+            </select>
+          </label>
+          <label>{t('National ID (optional)')}<input {...field('national_id')} /></label>
+          <div style={{ alignSelf: 'end' }}>
+            <button className="btn" type="submit">{t('Create Account')}</button>
+          </div>
+        </form>
+      </div>
+
+      <div className="card">
+        <h3>{t('Deactivate Fraudulent Parcel')}</h3>
+        <form onSubmit={deactivateParcel} className="form-grid">
+          <label>{t('Parcel ID')}<input value={parcelId} onChange={(e) => setParcelId(e.target.value.replace(/\D/g, ''))} inputMode="numeric" required /></label>
+          <div style={{ alignSelf: 'end', marginBottom: 14 }}>
+            <button className="btn danger" type="submit">{t('Deactivate')}</button>
+          </div>
+        </form>
+      </div>
+
     </div>
   );
 }

@@ -26,8 +26,8 @@ export default function LocationButton({ onLocate }) {
         setState({
           status: 'error',
           message: err.code === err.PERMISSION_DENIED
-            ? t('Location permission was denied. Allow it in the browser, or type the coordinates.')
-            : t('Could not get a location fix. Type the coordinates instead.'),
+            ? t('Location permission denied.')
+            : t('Could not get your location.'),
         });
       },
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
@@ -37,14 +37,14 @@ export default function LocationButton({ onLocate }) {
   return (
     <div className="location-row">
       <button type="button" className="btn secondary" onClick={locate} disabled={state.status === 'locating'}>
-        {state.status === 'locating' ? t('Getting location…') : `📍 ${t('Use my current location')}`}
+        {state.status === 'locating' ? t('Getting location…') : t('Use my current location')}
       </button>
       {state.status === 'done' && (
         state.accuracy <= THRESHOLD_METRES ? (
-          <span className="success-text">{t('Accurate to {m} m ✓', { m: Math.round(state.accuracy) })}</span>
+          <span className="success-text">{t('GPS captured · {m} m', { m: Math.round(state.accuracy) })}</span>
         ) : (
           <span className="warning-text">
-            {t('Location accuracy is low ({m} m) — verify parcel boundaries manually, or capture the point with a phone standing on the plot.', { m: Math.round(state.accuracy) })}
+            {t('Low accuracy ({m} m)', { m: Math.round(state.accuracy) })}
           </span>
         )
       )}

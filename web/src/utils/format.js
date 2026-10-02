@@ -31,3 +31,17 @@ export function localDate(value) {
   const d = value instanceof Date ? value : new Date(value);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+// "2 min ago", "3 hr ago", "5 days ago"; older than a month falls back to the date.
+export function formatRelative(value) {
+  if (!value) return '—';
+  const seconds = (new Date(value).getTime() - Date.now()) / 1000;
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style: 'short' });
+  const steps = [[60, 'second'], [3600, 'minute'], [86400, 'hour'], [86400 * 30, 'day']];
+  let unit = 1;
+  for (const [limit, name] of steps) {
+    if (Math.abs(seconds) < limit) return rtf.format(Math.round(seconds / unit), name);
+    unit = limit;
+  }
+  return formatDate(value);
+}

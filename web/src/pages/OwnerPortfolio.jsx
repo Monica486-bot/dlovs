@@ -37,7 +37,7 @@ export default function OwnerPortfolio() {
 
   return (
     <div>
-      <p className="breadcrumb no-print"><Link to="/parcels/search">{t('← Search')}</Link></p>
+      <p className="breadcrumb no-print"><Link to="/parcels/search">{t('← Parcel Records')}</Link></p>
       <div className="page-header">
         <h2>{owner.full_name}</h2>
         <div className="actions no-print">
@@ -52,11 +52,6 @@ export default function OwnerPortfolio() {
           <dt>{t('Parcels owned now')}</dt><dd>{parcels.length}</dd>
           <dt>{t('Parcels transferred away')}</dt><dd>{previous.length}</dd>
         </dl>
-        {parcels.length >= 3 && (
-          <p className="warning-text" style={{ marginBottom: 0 }}>
-            {t('This owner holds {n} parcels. Check that each was registered with proper documents — brokers sometimes register several plots under one name.', { n: parcels.length })}
-          </p>
-        )}
       </div>
 
       <div className="card print-area">
@@ -70,7 +65,7 @@ export default function OwnerPortfolio() {
               </div>
             )) : (
               <table>
-                <thead><tr><th>{t('Parcel')}</th><th>{t('Neighbourhood')}</th><th>{t('GPS')}</th><th>{t('Area')}</th><th>{t('Registered')}</th><th>{t('Verified documents')}</th><th>{t('Status')}</th></tr></thead>
+                <thead><tr><th>{t('Parcel ID')}</th><th>{t('Location')}</th><th>{t('GPS')}</th><th>{t('Area')}</th><th>{t('Registered')}</th><th>{t('Verified documents')}</th><th>{t('Status')}</th></tr></thead>
                 <tbody>
                   {parcels.map((p) => (
                     <tr key={p.parcel_id}>

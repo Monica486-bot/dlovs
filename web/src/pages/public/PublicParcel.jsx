@@ -31,9 +31,8 @@ export default function PublicParcel() {
       <div>
         <p className="breadcrumb"><Link to="/verify">{t('← Verify a Parcel')}</Link></p>
         <div className="notice warning">
-          <strong>{t('This parcel is not registered in DLOVS — proceed with caution.')}</strong>{' '}
-          {t('There is no DLOVS record for parcel #{id}.', { id })}{' '}
-          {user && !isStaff ? <Link to="/my/report">{t('Report this plot to a land officer')}</Link> : !user && <Link to="/login?next=/my/report">{t('Log in to report this plot to a land officer')}</Link>}
+          <strong>{t('Not registered')}</strong> {t('There is no DLOVS record for parcel #{id}.', { id })}{' '}
+          {user && !isStaff ? <Link to="/my/report">{t('Report this plot')}</Link> : !user && <Link to="/login?next=/my/report">{t('Report this plot')}</Link>}
         </div>
       </div>
     );
@@ -55,7 +54,7 @@ export default function PublicParcel() {
         <div className="card">
           <h3>{t('Documents on file')}</h3>
           {documents.length === 0 ? (
-            <p className="muted">{t('The owner has not uploaded any documents.')}</p>
+            <p className="muted">{t('No documents on file.')}</p>
           ) : (
             <ul className="plain-list">
               {documents.map((d) => (
@@ -65,7 +64,6 @@ export default function PublicParcel() {
               ))}
             </ul>
           )}
-          <p className="muted small">{t('Only the owner and land officers can open the files themselves.')}</p>
         </div>
       </div>
 
@@ -74,13 +72,12 @@ export default function PublicParcel() {
 
       {parcel.status !== 'deactivated' && (
         <div className="card">
-          <h3>{t('Something wrong with this parcel?')}</h3>
+          <h3>{t('Report a problem')}</h3>
           {user && !isStaff && <FlagDispute parcelId={parcel.parcel_id} onFlagged={(msg) => { setNotice(msg); load(); }} />}
           {!user && (
-            <p style={{ margin: 0 }}>
-              <Link to={`/login?next=/verify/${parcel.parcel_id}`}>{t('Log in')}</Link> {t('or')}{' '}
-              <Link to="/register">{t('create an account')}</Link> {t('to flag a dispute. Disputes need a name and phone number so an officer can follow up.')}
-            </p>
+            <div className="actions">
+              <Link className="btn danger" to={`/login?next=/verify/${parcel.parcel_id}`}>{t('Log in to flag a dispute')}</Link>
+            </div>
           )}
           {isStaff && <Link className="btn secondary" to={`/parcels/${parcel.parcel_id}`}>{t('Open in Staff Portal')}</Link>}
         </div>

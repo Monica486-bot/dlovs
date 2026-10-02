@@ -82,9 +82,7 @@ export default function TransferParcel() {
         {back}
         <h2>{t('Transfer Ownership')}</h2>
         <div className="notice warning">
-          {parcel.status === 'disputed'
-            ? t('This parcel has an open dispute. Resolve it before transferring ownership.')
-            : t('This parcel record has been deactivated and cannot be transferred.')}
+          <span>{parcel.status === 'disputed' ? t('Resolve the open dispute first.') : t('Deactivated records cannot be transferred.')}</span>
         </div>
       </div>
     );
@@ -95,13 +93,11 @@ export default function TransferParcel() {
       {back}
       <h2>{t('Transfer Ownership — Parcel #{id}', { id })}</h2>
       {request && (
-        <div className="notice info">
-          {t('Completing the request from {name} made on {date}. Check both people\'s IDs in person before confirming.', { name: request.requested_by_name, date: formatDate(request.created_at) })}
-        </div>
+        <p className="page-subtitle">{t('Request from {name} · {date}', { name: request.requested_by_name, date: formatDate(request.created_at) })}</p>
       )}
 
       <div className="card">
-        <h3>{t('Current owner')}</h3>
+        <h3>{t('Current Owner')}</h3>
         <p className="owner-name">{parcel.owner_name}</p>
         <p className="muted" style={{ margin: 0 }}>
           {t('National ID')} {parcel.national_id || t('not recorded')} · {parcel.neighbourhood}
@@ -109,33 +105,30 @@ export default function TransferParcel() {
       </div>
 
       <div className="card">
-        <h3>{t('New owner')}</h3>
+        <h3>{t('New Owner')}</h3>
         <form onSubmit={(e) => { e.preventDefault(); setError(''); setConfirming(true); }}>
           <div className="form-grid">
             <label>{t('Full name')}<input {...field('full_name')} required disabled={confirming} /></label>
-            <label>{t('National ID')}<input {...field('national_id')} placeholder="SS-1234567" required disabled={confirming} /></label>
-            <label>{t('Contact number')}<input {...field('contact_number')} placeholder="+211…" disabled={confirming} dir="ltr" /></label>
-            <label>{t('Supporting document')}<input {...field('document_type')} placeholder={t('Sale Agreement')} disabled={confirming} /></label>
+            <label>{t('National ID')}<input {...field('national_id')} required disabled={confirming} /></label>
+            <label>{t('Contact number')}<input {...field('contact_number')} disabled={confirming} dir="ltr" /></label>
+            <label>{t('Supporting document')}<input {...field('document_type')} disabled={confirming} /></label>
           </div>
           <label>
-            {t('Notes for the history log')}
-            <textarea {...field('notes')} rows={2} placeholder={t('e.g. Sale agreement signed before two witnesses on 28 Sep 2026')} disabled={confirming} />
+            {t('Note')}
+            <textarea {...field('notes')} rows={2} disabled={confirming} />
           </label>
-          <p className="muted">{t("If this national ID already owns land in DLOVS, the parcel is added to that owner's existing record.")}</p>
 
           {error && <div className="error-text">{error}</div>}
 
           {!confirming ? (
             <button className="btn" type="submit">{t('Review Transfer')}</button>
           ) : (
-            <div className="notice warning">
-              <p style={{ marginTop: 0 }}>
-                {t('Transfer parcel #{id} from {from} to {to} (ID {nid})? This is recorded permanently in the ownership history and the audit log, and cannot be undone.', {
-                  id, from: parcel.owner_name, to: form.full_name, nid: form.national_id,
-                })}
-              </p>
+            <div className="notice info">
+              <span>
+                {t('Transfer parcel #{id} from {from} to {to}?', { id, from: parcel.owner_name, to: form.full_name })}
+              </span>
               <div className="actions">
-                <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('Transferring…') : t('Confirm Transfer')}</button>
+                <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('Transferring…') : t('Approve Transfer')}</button>
                 <button type="button" className="btn secondary" onClick={() => setConfirming(false)} disabled={saving}>{t('Change Details')}</button>
               </div>
             </div>

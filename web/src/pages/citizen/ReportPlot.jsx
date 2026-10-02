@@ -32,24 +32,22 @@ export default function ReportPlot() {
 
   return (
     <div>
-      <h2>{t('Report a plot that is not registered')}</h2>
-      <p className="muted">
-        {t('Someone is selling a plot that has no DLOVS record, or you own land that is not registered yet? Tell a land officer where it is. They will follow up and let you know what happened.')}
-      </p>
+      <h2>{t('Report a Plot')}</h2>
+      <p className="page-subtitle">{t('Tell a land officer about a plot that is not registered.')}</p>
       {sent && (
         <div className="notice success">
-          {t('Report sent. You can follow it under')} <Link to="/my/requests">{t('My Requests')}</Link>.
+          <span>{t('Report sent.')} <Link to="/my/requests">{t('View in My Requests')}</Link></span>
         </div>
       )}
       <form className="card" onSubmit={submit}>
-        <label>{t('Neighbourhood')}<input {...field('neighbourhood')} placeholder={t('e.g. Gudele Block 3')} required /></label>
+        <label>{t('Neighbourhood')}<input {...field('neighbourhood')} required /></label>
         <label>
-          {t('Where exactly is it?')}
-          <textarea {...field('location_details')} rows={3} required placeholder={t('Landmarks, the nearest road, what is on the plot')} />
+          {t('Location details')}
+          <textarea {...field('location_details')} rows={3} required />
         </label>
         <label>
-          {t('Who says they own it? (optional)')}
-          <input {...field('claimed_owner')} placeholder={t('Name of the seller or occupant, if known')} />
+          {t('Claimed owner (optional)')}
+          <input {...field('claimed_owner')} />
         </label>
         <div className="field-row">
           <label>{t('GPS Latitude (optional)')}<input {...field('gps_lat')} inputMode="decimal" dir="ltr" /></label>

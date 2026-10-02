@@ -34,7 +34,7 @@ export default function Disputes() {
     setError('');
     try {
       await api.put(`/disputes/${resolving.dispute_id}/resolve`, { resolution_notes: notes.trim() });
-      setSuccess(t('Dispute on parcel #{id} resolved and recorded in the audit log. The people involved have been notified.', { id: resolving.parcel_id }));
+      setSuccess(t('Dispute on parcel #{id} resolved.', { id: resolving.parcel_id }));
       setResolving(null);
       setNotes('');
       load();
@@ -48,9 +48,7 @@ export default function Disputes() {
   return (
     <div>
       <h2>{t('Disputes')}</h2>
-      <p className="muted" style={{ marginTop: -8 }}>
-        {t('Disputes flagged by citizens on the web or in the mobile app. A disputed parcel shows a warning to everyone who checks it and cannot be transferred until every dispute on it is resolved.')}
-      </p>
+      <p className="page-subtitle">{t('Ownership and boundary disputes flagged by citizens')}</p>
       {error && <div className="error-text">{error}</div>}
       {success && <div className="notice success">{success}</div>}
 
@@ -61,30 +59,30 @@ export default function Disputes() {
           <div className="page-header">
             <h3 style={{ margin: 0 }}>
               <Link to={`/parcels/${d.parcel_id}`}>{t('Parcel #{id}', { id: d.parcel_id })}</Link> · {d.neighbourhood}{' '}
-              <StatusBadge status={d.status} label={`${t(d.dispute_type)} · ${t(d.status.replace('_', ' '))}`} />
+              <StatusBadge status={d.status} label={t('Under Review')} />
             </h3>
             {canResolve && resolving?.dispute_id !== d.dispute_id && (
-              <button className="btn" onClick={() => { setResolving(d); setNotes(''); setSuccess(''); }}>{t('Resolve')}</button>
+              <button className="btn" onClick={() => { setResolving(d); setNotes(''); setSuccess(''); }}>{t('Resolve Dispute')}</button>
             )}
           </div>
           <p className="dispute-description">{d.description || <span className="muted">{t('No description given.')}</span>}</p>
-          <p className="muted" style={{ margin: 0 }}>
-            {t('Registered owner: {owner} · Reported {date} by {name}', { owner: d.owner_name, date: formatDate(d.created_at), name: d.reporter_name || t('unknown') })}
-            {d.reporter_phone && <> (<span dir="ltr">{d.reporter_phone}</span>)</>}
-            {' · '}{d.reported_via === 'web' ? t('via the website') : t('via the mobile app')}
-          </p>
+          <dl className="facts compact">
+            <dt>{t('Type')}</dt><dd className="cap">{t(d.dispute_type)}</dd>
+            <dt>{t('Claimant')}</dt><dd>{d.reporter_name || '—'}{d.reporter_phone && <> · <span dir="ltr">{d.reporter_phone}</span></>}</dd>
+            <dt>{t('Respondent (current record)')}</dt><dd>{d.owner_name}</dd>
+            <dt>{t('Filed')}</dt><dd>{formatDate(d.created_at)}</dd>
+          </dl>
 
           {resolving?.dispute_id === d.dispute_id && (
             <form onSubmit={resolve} className="resolve-form">
               <label>
-                {t('How was it resolved?')}
+                {t('Resolution notes')}
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
                   required
                   minLength={10}
-                  placeholder={t('e.g. Both parties met at the land office; boundary re-measured and fence restored.')}
                 />
               </label>
               <div className="actions">

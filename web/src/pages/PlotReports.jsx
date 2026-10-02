@@ -34,7 +34,7 @@ export default function PlotReports() {
         response_notes: form.response_notes.trim(),
         parcel_id: form.status === 'registered' && form.parcel_id ? Number(form.parcel_id) : undefined,
       });
-      setNotice(t('Report closed. The citizen who reported it has been notified.'));
+      setNotice(t('Report closed.'));
       setClosing(null);
       load();
     } catch (err) {
@@ -47,9 +47,7 @@ export default function PlotReports() {
   return (
     <div>
       <h2>{t('Unregistered Plots')}</h2>
-      <p className="muted" style={{ marginTop: -8 }}>
-        {t('Citizens report plots that have no DLOVS record — often a sign of an informal sale. Visit the plot, register it if the claim holds, then close the report.')}
-      </p>
+      <p className="page-subtitle">{t('Plots reported by citizens that have no DLOVS record')}</p>
       <div className="tabs" role="tablist">
         {['open', 'registered', 'dismissed'].map((s) => (
           <button key={s} role="tab" aria-selected={status === s} className={status === s ? 'active' : ''} onClick={() => { setStatus(s); setNotice(''); }}>{t(s)}</button>
@@ -86,8 +84,8 @@ export default function PlotReports() {
           {closing?.report_id === r.report_id && (
             <form onSubmit={close} className="resolve-form">
               <fieldset className="radio-row">
-                <label><input type="radio" checked={form.status === 'registered'} onChange={() => setForm({ ...form, status: 'registered' })} /> {t('Registered — the plot is now in DLOVS')}</label>
-                <label><input type="radio" checked={form.status === 'dismissed'} onChange={() => setForm({ ...form, status: 'dismissed' })} /> {t('Dismissed — nothing to register')}</label>
+                <label><input type="radio" checked={form.status === 'registered'} onChange={() => setForm({ ...form, status: 'registered' })} /> {t('Registered')}</label>
+                <label><input type="radio" checked={form.status === 'dismissed'} onChange={() => setForm({ ...form, status: 'dismissed' })} /> {t('Dismissed')}</label>
               </fieldset>
               {form.status === 'registered' && (
                 <label>{t('New parcel ID (optional)')}<input value={form.parcel_id} onChange={(e) => setForm({ ...form, parcel_id: e.target.value.replace(/\D/g, '') })} inputMode="numeric" /></label>

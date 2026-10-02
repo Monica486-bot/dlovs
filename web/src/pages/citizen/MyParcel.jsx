@@ -65,20 +65,20 @@ export default function MyParcel() {
         <DocumentTable documents={documents} onChanged={done} />
         {parcel.status !== 'deactivated' && (
           <>
-            <h4>{t('Upload a document')}</h4>
+            <h4 style={{ marginBottom: 8 }}>{t('Upload Document')}</h4>
             <UploadDocument parcelId={parcel.parcel_id} onUploaded={done} />
           </>
         )}
       </div>
 
       <div className="card">
-        <h3>{t('Sell or transfer this parcel')}</h3>
+        <h3>{t('Transfer Ownership')}</h3>
         {pending ? (
-          <p>{t('You asked to transfer this parcel to {buyer} on {date}. A land officer will contact you both to complete it at the land office.', { buyer: pending.buyer_full_name, date: formatDate(pending.created_at) })}</p>
+          <p style={{ margin: 0 }}>{t('Transfer to {buyer} requested on {date}', { buyer: pending.buyer_full_name, date: formatDate(pending.created_at) })} <StatusBadge status="pending" /></p>
         ) : parcel.status === 'active' ? (
           <TransferRequestForm parcelId={parcel.parcel_id} onSent={done} />
         ) : (
-          <p className="muted">{t('This parcel cannot be transferred while it is {status}.', { status: t(parcel.status) })}</p>
+          <p className="muted" style={{ margin: 0 }}>{t('Not available while {status}.', { status: t(parcel.status) })}</p>
         )}
         {requests.filter((r) => r.status !== 'pending').map((r) => (
           <p key={r.request_id} className="muted small">
@@ -111,7 +111,7 @@ function TransferRequestForm({ parcelId, onSent }) {
     try {
       await api.post(`/parcels/${parcelId}/transfer-requests`, form);
       setOpen(false);
-      onSent(t('Transfer request sent. A land officer will review it and contact you.'));
+      onSent(t('Transfer request sent.'));
     } catch (err) {
       setError(errorMessage(err, t('Failed to submit transfer request')));
     } finally {
@@ -121,20 +121,17 @@ function TransferRequestForm({ parcelId, onSent }) {
 
   if (!open) {
     return (
-      <>
-        <p className="muted">{t("Selling? Ask a land officer to transfer the parcel to the buyer. Nothing changes until the officer has checked both of you and confirmed it.")}</p>
-        <button className="btn secondary" onClick={() => setOpen(true)}>{t('Request a Transfer')}</button>
-      </>
+      <button className="btn secondary" onClick={() => setOpen(true)}>{t('Request a Transfer')}</button>
     );
   }
   return (
     <form onSubmit={submit}>
       <div className="form-grid">
-        <label>{t("Buyer's full name")}<input {...field('buyer_full_name')} required /></label>
-        <label>{t("Buyer's national ID")}<input {...field('buyer_national_id')} required /></label>
-        <label>{t("Buyer's phone (optional)")}<input {...field('buyer_contact')} dir="ltr" /></label>
+        <label>{t('New owner full name')}<input {...field('buyer_full_name')} required /></label>
+        <label>{t('New owner national ID')}<input {...field('buyer_national_id')} required /></label>
+        <label>{t('New owner phone number')}<input {...field('buyer_contact')} dir="ltr" /></label>
       </div>
-      <label>{t('Notes for the officer (optional)')}<textarea {...field('notes')} rows={2} /></label>
+      <label>{t('Note for land officer (optional)')}<textarea {...field('notes')} rows={2} /></label>
       {error && <div className="error-text">{error}</div>}
       <div className="actions">
         <button className="btn" type="submit" disabled={saving}>{t('Send Request')}</button>
