@@ -1,0 +1,46 @@
+# Render Blueprint for the DLOVS API and its PostgreSQL database (Figure 1).
+# Render dashboard → New → Blueprint → pick this repository.
+# After the first deploy, load the schema once from your computer:
+#   psql "<External Database URL from Render>" -f backend/db/schema.sql
+# Note: Render's free PostgreSQL expires after 90 days (proposal Table 6) —
+# upgrade or migrate before then.
+services:
+  - type: web
+    name: dlovs-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: dlovs-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: QR_SIGNING_SECRET
+        generateValue: true
+      # 64 hex characters — generate locally (see backend/.env.example) and keep a copy:
+      # losing it makes every stored document unreadable
+      - key: DOCUMENT_ENCRYPTION_KEY
+        sync: false
+      - key: CLOUDINARY_URL
+        sync: false
+      # the Netlify address, e.g. https://dlovs.netlify.app
+      - key: CORS_ORIGINS
+        sync: false
+      - key: PUBLIC_WEB_URL
+        sync: false
+      - key: AT_USERNAME
+        value: sandbox
+      - key: AT_API_KEY
+        sync: false
+
+databases:
+  - name: dlovs-db
+    plan: free
+    databaseName: dlovs_db

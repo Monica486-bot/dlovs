@@ -1,0 +1,13 @@
+# Netlify build for the DLOVS web app (web/).
+# Set VITE_API_URL in Netlify → Site configuration → Environment variables to
+# the Render API, e.g. https://dlovs-api.onrender.com/api
+[build]
+  base = "web"
+  command = "npm run build"
+  publish = "dist"
+
+# single-page app: every path is served by index.html (also in web/public/_redirects)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
