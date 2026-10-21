@@ -2,7 +2,7 @@
 // notifications, owner portfolios, and national ID checks.
 const express = require('express');
 const router = express.Router();
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth');
 const c = require('../controllers/requestController');
 
 router.param('id', (req, res, next, id) => {
@@ -24,7 +24,13 @@ router.get('/notifications', requireAuth, c.listNotifications);
 router.put('/notifications/read-all', requireAuth, c.markNotificationsRead);
 router.put('/notifications/:id/read', requireAuth, c.markNotificationsRead);
 
-router.get('/owners/:id', requireAuth, staff, c.getOwnerPortfolio);
+// FR09: anyone can see every parcel registered to an owner; identity details
+// (national ID, phone) are only included for staff
+router.get('/owners/:id', optionalAuth, c.getOwnerPortfolio);
+
+// FR15: the mobile app registers its Expo push token after login
+router.post('/push-tokens', requireAuth, c.registerPushToken);
+router.delete('/push-tokens', requireAuth, c.removePushToken);
 
 // officer checks a citizen's ID card in person
 router.get('/id-checks', requireAuth, staff, c.listIdChecks);

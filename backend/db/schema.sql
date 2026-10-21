@@ -2,6 +2,8 @@
 -- Digital Land Ownership Verification System
 -- Matches the ERD in the capstone proposal (Figure 3)
 
+DROP TABLE IF EXISTS pending_transfer CASCADE;
+DROP TABLE IF EXISTS push_token CASCADE;
 DROP TABLE IF EXISTS transfer_request CASCADE;
 DROP TABLE IF EXISTS unregistered_report CASCADE;
 DROP TABLE IF EXISTS notification CASCADE;
@@ -48,9 +50,13 @@ CREATE TABLE parcel (
     gps_lat          DECIMAL(10, 7) NOT NULL,
     gps_lng          DECIMAL(10, 7) NOT NULL,
     neighbourhood    VARCHAR(100) NOT NULL,
+    -- the prototype covers Juba; searching a city finds all its neighbourhoods
+    city             VARCHAR(100) NOT NULL DEFAULT 'Juba',
     area_sqm         DECIMAL(10, 2),
     unique_qr_code   TEXT UNIQUE NOT NULL,
     qr_signature     TEXT NOT NULL,
+    -- FR11: bumped on every transfer, which issues a new QR code
+    qr_version       INTEGER NOT NULL DEFAULT 1,
     registered_date  DATE NOT NULL DEFAULT CURRENT_DATE,
     registered_by    INTEGER REFERENCES "user"(user_id),
     current_owner_id INTEGER REFERENCES owner(owner_id),
@@ -64,7 +70,10 @@ CREATE TABLE ownership_history (
     new_owner_id      INTEGER NOT NULL REFERENCES owner(owner_id),
     transfer_date     TIMESTAMP NOT NULL DEFAULT now(),
     processed_by      INTEGER REFERENCES "user"(user_id),
-    notes             TEXT
+    notes             TEXT,
+    -- FR11: why the land changed hands (none for the initial registration)
+    transfer_reason   VARCHAR(50),
+    transfer_reason_details TEXT
 );
 
 CREATE TABLE document (
@@ -165,6 +174,8 @@ CREATE TABLE IF NOT EXISTS transfer_request (
     buyer_national_id VARCHAR(50) NOT NULL,
     buyer_contact     VARCHAR(30),
     notes             TEXT,
+    transfer_reason   VARCHAR(50),
+    transfer_reason_details TEXT,
     status            VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'rejected')),
     created_at        TIMESTAMP NOT NULL DEFAULT now(),
     handled_by        INTEGER REFERENCES "user"(user_id),
@@ -172,6 +183,44 @@ CREATE TABLE IF NOT EXISTS transfer_request (
     response_notes    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_transfer_request_status ON transfer_request(status);
+
+-- FR11: direct transfers waiting for the owner's SMS code or a second
+-- officer's approval of the written consent
+CREATE TABLE IF NOT EXISTS pending_transfer (
+    transfer_id        SERIAL PRIMARY KEY,
+    parcel_id          INTEGER NOT NULL REFERENCES parcel(parcel_id),
+    expected_owner_id  INTEGER NOT NULL REFERENCES owner(owner_id),
+    new_owner_name     VARCHAR(150) NOT NULL,
+    new_owner_national_id VARCHAR(50),
+    new_owner_contact  VARCHAR(30),
+    new_owner_document VARCHAR(50),
+    notes              TEXT,
+    consent_method     VARCHAR(20) NOT NULL CHECK (consent_method IN ('owner_code', 'second_officer')),
+    consent_document   TEXT,
+    code_hash          TEXT,
+    code_attempts      INTEGER NOT NULL DEFAULT 0,
+    code_expires_at    TIMESTAMP,
+    status             VARCHAR(20) NOT NULL CHECK (status IN ('awaiting_owner', 'awaiting_approval', 'completed', 'rejected', 'cancelled')),
+    started_by         INTEGER NOT NULL REFERENCES "user"(user_id),
+    created_at         TIMESTAMP NOT NULL DEFAULT now(),
+    decided_by         INTEGER REFERENCES "user"(user_id),
+    decided_at         TIMESTAMP,
+    decision_notes     TEXT,
+    transfer_reason    VARCHAR(50),
+    transfer_reason_details TEXT
+);
+-- one transfer in progress per parcel
+CREATE UNIQUE INDEX IF NOT EXISTS pending_transfer_one_open
+  ON pending_transfer(parcel_id) WHERE status IN ('awaiting_owner', 'awaiting_approval');
+CREATE INDEX IF NOT EXISTS idx_pending_transfer_status ON pending_transfer(status);
+
+-- FR15: Expo push tokens for the mobile app, one row per device
+CREATE TABLE IF NOT EXISTS push_token (
+    token       TEXT PRIMARY KEY,
+    user_id     INTEGER NOT NULL REFERENCES "user"(user_id),
+    created_at  TIMESTAMP NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_push_token_user ON push_token(user_id);
 
 -- FR08 / NFR07: ownership history and audit log can only be appended to.
 CREATE OR REPLACE FUNCTION dlovs_append_only() RETURNS trigger AS $$

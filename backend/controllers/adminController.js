@@ -1,8 +1,3 @@
-// Administrator use cases from the Class Diagram (Figure 4):
-// manageAccounts(), deactivateRecord()
-// FR01: Land Officers are created by administrators only.
-// FR21: create/deactivate accounts, assign roles — every action audit-logged.
-
 const bcrypt = require('bcrypt');
 const pool = require('../db/pool');
 
@@ -10,6 +5,7 @@ const ROLES = ['citizen', 'land_officer', 'administrator'];
 const NATIONAL_ID_UNIQUE = 'user_national_id_citizen_unique';
 const NATIONAL_ID_TAKEN = 'This national ID is already linked to another account. If it is yours, visit the land office.';
 
+// FR21: every administrator action is audit-logged
 async function logAdminAction(userId, actionType, details, parcelId = null) {
   await pool.query(
     `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, $2, $3, $4)`,
@@ -17,6 +13,7 @@ async function logAdminAction(userId, actionType, details, parcelId = null) {
   );
 }
 
+// FR21: all accounts
 async function listUsers(req, res) {
   try {
     const result = await pool.query(
@@ -30,6 +27,7 @@ async function listUsers(req, res) {
   }
 }
 
+// FR01 / FR21: staff accounts are created by an administrator, not by sign-up
 // Creates Land Officer / Administrator accounts (and citizens, if needed).
 async function createUser(req, res) {
   const { full_name, phone_number, password, role, national_id } = req.body;
@@ -64,6 +62,7 @@ async function createUser(req, res) {
   }
 }
 
+// FR21: change an account's role
 async function setRole(req, res) {
   const { id } = req.params;
   const { role } = req.body;
@@ -88,6 +87,7 @@ async function setRole(req, res) {
   }
 }
 
+// FR21: correct a citizen's national ID
 async function setNationalId(req, res) {
   const { id } = req.params;
   const national_id = (req.body.national_id || '').trim() || null;
@@ -112,6 +112,7 @@ async function setNationalId(req, res) {
   }
 }
 
+// FR21: deactivate or reactivate an account
 async function setActive(req, res, isActive) {
   const { id } = req.params;
   if (Number(id) === req.user.user_id) {
@@ -239,6 +240,7 @@ async function usageReport(req, res) {
 const deactivateUser = (req, res) => setActive(req, res, false);
 const reactivateUser = (req, res) => setActive(req, res, true);
 
+// FR21: deactivate a fraudulent parcel record
 async function deactivateParcel(req, res) {
   const { id } = req.params;
   try {

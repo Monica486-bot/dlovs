@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api, { errorMessage } from '../../api/client';
 import { useT } from '../../i18n';
+import FourNames from '../../components/FourNames';
+import TransferReasonSelect from '../../components/TransferReasonSelect';
+import { reasonLabel } from '../../utils/transferReasons';
+import { EMPTY_NAMES, joinNames } from '../../utils/names';
 import { formatDate } from '../../utils/format';
 import StatusBadge from '../../components/StatusBadge';
 import FlagDispute from '../../components/FlagDispute';
@@ -83,6 +87,7 @@ export default function MyParcel() {
         {requests.filter((r) => r.status !== 'pending').map((r) => (
           <p key={r.request_id} className="muted small">
             {t('Request to transfer to {buyer}:', { buyer: r.buyer_full_name })} <StatusBadge status={r.status} />
+            {r.transfer_reason && ` · ${reasonLabel(t, r.transfer_reason, r.transfer_reason_details)}`}
             {r.response_notes && ` — ${r.response_notes}`}
           </p>
         ))}
@@ -90,7 +95,12 @@ export default function MyParcel() {
 
       <HistoryTable history={history} />
       <DisputesTable disputes={disputes} />
-      {parcel.status !== 'deactivated' && <FlagDispute parcelId={parcel.parcel_id} onFlagged={done} />}
+      {parcel.status !== 'deactivated' && (
+        <div className="card">
+          <h3>{t('Report a problem')}</h3>
+          <FlagDispute parcelId={parcel.parcel_id} onFlagged={done} />
+        </div>
+      )}
     </div>
   );
 }
@@ -99,7 +109,7 @@ export default function MyParcel() {
 function TransferRequestForm({ parcelId, onSent }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ buyer_full_name: '', buyer_national_id: '', buyer_contact: '', notes: '' });
+  const [form, setForm] = useState({ buyer_names: EMPTY_NAMES, buyer_national_id: '', buyer_contact: '', notes: '', reason: '', reason_details: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const field = (name) => ({ value: form[name], onChange: (e) => setForm({ ...form, [name]: e.target.value }) });
@@ -109,9 +119,10 @@ function TransferRequestForm({ parcelId, onSent }) {
     setError('');
     setSaving(true);
     try {
-      await api.post(`/parcels/${parcelId}/transfer-requests`, form);
+      const { buyer_names, ...rest } = form;
+      await api.post(`/parcels/${parcelId}/transfer-requests`, { ...rest, buyer_full_name: joinNames(buyer_names) });
       setOpen(false);
-      onSent(t('Transfer request sent.'));
+      onSent(t('✓ Transfer request sent. A land officer will contact you and the buyer.'));
     } catch (err) {
       setError(errorMessage(err, t('Failed to submit transfer request')));
     } finally {
@@ -126,11 +137,16 @@ function TransferRequestForm({ parcelId, onSent }) {
   }
   return (
     <form onSubmit={submit}>
+      <FourNames legend={t('New owner full name')} parts={form.buyer_names} onChange={(buyer_names) => setForm({ ...form, buyer_names })} />
       <div className="form-grid">
-        <label>{t('New owner full name')}<input {...field('buyer_full_name')} required /></label>
         <label>{t('New owner national ID')}<input {...field('buyer_national_id')} required /></label>
         <label>{t('New owner phone number')}<input {...field('buyer_contact')} dir="ltr" /></label>
       </div>
+      <TransferReasonSelect
+        reason={form.reason}
+        details={form.reason_details}
+        onChange={(reason, reasonDetails) => setForm({ ...form, reason, reason_details: reasonDetails })}
+      />
       <label>{t('Note for land officer (optional)')}<textarea {...field('notes')} rows={2} /></label>
       {error && <div className="error-text">{error}</div>}
       <div className="actions">

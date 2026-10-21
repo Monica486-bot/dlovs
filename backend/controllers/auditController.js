@@ -1,9 +1,6 @@
-// Implements:
-//  - LandOfficer "View Audit Logs for own actions"
-//  - Administrator.viewAllAuditLogs(): List
-
 const pool = require('../db/pool');
 
+// FR14: officers see their own actions; administrators see everyone's
 async function listAuditLogs(req, res) {
   try {
     let result;

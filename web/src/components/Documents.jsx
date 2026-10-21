@@ -154,8 +154,9 @@ export function UploadDocument({ parcelId, onUploaded, onBehalf = false }) {
           </select>
         </label>
         <label>
-          {t('File')} <span className="muted small" style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>{t('PDF, JPG or PNG · up to 5 MB')}</span>
+          {t('File')}
           <input key={inputKey} type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" onChange={(e) => setFile(e.target.files[0] || null)} required />
+          <span className="muted">{t('PDF, JPG or PNG · up to 5 MB')}</span>
         </label>
       </div>
       {error && <div className="error-text">{error}</div>}

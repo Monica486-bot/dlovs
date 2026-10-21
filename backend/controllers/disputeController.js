@@ -1,10 +1,8 @@
-// Implements:
-//  - Citizen.flagDispute(parcelId)
-//  - LandOfficer.resolveDispute(disputeId)
-//  - LandOfficer's "Respond to Dispute Flags" use case (list open disputes)
-
 const pool = require('../db/pool');
 const { notifyUsers, notifyOfficers, ownerAccountIds } = require('../utils/notify');
+
+// open (unresolved) disputes one account may have at a time
+const MAX_OPEN_DISPUTES_PER_ACCOUNT = 3;
 
 // Citizen.flagDispute(parcelId) — from the mobile app or the web portal (FR12)
 async function flagDispute(req, res) {
@@ -32,6 +30,25 @@ async function flagDispute(req, res) {
     if (parcel.rows[0].status === 'deactivated') {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: 'This record has been deactivated as fraudulent; disputes cannot be added' });
+    }
+    // Limits, so one account can't freeze sales across the register: a flag
+    // marks the parcel disputed at once and blocks transfers. Locking the
+    // reporter's row makes two flags sent at the same moment count correctly.
+    await client.query('SELECT 1 FROM "user" WHERE user_id = $1 FOR UPDATE', [req.user.user_id]);
+    const open = await client.query(
+      `SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE parcel_id = $2)::int AS on_this_parcel
+       FROM dispute WHERE reported_by = $1 AND status != 'resolved'`,
+      [req.user.user_id, Number(parcel_id)]
+    );
+    if (open.rows[0].on_this_parcel > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'You already have an open dispute on this parcel. A land officer will review it.' });
+    }
+    if (open.rows[0].total >= MAX_OPEN_DISPUTES_PER_ACCOUNT) {
+      await client.query('ROLLBACK');
+      return res.status(429).json({
+        error: `You already have ${MAX_OPEN_DISPUTES_PER_ACCOUNT} open disputes. Wait until a land officer reviews them before flagging another parcel.`,
+      });
     }
     const result = await client.query(
       `INSERT INTO dispute (parcel_id, reported_by, reported_via, dispute_type, description)
@@ -75,10 +92,7 @@ async function listDisputes(req, res) {
   }
 }
 
-// LandOfficer.resolveDispute(disputeId) — also the officer-accountability
-// metric your feedback asked for: this action is itself audit-logged, so the
-// audit trail can be checked for whether disputes get resolved, not just
-// created.
+// LandOfficer.resolveDispute(disputeId); audit-logged (FR14).
 async function resolveDispute(req, res) {
   const id = Number(req.params.id);
   const resolutionNotes = req.body.resolution_notes?.trim();

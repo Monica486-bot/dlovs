@@ -7,7 +7,7 @@ import { formatDate } from '../utils/format';
 // has seen the ID card in person. Without this check, anyone could type a
 // real owner's ID number and see — or try to sell — their land.
 export default function IdChecks() {
-  const { t } = useT();
+  const { t, tn } = useT();
   const [checks, setChecks] = useState(null);
   const [rejecting, setRejecting] = useState(null);
   const [reason, setReason] = useState('');
@@ -66,7 +66,7 @@ export default function IdChecks() {
                       {c.parcels_with_this_id > 0 ? (
                         <>
                           {c.registered_owner_names}
-                          <div className="muted small">{t('{n} parcel(s)', { n: c.parcels_with_this_id })}</div>
+                          <div className="muted small">{tn('{n} parcel', '{n} parcels', c.parcels_with_this_id)}</div>
                           {c.registered_owner_names && c.registered_owner_names.toLowerCase() !== c.full_name.toLowerCase() && (
                             <div className="warning-text">{t('Name differs')}</div>
                           )}

@@ -1,7 +1,3 @@
-// FR19: English / Arabic interface.
-// Strings are written in English in the code and looked up in ar.js; anything
-// missing falls back to English (and is logged once in development, so gaps
-// are easy to find). Arabic switches the whole page to right-to-left.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import ar from './ar';
 import { setFormatLanguage } from '../utils/format';
@@ -18,6 +14,7 @@ function initialLanguage() {
   }
 }
 
+// FR19: English / Arabic. English text is the key into ar.js; Arabic is right-to-left.
 export function LanguageProvider({ children }) {
   const [lang, setLang] = useState(initialLanguage);
 
@@ -49,7 +46,10 @@ export function LanguageProvider({ children }) {
     [lang]
   );
 
-  const value = useMemo(() => ({ lang, setLang, t, dir: lang === 'ar' ? 'rtl' : 'ltr' }), [lang, t]);
+  // tn('{n} parcel', '{n} parcels', n): English needs a different string for
+  // one; the Arabic translations use a neutral "label: n" form for both.
+  const tn = useCallback((one, other, n, vars) => t(n === 1 ? one : other, { n, ...vars }), [t]);
+  const value = useMemo(() => ({ lang, setLang, t, tn, dir: lang === 'ar' ? 'rtl' : 'ltr' }), [lang, t, tn]);
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 

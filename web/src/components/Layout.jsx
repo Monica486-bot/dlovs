@@ -40,6 +40,7 @@ export default function Layout({ children }) {
           <NavLink to="/parcels/search" className={recordsActive}>{t('Parcel Records')}</NavLink>
           {isOfficer && <NavLink to="/parcels/new">{t('Register Parcel')}</NavLink>}
           <NavLink to="/transfer-requests">{t('Transfers')}</NavLink>
+          <NavLink to="/transfer-approvals">{t('Transfer Approvals')}</NavLink>
           <NavLink to="/disputes">{t('Disputes')}</NavLink>
           <NavLink to="/documents">{t('Documents')}</NavLink>
           <NavLink to="/id-checks">{t('ID Checks')}</NavLink>

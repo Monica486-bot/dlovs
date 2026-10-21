@@ -9,7 +9,7 @@ import { DocumentTable } from '../components/Documents';
 const TABS = ['pending', 'verified', 'rejected'];
 
 export default function Documents() {
-  const { t } = useT();
+  const { t, tn } = useT();
   const [tab, setTab] = useState('pending');
   const [documents, setDocuments] = useState(null);
   const [error, setError] = useState('');
@@ -27,7 +27,7 @@ export default function Documents() {
     <div>
       <h2>{t('Pending Document Review')}</h2>
       <p className="page-subtitle">
-        {tab === 'pending' && documents ? t('{n} document(s) awaiting verification', { n: documents.length }) : t('Land documents uploaded by owners')}
+        {tab === 'pending' && documents ? tn('{n} document awaiting verification', '{n} documents awaiting verification', documents.length) : t('Land documents uploaded by owners')}
       </p>
       <div className="tabs" role="tablist">
         {TABS.map((s) => (

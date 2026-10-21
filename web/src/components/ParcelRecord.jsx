@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useT } from '../i18n';
 import { formatDate } from '../utils/format';
+import { reasonLabel } from '../utils/transferReasons';
 import StatusBadge from './StatusBadge';
 
 // Sections shared by the public, citizen, and staff parcel pages.
@@ -20,7 +21,7 @@ export function RecordWarnings({ parcel, disputes }) {
         <div className="notice warning"><strong>{t('Disputed — not available for sale until resolved')}</strong></div>
       )}
       {parcel.status === 'active' && open.length === 0 && (
-        <div className="notice success"><strong>{t('Verified — No active disputes')}</strong></div>
+        <div className="notice success"><strong>{t('Registered — no open disputes')}</strong></div>
       )}
     </>
   );
@@ -41,7 +42,6 @@ export function OwnerFacts({ parcel, documents, ownerLink }) {
         <dt>{t('Area')}</dt><dd>{parcel.area_sqm ? t('{n} m²', { n: Number(parcel.area_sqm) }) : '—'}</dd>
         <dt>{t('Registered')}</dt><dd>{formatDate(parcel.registered_date)}</dd>
         <dt>{t('Documents')}</dt><dd>{t('{v} verified of {n}', { v: verified, n: documents.length })}</dd>
-        <dt>{t('Status')}</dt><dd><StatusBadge status={parcel.status} /></dd>
       </dl>
     </div>
   );
@@ -54,13 +54,14 @@ export function HistoryTable({ history }) {
       <h3>{t('Ownership history')}</h3>
       <div className="table-scroll">
         <table>
-          <thead><tr><th>{t('Date')}</th><th>{t('From')}</th><th>{t('To')}</th><th>{t('Notes')}</th></tr></thead>
+          <thead><tr><th>{t('Date')}</th><th>{t('From')}</th><th>{t('To')}</th><th>{t('Reason')}</th><th>{t('Notes')}</th></tr></thead>
           <tbody>
             {history.map((h) => (
               <tr key={h.history_id}>
                 <td>{formatDate(h.transfer_date)}</td>
                 <td>{h.previous_owner_name || '—'}</td>
                 <td>{h.new_owner_name}</td>
+                <td>{reasonLabel(t, h.transfer_reason, h.transfer_reason_details)}</td>
                 <td>{SERVER_NOTES.includes(h.notes) ? t(h.notes) : h.notes}</td>
               </tr>
             ))}

@@ -1,16 +1,16 @@
-// Implements:
-//  - Guest use cases: searchParcel(query), viewOwnershipRecord(id)
-//  - LandOfficer use cases: createParcelRecord(data), generateQRCode(parcelId), processTransfer(parcelId)
-//  - Citizen use case: viewOwnParcels()
-// and the 12-step Sequence Diagram (Figure 5) QR verification flow.
-
 const pool = require('../db/pool');
-const { generateQrDataUrl, verifySignature } = require('../utils/qr');
-const { notifyUsers, accountIdsForNationalId } = require('../utils/notify');
+const { generateQrDataUrl, checkSignature } = require('../utils/qr');
+const { askForIdCheck } = require('../utils/notify');
+const { NEIGHBOURHOODS, CITY, canonicalNeighbourhood } = require('../utils/neighbourhoods');
+const { fourPartName } = require('../utils/names');
+const { TRANSFER_REASONS } = require('../utils/transferReasons');
 
+// FR03 / FR05: register a parcel and generate its signed QR code
 // LandOfficer.createParcelRecord(data)
 async function createParcel(req, res) {
-  const { gps_lat, gps_lng, neighbourhood, area_sqm, owner } = req.body;
+  const { gps_lat, gps_lng, area_sqm, owner } = req.body;
+  // the dropdown's spelling, so "Muniki" or "Hai Munuki" don't become new areas
+  const neighbourhood = canonicalNeighbourhood(req.body.neighbourhood);
   if (gps_lat == null || gps_lng == null || !neighbourhood || !owner || !owner.full_name) {
     return res.status(400).json({ error: 'gps_lat, gps_lng, neighbourhood, and owner.full_name are required' });
   }
@@ -19,6 +19,8 @@ async function createParcel(req, res) {
   if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
     return res.status(400).json({ error: 'gps_lat must be between -90 and 90 and gps_lng between -180 and 180' });
   }
+  const ownerName = fourPartName(owner.full_name);
+  if (ownerName.error) return res.status(400).json({ error: ownerName.error });
   const nationalId = owner.national_id?.trim() || null;
   const client = await pool.connect();
   try {
@@ -35,7 +37,7 @@ async function createParcel(req, res) {
       const ownerResult = await client.query(
         `INSERT INTO owner (full_name, contact_number, document_type, document_reference, national_id)
          VALUES ($1, $2, $3, $4, $5) RETURNING owner_id`,
-        [owner.full_name, owner.contact_number || null, owner.document_type || null, owner.document_reference || null, nationalId]
+        [ownerName.name, owner.contact_number || null, owner.document_type || null, owner.document_reference || null, nationalId]
       );
       owner_id = ownerResult.rows[0].owner_id;
     }
@@ -50,8 +52,7 @@ async function createParcel(req, res) {
     );
     const parcel_id = parcelInsert.rows[0].parcel_id;
 
-    const { code, dataUrl } = await generateQrDataUrl(parcel_id);
-    const signature = JSON.parse(code).s;
+    const { code, signature, dataUrl } = await generateQrDataUrl(parcel_id);
 
     await client.query('UPDATE parcel SET unique_qr_code = $1, qr_signature = $2 WHERE parcel_id = $3', [
       code,
@@ -67,7 +68,7 @@ async function createParcel(req, res) {
 
     await client.query(
       `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'CREATE_PARCEL', $2, $3)`,
-      [req.user.user_id, parcel_id, `Registered parcel in ${neighbourhood} for owner ${owner.full_name}`]
+      [req.user.user_id, parcel_id, `Registered parcel in ${neighbourhood} for owner ${ownerName.name}`]
     );
 
     await client.query('COMMIT');
@@ -76,6 +77,8 @@ async function createParcel(req, res) {
       `SELECT p.*, o.full_name AS owner_name FROM parcel p JOIN owner o ON o.owner_id = p.current_owner_id WHERE p.parcel_id = $1`,
       [parcel_id]
     );
+
+    askForIdCheck(nationalId, parcel_id);
 
     res.status(201).json({ ...full.rows[0], qr_data_url: dataUrl });
   } catch (err) {
@@ -91,10 +94,11 @@ async function createParcel(req, res) {
 async function getQrCode(req, res) {
   const { id } = req.params;
   try {
-    const result = await pool.query('SELECT parcel_id FROM parcel WHERE parcel_id = $1', [id]);
+    const result = await pool.query('SELECT parcel_id, qr_version FROM parcel WHERE parcel_id = $1', [id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Parcel not found' });
-    const { dataUrl } = await generateQrDataUrl(id);
-    res.json({ parcel_id: id, qr_data_url: dataUrl });
+    const { qr_version: version } = result.rows[0];
+    const { dataUrl } = await generateQrDataUrl(id, version);
+    res.json({ parcel_id: id, qr_version: version, qr_data_url: dataUrl });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to generate QR code' });
@@ -104,16 +108,14 @@ async function getQrCode(req, res) {
 const STAFF_ROLES = ['land_officer', 'administrator'];
 const isStaff = (user) => Boolean(user && STAFF_ROLES.includes(user.role));
 
-// Search pathways (FR06). `by` picks one; omitted = any of parcel ID,
-// neighbourhood, or owner name. National ID is exact-match only and must be
-// asked for explicitly, so it can confirm "does this ID own this parcel?"
-// without letting anyone browse IDs.
+// Search pathways (FR06). National ID is exact-match only, so IDs can't be browsed.
 const SEARCH_CONDITIONS = {
   parcel_id: 'CAST(p.parcel_id AS TEXT) = $1',
-  neighbourhood: "p.neighbourhood ILIKE '%' || $1 || '%'",
+  // an area search matches the neighbourhood or the city ("Juba" finds them all)
+  neighbourhood: "(p.neighbourhood ILIKE '%' || $1 || '%' OR p.city ILIKE $1)",
   owner_name: "o.full_name ILIKE '%' || $1 || '%'",
   national_id: 'o.national_id = $1',
-  any: "CAST(p.parcel_id AS TEXT) = $1 OR p.neighbourhood ILIKE '%' || $1 || '%' OR o.full_name ILIKE '%' || $1 || '%'",
+  any: "CAST(p.parcel_id AS TEXT) = $1 OR p.neighbourhood ILIKE '%' || $1 || '%' OR p.city ILIKE $1 OR o.full_name ILIKE '%' || $1 || '%'",
 };
 
 // Great-circle distance in metres between the parcel and ($1, $2), in SQL.
@@ -123,7 +125,7 @@ const DISTANCE_SQL = `(2 * 6371000 * asin(sqrt(
 )))`;
 
 const SEARCH_COLUMNS = `
-  p.parcel_id, p.neighbourhood, p.status, p.registered_date, o.full_name AS owner_name,
+  p.parcel_id, p.neighbourhood, p.city, p.status, p.registered_date, o.owner_id, o.full_name AS owner_name,
   (SELECT COUNT(*)::int FROM document d WHERE d.parcel_id = p.parcel_id AND d.verification_status = 'verified') AS verified_documents,
   (SELECT COUNT(*)::int FROM document d WHERE d.parcel_id = p.parcel_id AND d.verification_status = 'pending') AS pending_documents`;
 
@@ -154,7 +156,9 @@ async function searchParcel(req, res) {
       return res.json(result.rows);
     }
 
-    const query = (req.query.query || '').trim();
+    let query = (req.query.query || '').trim();
+    // "Hai Munuki": hai means neighbourhood, and names are stored without it
+    if (by === 'neighbourhood' || by === 'any') query = query.replace(/^hai\s+/i, '') || query;
     if (!query) return res.status(400).json({ error: 'query parameter is required' });
     if (!SEARCH_CONDITIONS[by]) {
       return res.status(400).json({ error: `by must be one of ${[...Object.keys(SEARCH_CONDITIONS), 'near'].join(', ')}` });
@@ -174,10 +178,7 @@ async function searchParcel(req, res) {
   }
 }
 
-// Guest.viewOwnershipRecord(id) / the core of the 12-step Sequence Diagram.
-// Implements steps 3-12: verify QR signature, fetch parcel + history + disputes
-// + documents, GPS ground-truth check (step 12: within 10 metres => confirmed
-// badge), and write an audit_log entry (step 11).
+// The public ownership record (Sequence Diagram, Figure 5, steps 3-12).
 async function verifyParcel(req, res) {
   const { id } = req.params;
   const { signature, device_lat, device_lng } = req.query;
@@ -191,22 +192,19 @@ async function verifyParcel(req, res) {
     );
     if (parcelResult.rows.length === 0) return res.status(404).json({ error: 'Parcel not found' });
     const parcel = parcelResult.rows[0];
-    // Guests and citizens see who owns the parcel, not the owner's identity
-    // documents — otherwise the public record becomes a lookup tool for
-    // brokers targeting absent owners.
-    // The QR signature must never be public either: anyone holding it could
-    // print a "genuine" code for this parcel.
+    // Steps 3-4: the scanned code's signature. A code from before the latest
+    // transfer is genuine but replaced (FR11) — the record is still shown, with
+    // a warning, because that is how a previous owner would try to resell.
+    const qr_check = signature ? checkSignature(id, parcel.qr_version, signature) : null;
+    if (qr_check === 'invalid') {
+      return res.status(400).json({ error: 'Invalid QR signature — this code may be tampered with', code: 'QR_INVALID' });
+    }
+    // The public never sees identity details or the QR signature.
     if (!isStaff(req.user)) {
       delete parcel.national_id;
       delete parcel.document_reference;
       delete parcel.unique_qr_code;
       delete parcel.qr_signature;
-    }
-
-    // Step 4: app verifies QR signature locally before calling the API in the
-    // real mobile app; the API re-verifies here too, defensively.
-    if (signature && !verifySignature(id, signature)) {
-      return res.status(400).json({ error: 'Invalid QR signature — this code may be tampered with' });
     }
 
     const historyResult = await pool.query(
@@ -229,6 +227,9 @@ async function verifyParcel(req, res) {
     );
 
     // Step 12: GPS ground-truth check against the field-triangulated coordinates
+    // The date the current QR code was issued, for the "replaced" warning
+    const lastTransfer = historyResult.rows.length > 1 ? historyResult.rows[historyResult.rows.length - 1].transfer_date : null;
+
     let gps_match = null;
     let distance_meters = null;
     if (device_lat != null && device_lng != null) {
@@ -244,11 +245,17 @@ async function verifyParcel(req, res) {
     // Step 11: API writes an audit_log entry for this verification
     await pool.query(
       `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'VERIFY_PARCEL', $2, $3)`,
-      [req.user?.user_id ?? null, id, `Ownership record viewed${gps_match !== null ? `, GPS match: ${gps_match}` : ''}`]
+      [
+        req.user?.user_id ?? null,
+        id,
+        `Ownership record viewed${qr_check ? `, QR code ${qr_check}` : ''}${gps_match !== null ? `, GPS match: ${gps_match}` : ''}`,
+      ]
     );
 
     res.json({
       parcel,
+      qr_check,
+      qr_issued_at: qr_check === 'superseded' ? lastTransfer : undefined,
       ownership_history: historyResult.rows,
       disputes: disputesResult.rows,
       documents: documentsResult.rows,
@@ -260,11 +267,8 @@ async function verifyParcel(req, res) {
   }
 }
 
-// Citizen.viewOwnParcels(): List — parcels where the citizen is the current
-// owner, matched on national ID. Matching on name would show one person's
-// land to anyone else with the same name. The ID only counts once a land
-// officer has checked the citizen's ID card in person (id_status 'verified');
-// otherwise anyone could type someone else's ID and see their land.
+// The citizen's own parcels, matched on national ID once an officer has
+// checked the ID card in person.
 async function viewOwnParcels(req, res) {
   try {
     const userResult = await pool.query(
@@ -280,6 +284,18 @@ async function viewOwnParcels(req, res) {
       });
     }
     if (!verifiedAt) {
+      // no land under this ID: nothing for an officer to check yet
+      const owns = await pool.query(
+        `SELECT 1 FROM parcel p JOIN owner o ON o.owner_id = p.current_owner_id WHERE o.national_id = $1 LIMIT 1`,
+        [nationalId]
+      );
+      if (owns.rows.length === 0) {
+        return res.json({
+          parcels: [],
+          id_status: 'no_land',
+          message: "No parcels are registered to your national ID. If land is registered to it, we'll ask you to show your ID card at the land office.",
+        });
+      }
       return res.json({
         parcels: [],
         id_status: 'pending',
@@ -304,138 +320,6 @@ async function viewOwnParcels(req, res) {
   }
 }
 
-// LandOfficer.processTransfer(parcelId)
-async function processTransfer(req, res) {
-  const { id } = req.params;
-  const { new_owner, notes, expected_owner_id, transfer_request_id } = req.body;
-  const fullName = new_owner?.full_name?.trim();
-  const nationalId = new_owner?.national_id?.trim() || null;
-  if (!fullName) {
-    return res.status(400).json({ error: 'new_owner.full_name is required' });
-  }
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    // Lock the parcel row on its own: two officers can't transfer the same
-    // parcel at the same time. (Locking inside a join would make a waiting
-    // transfer lose the row once the owner changes.)
-    const parcelResult = await client.query(
-      'SELECT current_owner_id, status FROM parcel WHERE parcel_id = $1 FOR UPDATE',
-      [id]
-    );
-    if (parcelResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Parcel not found' });
-    }
-    const ownerRow = await client.query('SELECT full_name, national_id FROM owner WHERE owner_id = $1', [
-      parcelResult.rows[0].current_owner_id,
-    ]);
-    const current = {
-      ...parcelResult.rows[0],
-      owner_name: ownerRow.rows[0].full_name,
-      owner_national_id: ownerRow.rows[0].national_id,
-    };
-    // The officer confirmed the transfer against the owner they saw. If
-    // someone else transferred the parcel in the meantime, refuse rather than
-    // sell the same plot twice.
-    if (expected_owner_id != null && Number(expected_owner_id) !== current.current_owner_id) {
-      await client.query('ROLLBACK');
-      return res.status(409).json({
-        error: `Ownership changed since you opened this page — the parcel is now registered to ${current.owner_name}. Reload and check before transferring.`,
-      });
-    }
-    // Selling a disputed or fraudulent plot is exactly what DLOVS exists to stop.
-    if (current.status !== 'active') {
-      await client.query('ROLLBACK');
-      return res.status(409).json({
-        error: current.status === 'disputed'
-          ? 'This parcel has an open dispute. Resolve the dispute before transferring ownership.'
-          : 'This parcel record has been deactivated and cannot be transferred.',
-      });
-    }
-    if (nationalId && nationalId === current.owner_national_id) {
-      await client.query('ROLLBACK');
-      return res.status(409).json({ error: `${current.owner_name} already owns this parcel` });
-    }
-    // Completing a citizen's transfer request: it must still be pending and
-    // be for this parcel.
-    let request = null;
-    if (transfer_request_id != null) {
-      const requestResult = await client.query(
-        `SELECT request_id, requested_by FROM transfer_request
-         WHERE request_id = $1 AND parcel_id = $2 AND status = 'pending' FOR UPDATE`,
-        [transfer_request_id, id]
-      );
-      request = requestResult.rows[0];
-      if (!request) {
-        await client.query('ROLLBACK');
-        return res.status(409).json({ error: 'That transfer request is no longer pending' });
-      }
-    }
-
-    // Reuse the owner record when the buyer's national ID is already
-    // registered, so all their parcels appear in one portfolio (FR09).
-    let new_owner_id = null;
-    let newOwnerName = fullName;
-    if (nationalId) {
-      const existing = await client.query('SELECT owner_id, full_name FROM owner WHERE national_id = $1 ORDER BY owner_id LIMIT 1', [nationalId]);
-      if (existing.rows[0]) {
-        new_owner_id = existing.rows[0].owner_id;
-        newOwnerName = existing.rows[0].full_name;
-      }
-    }
-    if (!new_owner_id) {
-      const ownerResult = await client.query(
-        `INSERT INTO owner (full_name, contact_number, document_type, document_reference, national_id)
-         VALUES ($1, $2, $3, $4, $5) RETURNING owner_id`,
-        [fullName, new_owner.contact_number || null, new_owner.document_type || null, new_owner.document_reference || null, nationalId]
-      );
-      new_owner_id = ownerResult.rows[0].owner_id;
-    }
-
-    await client.query('UPDATE parcel SET current_owner_id = $1 WHERE parcel_id = $2', [new_owner_id, id]);
-
-    await client.query(
-      `INSERT INTO ownership_history (parcel_id, previous_owner_id, new_owner_id, processed_by, notes)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [id, current.current_owner_id, new_owner_id, req.user.user_id, notes?.trim() || 'Ownership transfer processed']
-    );
-
-    await client.query(
-      `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'PROCESS_TRANSFER', $2, $3)`,
-      [req.user.user_id, id, `Transferred from ${current.owner_name} to ${newOwnerName}${request ? ` (request #${request.request_id})` : ''}`]
-    );
-    if (request) {
-      await client.query(
-        `UPDATE transfer_request SET status = 'completed', handled_by = $1, handled_at = now() WHERE request_id = $2`,
-        [req.user.user_id, request.request_id]
-      );
-    }
-
-    await client.query('COMMIT');
-
-    // FR15: both owners (if they have accounts) hear about it by SMS
-    const [previousOwners, newOwners] = await Promise.all([
-      accountIdsForNationalId(current.owner_national_id),
-      accountIdsForNationalId(nationalId),
-    ]);
-    notifyUsers(
-      [...previousOwners, request?.requested_by],
-      `Parcel #${id} has been transferred from you to ${newOwnerName}.`,
-      { link: `/my`, sms: true }
-    );
-    notifyUsers(newOwners, `Parcel #${id} is now registered to you.`, { link: `/my/parcels/${id}`, sms: true });
-
-    res.json({ message: 'Transfer processed', parcel_id: Number(id), new_owner_id, new_owner_name: newOwnerName });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error(err);
-    res.status(500).json({ error: 'Transfer failed' });
-  } finally {
-    client.release();
-  }
-}
-
 // FR03: LandOfficer updates a parcel's location details. Ownership is never
 // edited here — it only changes through processTransfer, so it always has a
 // history entry. Every change is audit-logged with old → new values.
@@ -448,7 +332,7 @@ async function updateParcel(req, res) {
     if (req.body[field] !== undefined) changes[field] = req.body[field];
   }
   if (changes.neighbourhood !== undefined) {
-    changes.neighbourhood = String(changes.neighbourhood).trim();
+    changes.neighbourhood = canonicalNeighbourhood(changes.neighbourhood);
     if (!changes.neighbourhood) return res.status(400).json({ error: 'neighbourhood cannot be empty' });
   }
   for (const [field, min, max] of [['gps_lat', -90, 90], ['gps_lng', -180, 180]]) {
@@ -539,8 +423,12 @@ async function getStats(req, res) {
         `SELECT (SELECT COUNT(*) FROM document WHERE verification_status = 'pending')::int AS pending_documents,
                 (SELECT COUNT(*) FROM unregistered_report WHERE status = 'open')::int AS open_reports,
                 (SELECT COUNT(*) FROM transfer_request WHERE status = 'pending')::int AS pending_transfer_requests,
-                (SELECT COUNT(*) FROM "user" WHERE role = 'citizen' AND is_active AND national_id IS NOT NULL
-                   AND national_id_verified_at IS NULL)::int AS pending_id_checks`
+                (SELECT COUNT(*) FROM pending_transfer WHERE status = 'awaiting_approval' AND started_by != $1)::int AS pending_transfer_approvals,
+                (SELECT COUNT(*) FROM "user" u WHERE u.role = 'citizen' AND u.is_active AND u.national_id IS NOT NULL
+                   AND u.national_id_verified_at IS NULL
+                   AND EXISTS (SELECT 1 FROM parcel p JOIN owner o ON o.owner_id = p.current_owner_id
+                     WHERE o.national_id = u.national_id))::int AS pending_id_checks`,
+        [req.user.user_id]
       ),
       pool.query(
         `SELECT p.parcel_id, p.neighbourhood, p.status, o.full_name AS owner_name,
@@ -555,6 +443,7 @@ async function getStats(req, res) {
       pending_documents: queues.rows[0].pending_documents,
       open_reports: queues.rows[0].open_reports,
       pending_transfer_requests: queues.rows[0].pending_transfer_requests,
+      pending_transfer_approvals: queues.rows[0].pending_transfer_approvals,
       pending_id_checks: queues.rows[0].pending_id_checks,
       my_actions_7_days: mine.rows[0].actions,
       recent_activity: recent.rows,
@@ -578,4 +467,15 @@ function haversineMeters(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-module.exports = { createParcel, getQrCode, searchParcel, verifyParcel, viewOwnParcels, processTransfer, updateParcel, getStats };
+// The parcel forms' neighbourhood dropdown (public: the search page uses it too)
+// The officer transfer form's reason dropdown
+function listTransferReasons(req, res) {
+  res.json(TRANSFER_REASONS);
+}
+
+// The neighbourhood dropdown (public)
+function listNeighbourhoods(req, res) {
+  res.json({ city: CITY, neighbourhoods: NEIGHBOURHOODS });
+}
+
+module.exports = { listTransferReasons, listNeighbourhoods, createParcel, getQrCode, searchParcel, verifyParcel, viewOwnParcels, updateParcel, getStats };

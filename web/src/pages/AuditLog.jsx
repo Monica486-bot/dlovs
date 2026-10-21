@@ -26,7 +26,7 @@ export default function AuditLog() {
     <div>
       <h2>{isAdmin ? t('System Audit Logs') : t('My Audit Log')}</h2>
       <p className="page-subtitle">
-        {isAdmin ? t('Every officer action across the platform, permanently logged') : t('Every action you take is permanently logged and reviewable by administrators')}
+        {isAdmin ? t('Every officer action across the platform, permanently logged') : t('Your actions are permanently recorded and visible to administrators')}
       </p>
       {error && <div className="error-text">{error}</div>}
 
@@ -59,7 +59,7 @@ export default function AuditLog() {
               <tbody>
                 {shown.map((l) => (
                   <tr key={l.log_id}>
-                    <td>{formatDateTime(l.timestamp)}</td>
+                    <td className="nowrap">{formatDateTime(l.timestamp)}</td>
                     <td>{l.officer_name || <span className="muted">{t('Public (no account)')}</span>}</td>
                     <td>{t(actionLabel(l.action_type))}</td>
                     <td>{l.parcel_id ? <Link to={`/parcels/${l.parcel_id}`}>#{l.parcel_id}</Link> : '—'}</td>

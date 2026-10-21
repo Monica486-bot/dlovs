@@ -1,10 +1,3 @@
-// Loads demo data for the solution demonstration: an administrator, two land
-// officers, a citizen, and parcels in Munuki and Gudele covering every state
-// (active, transferred, disputed, resolved dispute, deactivated).
-// Refuses to run on a database that already has users.
-//
-// Usage: npm run seed
-
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const bcrypt = require('bcrypt');
 const pool = require('../db/pool');
@@ -16,32 +9,34 @@ const USERS = [
   { key: 'admin', full_name: 'Ayen Garang', phone: '+211900000009', role: 'administrator', platform: 'web' },
   { key: 'deng', full_name: 'Officer Deng Majok', phone: '+211900000001', role: 'land_officer', platform: 'web' },
   { key: 'lado', full_name: 'Officer Lado Wani', phone: '+211900000003', role: 'land_officer', platform: 'web' },
-  { key: 'akoi', full_name: 'Akoi Deng', phone: '+211900000002', role: 'citizen', platform: 'mobile', national_id: 'SS-0001' },
-  { key: 'nyandeng', full_name: 'Nyandeng Kuol', phone: '+211900000004', role: 'citizen', platform: 'mobile', national_id: 'SS-0004' },
+  { key: 'akoi', full_name: 'Akoi Deng Majok Garang', phone: '+211900000002', role: 'citizen', platform: 'mobile', national_id: 'SS-0001' },
+  { key: 'nyandeng', full_name: 'Nyandeng Kuol Ajak Mayen', phone: '+211900000004', role: 'citizen', platform: 'mobile', national_id: 'SS-0004' },
 ];
 
 // owner = [full_name, national_id, contact, document_type]
 const PARCELS = [
-  { hood: 'Munuki', lat: 4.8621, lng: 31.5734, area: 450, by: 'deng', owner: ['Akoi Deng', 'SS-0001', '+211900000002', 'Allocation Letter'] },
-  { hood: 'Munuki', lat: 4.8643, lng: 31.5761, area: 600, by: 'deng', owner: ['Akoi Deng', 'SS-0001', '+211900000002', 'Customary Certificate'] },
+  { hood: 'Munuki', lat: 4.8621, lng: 31.5734, area: 450, by: 'deng', owner: ['Akoi Deng Majok Garang', 'SS-0001', '+211900000002', 'Allocation Letter'] },
+  { hood: 'Munuki', lat: 4.8643, lng: 31.5761, area: 600, by: 'deng', owner: ['Akoi Deng Majok Garang', 'SS-0001', '+211900000002', 'Customary Certificate'] },
   {
-    hood: 'Gudele', lat: 4.8752, lng: 31.5498, area: 500, by: 'lado', owner: ['Mading Aguer', 'SS-0102', null, 'Sale Agreement'],
-    transferTo: ['Nyandeng Kuol', 'SS-0004', '+211900000004', 'Sale Agreement'],
+    hood: 'Gudele', lat: 4.8752, lng: 31.5498, area: 500, by: 'lado', owner: ['Mading Aguer Chol Deng', 'SS-0102', null, 'Sale Agreement'],
+    transferTo: ['Nyandeng Kuol Ajak Mayen', 'SS-0004', '+211900000004', 'Sale Agreement'],
   },
   {
-    hood: 'Gudele', lat: 4.8768, lng: 31.5521, area: 375, by: 'lado', owner: ['Peter Lomoro', 'SS-0233', '+211900000021', 'Witness Agreement'],
+    hood: 'Gudele', lat: 4.8768, lng: 31.5521, area: 375, by: 'lado', owner: ['Peter Lomoro Taban Wani', 'SS-0233', '+211900000021', 'Witness Agreement'],
     dispute: { by: 'nyandeng', type: 'ownership', description: 'A broker is offering this plot for sale while the owner is in Kakuma. The owner has not agreed to sell.' },
   },
   {
-    hood: 'Munuki', lat: 4.8605, lng: 31.5712, area: 420, by: 'deng', owner: ['Rebecca Achol', 'SS-0310', null, 'Allocation Letter'],
+    hood: 'Munuki', lat: 4.8605, lng: 31.5712, area: 420, by: 'deng', owner: ['Rebecca Achol Lual Akol', 'SS-0310', null, 'Allocation Letter'],
     dispute: { by: 'akoi', type: 'boundary', description: 'The fence on the east side was moved two metres onto the neighbouring plot.', resolvedBy: 'lado', notes: 'Boundary re-measured with both neighbours present; fence restored.' },
   },
   {
-    hood: 'Gudele', lat: 4.8731, lng: 31.5476, area: 550, by: 'deng', owner: ['James Taban', 'SS-0999', null, 'Allocation Letter'],
+    hood: 'Gudele', lat: 4.8731, lng: 31.5476, area: 550, by: 'deng', owner: ['James Taban Lado Kenyi', 'SS-0999', null, 'Allocation Letter'],
     deactivate: 'Allocation letter found to be forged during document review',
   },
 ];
 
+// Demo data: staff, citizens and parcels in every state. Empty databases only.
+// Usage: npm run seed
 async function main() {
   const existing = await pool.query('SELECT COUNT(*)::int AS n FROM "user"');
   if (existing.rows[0].n > 0) {
@@ -109,8 +104,8 @@ async function main() {
         const newOwnerId = await addOwner(p.transferTo);
         await client.query('UPDATE parcel SET current_owner_id = $1 WHERE parcel_id = $2', [newOwnerId, parcelId]);
         await client.query(
-          `INSERT INTO ownership_history (parcel_id, previous_owner_id, new_owner_id, processed_by, notes, transfer_date)
-           VALUES ($1, $2, $3, $4, 'Ownership transfer processed', now() - interval '12 days')`,
+          `INSERT INTO ownership_history (parcel_id, previous_owner_id, new_owner_id, processed_by, notes, transfer_date, transfer_reason)
+           VALUES ($1, $2, $3, $4, 'Ownership transfer processed', now() - interval '12 days', 'Sale')`,
           [parcelId, ownerId, newOwnerId, ids.deng]
         );
         await client.query(

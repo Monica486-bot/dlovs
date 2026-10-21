@@ -1,14 +1,14 @@
-// Requests from citizens that officers act on:
-//  - FR13: reports of plots that aren't in DLOVS
-//  - Use case "Initiate Transfer Request": an owner asks for a parcel to be
-//    transferred to a buyer. The officer completes it through the normal
-//    transfer (parcelController.processTransfer with transfer_request_id).
-// Plus FR15 in-app notifications and the FR09 owner portfolio.
-
 const pool = require('../db/pool');
 const { notifyUsers, notifyOfficers } = require('../utils/notify');
+const { isExpoPushToken } = require('../utils/push');
+const { fourPartName } = require('../utils/names');
+const { transferReason } = require('../utils/transferReasons');
 
 const STAFF_ROLES = ['land_officer', 'administrator'];
+
+// true when the account's national ID is the current owner of some parcel
+const OWNS_LAND = `EXISTS (SELECT 1 FROM parcel p JOIN owner o ON o.owner_id = p.current_owner_id
+  WHERE o.national_id = u.national_id)`;
 
 function parseCoordinate(value, min, max) {
   if (value === undefined || value === null || value === '') return null;
@@ -18,6 +18,7 @@ function parseCoordinate(value, min, max) {
 
 // ---------- FR13: unregistered parcel reports ----------
 
+// FR13: a citizen reports a plot that isn't registered
 async function createUnregisteredReport(req, res) {
   const neighbourhood = req.body.neighbourhood?.trim();
   const locationDetails = req.body.location_details?.trim();
@@ -114,13 +115,17 @@ async function closeUnregisteredReport(req, res) {
 
 // ---------- Transfer requests ----------
 
+// Use case "Initiate Transfer Request": the owner asks for a transfer to a buyer
 async function createTransferRequest(req, res) {
   const parcelId = Number(req.params.id);
-  const buyerName = req.body.buyer_full_name?.trim();
   const buyerNationalId = req.body.buyer_national_id?.trim();
-  if (!buyerName || !buyerNationalId) {
-    return res.status(400).json({ error: "The buyer's full name and national ID are required" });
-  }
+  if (!buyerNationalId) return res.status(400).json({ error: "The buyer's national ID is required" });
+  // the buyer becomes the registered owner, so the same four names are needed
+  const buyer = fourPartName(req.body.buyer_full_name, "the buyer's");
+  if (buyer.error) return res.status(400).json({ error: buyer.error });
+  const buyerName = buyer.name;
+  const reason = transferReason(req.body.reason, req.body.reason_details);
+  if (reason.error) return res.status(400).json({ error: reason.error });
   try {
     const parcel = await pool.query(
       `SELECT p.status, o.national_id AS owner_national_id, u.national_id AS my_national_id,
@@ -152,9 +157,11 @@ async function createTransferRequest(req, res) {
       return res.status(409).json({ error: 'There is already a pending transfer request for this parcel' });
     }
     const result = await pool.query(
-      `INSERT INTO transfer_request (parcel_id, requested_by, buyer_full_name, buyer_national_id, buyer_contact, notes)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING request_id, status, created_at`,
-      [parcelId, req.user.user_id, buyerName, buyerNationalId, req.body.buyer_contact?.trim() || null, req.body.notes?.trim() || null]
+      `INSERT INTO transfer_request (parcel_id, requested_by, buyer_full_name, buyer_national_id, buyer_contact, notes,
+         transfer_reason, transfer_reason_details)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING request_id, status, created_at`,
+      [parcelId, req.user.user_id, buyerName, buyerNationalId, req.body.buyer_contact?.trim() || null, req.body.notes?.trim() || null,
+        reason.reason, reason.details]
     );
     notifyOfficers(`Transfer requested for parcel #${parcelId} to ${buyerName}`, { link: '/transfer-requests' });
     res.status(201).json(result.rows[0]);
@@ -195,6 +202,7 @@ async function listTransferRequests(req, res) {
   }
 }
 
+// One transfer request, for the officer's transfer form
 async function getTransferRequest(req, res) {
   try {
     const result = await pool.query(
@@ -210,6 +218,7 @@ async function getTransferRequest(req, res) {
   }
 }
 
+// An officer turns down a transfer request, with a reason
 async function rejectTransferRequest(req, res) {
   const notes = req.body.response_notes?.trim();
   if (!notes) return res.status(400).json({ error: 'Give a reason so the owner knows what to do next' });
@@ -242,6 +251,7 @@ async function rejectTransferRequest(req, res) {
 // A citizen's national ID links their account to land only after a land
 // officer has seen the ID card in person. Officers work through this queue.
 
+// National IDs waiting for an in-person check (only IDs that own land)
 async function listIdChecks(req, res) {
   try {
     const result = await pool.query(
@@ -252,6 +262,9 @@ async function listIdChecks(req, res) {
                WHERE o.national_id = u.national_id) AS registered_owner_names
        FROM "user" u
        WHERE u.role = 'citizen' AND u.is_active AND u.national_id IS NOT NULL AND u.national_id_verified_at IS NULL
+         -- only IDs that own land: an account without land needs no check
+         -- until land is registered to it (then it appears here)
+         AND ${OWNS_LAND}
        ORDER BY u.created_at`
     );
     res.json(result.rows);
@@ -315,6 +328,7 @@ async function decideIdCheck(req, res) {
 
 // ---------- FR15: notifications ----------
 
+// FR15: the user's notifications
 async function listNotifications(req, res) {
   try {
     const [items, unread] = await Promise.all([
@@ -332,6 +346,7 @@ async function listNotifications(req, res) {
   }
 }
 
+// FR15: mark one or all notifications as read
 async function markNotificationsRead(req, res) {
   try {
     if (req.params.id) {
@@ -348,6 +363,7 @@ async function markNotificationsRead(req, res) {
 
 // ---------- FR09: owner portfolio (staff) ----------
 
+// FR09: every parcel registered to an owner
 async function getOwnerPortfolio(req, res) {
   try {
     const ownerResult = await pool.query(
@@ -356,6 +372,7 @@ async function getOwnerPortfolio(req, res) {
     );
     const owner = ownerResult.rows[0];
     if (!owner) return res.status(404).json({ error: 'Owner not found' });
+    const staffView = STAFF_ROLES.includes(req.user?.role);
     // all owner records with the same national ID are the same person
     const parcels = await pool.query(
       `SELECT p.parcel_id, p.neighbourhood, p.gps_lat, p.gps_lng, p.area_sqm, p.status, p.registered_date,
@@ -374,15 +391,49 @@ async function getOwnerPortfolio(req, res) {
        ORDER BY h.parcel_id, h.transfer_date DESC`,
       [owner.owner_id, owner.national_id]
     );
-    res.json({ owner, parcels: parcels.rows, previously_owned: previous.rows });
+    // The public sees the same names and parcels a search shows, grouped by
+    // person — not the details that would let a broker contact or impersonate
+    // the owner.
+    const { national_id, contact_number, ...publicOwner } = owner;
+    res.json({ owner: staffView ? owner : publicOwner, parcels: parcels.rows, previously_owned: previous.rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load owner' });
   }
 }
 
+// FR15: POST /api/push-tokens { token } — the mobile app's Expo push token.
+// A device belongs to whoever logged in on it last.
+async function registerPushToken(req, res) {
+  const token = req.body?.token;
+  if (!isExpoPushToken(token)) return res.status(400).json({ error: 'token must be an Expo push token' });
+  try {
+    await pool.query(
+      `INSERT INTO push_token (token, user_id) VALUES ($1, $2)
+       ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id, created_at = now()`,
+      [token, req.user.user_id]
+    );
+    res.status(201).json({ message: 'Push notifications enabled' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save push token' });
+  }
+}
+
+// DELETE /api/push-tokens { token } — on logout, so the next person to use
+// the phone doesn't receive this account's alerts.
+async function removePushToken(req, res) {
+  try {
+    await pool.query('DELETE FROM push_token WHERE token = $1 AND user_id = $2', [req.body?.token, req.user.user_id]);
+    res.json({ message: 'Push notifications disabled' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to remove push token' });
+  }
+}
+
 module.exports = {
   createUnregisteredReport, listUnregisteredReports, closeUnregisteredReport,
   createTransferRequest, listTransferRequests, getTransferRequest, rejectTransferRequest, listIdChecks, decideIdCheck,
-  listNotifications, markNotificationsRead, getOwnerPortfolio,
+  listNotifications, markNotificationsRead, getOwnerPortfolio, registerPushToken, removePushToken,
 };

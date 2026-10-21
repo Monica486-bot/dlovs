@@ -180,6 +180,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--navy); outline: 
 input[type="file"] { padding: 8px; }
 label { display: block; margin-bottom: 14px; font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 label > input, label > select, label > textarea { text-transform: none; letter-spacing: normal; }
+/* help text inside a field: sentence case, not the label's small capitals */
+label .muted, label .hint { display: block; margin-top: 6px; font-size: 0.8rem; font-weight: 400; text-transform: none; letter-spacing: normal; }
 fieldset { border: none; padding: 0; margin: 0 0 12px; }
 legend { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
 
@@ -245,8 +247,9 @@ td.nowrap { white-space: nowrap; }
   vertical-align: middle; text-transform: capitalize; white-space: nowrap;
 }
 .badge.active, .badge.resolved, .badge.verified, .badge.completed, .badge.registered { background: var(--success-bg); color: var(--success); }
-.badge.disputed, .badge.rejected { background: var(--danger-bg); color: var(--danger); }
-.badge.open, .badge.under_review, .badge.pending { background: var(--warning-bg); color: var(--warning); }
+/* disputed matches its amber warning banner; red is kept for rejected */
+.badge.rejected { background: var(--danger-bg); color: var(--danger); }
+.badge.disputed, .badge.open, .badge.under_review, .badge.pending { background: var(--warning-bg); color: var(--warning); }
 .badge.deactivated, .badge.dismissed { background: #eceef1; color: #4b5260; }
 
 .notice { border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.9rem; }
@@ -358,3 +361,31 @@ label.checkbox input { width: auto; margin: 0; }
 
   th, td { padding: 10px 12px; white-space: nowrap; }
 }
+
+/* four-part owner names (components/FourNames.jsx) */
+fieldset.four-names { border: none; padding: 0; margin: 0 0 4px; min-width: 0; }
+fieldset.four-names legend { padding: 0; font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+fieldset.four-names .muted { margin: 2px 0 10px; font-size: 0.8rem; }
+fieldset.four-names label { text-transform: none; letter-spacing: normal; font-weight: 500; }
+
+/* file picker styled like a secondary button */
+input[type=file] { padding: 7px 10px; font-family: inherit; }
+input[type=file]::file-selector-button {
+  font: inherit; font-weight: 600; font-size: 0.85rem; color: var(--navy);
+  background: white; border: 1.5px solid var(--navy); border-radius: 8px;
+  padding: 6px 14px; margin-inline-end: 12px; cursor: pointer;
+}
+input[type=file]::file-selector-button:hover { background: var(--navy-pale); }
+
+td.nowrap { white-space: nowrap; }
+
+/* "how to verify" steps on the public search page */
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 20px; }
+.step { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+.step-number {
+  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  border-radius: 50%; background: var(--navy-pale); color: var(--navy); font-weight: 700; font-size: 0.85rem; margin-bottom: 10px;
+}
+.step h3 { margin: 0 0 6px; font-size: 0.95rem; }
+.step p { margin: 0; color: var(--muted); font-size: 0.875rem; }
+.search-hint { margin: 10px 2px 0; color: var(--muted); font-size: 0.85rem; }

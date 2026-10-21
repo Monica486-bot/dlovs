@@ -1,9 +1,3 @@
-// FR10: landowners (or an officer on their behalf) upload scanned land
-// documents; a land officer verifies or rejects each one.
-// FR14: separation of duties — an officer can't review a document on a parcel
-// they registered, or a document they uploaded themselves.
-// NFR10: files are encrypted at rest (utils/documentStorage.js).
-
 const pool = require('../db/pool');
 const { saveDocument, readDocument } = require('../utils/documentStorage');
 const { notifyUsers, notifyOfficers } = require('../utils/notify');
@@ -33,12 +27,13 @@ async function isParcelOwner(userId, parcelId) {
   return result.rows.length > 0;
 }
 
+// FR14: separation of duties
 // Why this officer may not review this document, or null if they may.
 function reviewBlock(user, doc) {
   if (user.role !== 'land_officer') return 'Only land officers review documents';
   if (doc.verification_status !== 'pending') return 'Already reviewed';
-  if (doc.registered_by === user.user_id) return 'You registered this parcel — another officer must review its documents';
-  if (doc.uploaded_by === user.user_id) return 'You uploaded this document — another officer must review it';
+  if (doc.registered_by === user.user_id) return 'You registered this parcel — another officer reviews its documents';
+  if (doc.uploaded_by === user.user_id) return 'You uploaded this document — another officer reviews it';
   return null;
 }
 
@@ -60,6 +55,7 @@ function present(user, doc) {
   return { ...rest, can_review: block === null, review_block: block };
 }
 
+// FR10: the owner (or an officer) uploads a land document
 // POST /api/parcels/:id/documents  (multipart: file, document_type)
 async function uploadDocument(req, res) {
   const parcelId = Number(req.params.id);
@@ -144,6 +140,7 @@ async function listDocuments(req, res) {
   }
 }
 
+// FR10: a land officer verifies or rejects a document
 // PUT /api/documents/:id/review  { decision: 'verified' | 'rejected', reason }
 async function reviewDocument(req, res) {
   const { decision } = req.body;

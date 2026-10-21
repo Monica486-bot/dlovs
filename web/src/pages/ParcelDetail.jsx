@@ -15,21 +15,31 @@ export default function ParcelDetail() {
   const [record, setRecord] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [pendingRequest, setPendingRequest] = useState(null);
+  const [pendingTransfer, setPendingTransfer] = useState(null);
   const [qr, setQr] = useState(location.state?.qrDataUrl || null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(location.state?.flash || '');
+  const [noticeTone] = useState(location.state?.flashTone || 'success');
+  const [newQr] = useState(Boolean(location.state?.newQr));
+
+  // show the success message once: a reload shouldn't announce it again
+  useEffect(() => {
+    if (location.state) window.history.replaceState({}, '');
+  }, [location.state]);
   const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [rec, docs, reqs] = await Promise.all([
+      const [rec, docs, reqs, transfers] = await Promise.all([
         api.get(`/parcels/${id}/verify`),
         api.get(`/parcels/${id}/documents`),
         api.get('/transfer-requests', { params: { status: 'pending' } }),
+        api.get('/pending-transfers'),
       ]);
       setRecord(rec.data);
       setDocuments(docs.data);
       setPendingRequest(reqs.data.find((r) => r.parcel_id === Number(id)) || null);
+      setPendingTransfer(transfers.data.find((p) => p.parcel_id === Number(id)) || null);
     } catch (err) {
       setError(errorMessage(err, t('Failed to load parcel')));
     }
@@ -74,7 +84,17 @@ export default function ParcelDetail() {
         </div>
       </div>
 
-      {notice && <div className="notice success no-print">{notice}</div>}
+      {notice && <div className={`notice ${noticeTone} no-print`}>{notice}</div>}
+      {pendingTransfer && (
+        <div className="notice warning no-print">
+          <span>
+            {pendingTransfer.status === 'awaiting_owner'
+              ? t('Transfer to {name} is waiting for the owner\'s SMS code.', { name: pendingTransfer.new_owner_name })
+              : t('Transfer to {name} is waiting for a second officer\'s approval.', { name: pendingTransfer.new_owner_name })}
+            {' · '}<Link to={pendingTransfer.status === 'awaiting_owner' ? `/parcels/${id}/transfer` : '/transfer-approvals'}>{t('Open')}</Link>
+          </span>
+        </div>
+      )}
       <div className="no-print"><RecordWarnings parcel={parcel} disputes={disputes} /></div>
       {pendingRequest && (
         <div className="notice info no-print">
@@ -89,6 +109,9 @@ export default function ParcelDetail() {
         {qr && (
           <div className="card qr-card print-area">
             <h3>{t('Verification QR Code')}</h3>
+            {newQr && (
+              <p className="notice info no-print">{t('New code issued. Print it and replace the marker on the plot.')}</p>
+            )}
             <img src={qr} alt={t('QR code for parcel {id}', { id: parcel.parcel_id })} width={220} height={220} />
             <p className="print-caption">
               {t('DLOVS Parcel #{id}', { id: parcel.parcel_id })} · {parcel.neighbourhood}

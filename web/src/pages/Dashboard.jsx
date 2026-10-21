@@ -8,7 +8,7 @@ import StatusBadge from '../components/StatusBadge';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { t } = useT();
+  const { t, tn } = useT();
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
 
@@ -40,14 +40,16 @@ export default function Dashboard() {
         <Stat label={t('Transfer Requests')} value={stats?.pending_transfer_requests} to="/transfer-requests" tone="success" />
       </div>
 
-      {stats && (stats.pending_id_checks > 0 || stats.open_reports > 0) && (
+      {stats && (stats.pending_id_checks > 0 || stats.open_reports > 0 || stats.pending_transfer_approvals > 0) && (
         <div className="actions" style={{ marginBottom: 20 }}>
-          {stats.pending_id_checks > 0 && <Link className="view-link" to="/id-checks">{t('{n} ID check(s) waiting →', { n: stats.pending_id_checks })}</Link>}
-          {stats.open_reports > 0 && <Link className="view-link" to="/reports">{t('{n} unregistered plot report(s) →', { n: stats.open_reports })}</Link>}
+          {stats.pending_transfer_approvals > 0 && <Link className="view-link" to="/transfer-approvals">{tn('{n} transfer waiting for your approval →', '{n} transfers waiting for your approval →', stats.pending_transfer_approvals)}</Link>}
+          {stats.pending_id_checks > 0 && <Link className="view-link" to="/id-checks">{tn('{n} ID check waiting →', '{n} ID checks waiting →', stats.pending_id_checks)}</Link>}
+          {stats.open_reports > 0 && <Link className="view-link" to="/reports">{tn('{n} unregistered plot report →', '{n} unregistered plot reports →', stats.open_reports)}</Link>}
         </div>
       )}
 
       <div className="card">
+        <h3>{t('Recently updated parcels')}</h3>
         <div className="table-scroll">
           <table>
             <thead>

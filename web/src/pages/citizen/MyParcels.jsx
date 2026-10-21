@@ -8,7 +8,7 @@ import StatusBadge from '../../components/StatusBadge';
 
 // FR09 (citizen side): parcels registered to the citizen's national ID.
 export default function MyParcels() {
-  const { t } = useT();
+  const { t, tn } = useT();
   const { user, updateUser } = useAuth();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -40,7 +40,7 @@ export default function MyParcels() {
     <div>
       <h2>{t('My Parcels')}</h2>
       <p className="page-subtitle">
-        {data?.id_status === 'verified' ? t('{n} parcel(s) registered to your name', { n: data.parcels.length }) : t('Parcels registered to your national ID')}
+        {data?.id_status === 'verified' ? tn('{n} parcel registered to your name', '{n} parcels registered to your name', data.parcels.length) : t('Parcels registered to your national ID')}
       </p>
       {error && <div className="error-text">{error}</div>}
 
@@ -67,6 +67,12 @@ export default function MyParcels() {
       {data?.id_status === 'pending' && (
         <div className="notice info">
           <span><strong>{t('ID check pending')}</strong> · {t('Show your ID card ({id}) at the land office to see your parcels here.', { id: user?.national_id })}</span>
+        </div>
+      )}
+
+      {data?.id_status === 'no_land' && (
+        <div className="card">
+          <p style={{ margin: 0 }}>{t("No parcels are registered to your national ID. If land is registered to it, we'll ask you to show your ID card at the land office.")}</p>
         </div>
       )}
 

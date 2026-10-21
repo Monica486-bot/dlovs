@@ -3,10 +3,7 @@ import { useT } from '../i18n';
 
 const THRESHOLD_METRES = 10;
 
-// FR04: fills GPS fields from the device's location, and warns when the
-// reported accuracy is worse than the 10 m threshold. On a desktop without
-// GPS the browser estimates position from Wi-Fi, which is usually far less
-// accurate — the warning makes that visible instead of silently saving it.
+// FR04: fills GPS fields from the device and warns above 10 m accuracy.
 export default function LocationButton({ onLocate }) {
   const { t } = useT();
   const [state, setState] = useState({ status: 'idle' });

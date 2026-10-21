@@ -11,6 +11,7 @@ import VerifyPhone from './pages/public/VerifyPhone';
 import ForgotPassword from './pages/public/ForgotPassword';
 import PublicVerify from './pages/public/PublicVerify';
 import PublicParcel from './pages/public/PublicParcel';
+import PublicOwner from './pages/public/PublicOwner';
 // citizen
 import MyParcels from './pages/citizen/MyParcels';
 import MyParcel from './pages/citizen/MyParcel';
@@ -30,6 +31,7 @@ import OwnerPortfolio from './pages/OwnerPortfolio';
 import Documents from './pages/Documents';
 import PlotReports from './pages/PlotReports';
 import TransferRequests from './pages/TransferRequests';
+import TransferApprovals from './pages/TransferApprovals';
 import Disputes from './pages/Disputes';
 import AuditLog from './pages/AuditLog';
 import Admin from './pages/Admin';
@@ -75,6 +77,7 @@ function AppRoutes() {
 
       <Route path="/verify" element={publicPage(<PublicVerify />)} />
       <Route path="/verify/:id" element={publicPage(<PublicParcel />)} />
+      <Route path="/verify/owners/:id" element={publicPage(<PublicOwner />)} />
       <Route path="/login" element={publicPage(<Login />)} />
       <Route path="/register" element={publicPage(<Register />)} />
       <Route path="/verify-phone" element={publicPage(<VerifyPhone />)} />
@@ -98,6 +101,7 @@ function AppRoutes() {
       <Route path="/documents" element={staffPage(<Documents />)} />
       <Route path="/reports" element={staffPage(<PlotReports />)} />
       <Route path="/transfer-requests" element={staffPage(<TransferRequests />)} />
+      <Route path="/transfer-approvals" element={staffPage(<TransferApprovals />)} />
       <Route path="/disputes" element={staffPage(<Disputes />)} />
       <Route path="/id-checks" element={staffPage(<IdChecks />)} />
       <Route path="/audit-log" element={staffPage(<AuditLog />)} />

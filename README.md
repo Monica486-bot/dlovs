@@ -12,8 +12,8 @@ is written to an audit log that the database itself refuses to alter.
 | Component | Tech | Users |
 |---|---|---|
 | **Backend API** | Node.js / Express 5, PostgreSQL | Shared by both apps |
-| **Web app** (this submission) | React 19 + Vite, English and Arabic | The public, citizens, land officers, administrators |
-| **Mobile app** (next phase) | React Native, Expo SDK 57 | Citizens scanning QR codes on the ground |
+| **Web app** | React 19 + Vite, English and Arabic | The public, citizens, land officers, administrators |
+| **Mobile app** | React Native, Expo SDK 57, English and Arabic | The public and citizens, scanning QR codes on the ground |
 
 ## Links
 
@@ -21,41 +21,58 @@ is written to an audit log that the database itself refuses to alter.
 - **Figma prototype (18 screens):** https://www.figma.com/design/2mrZb7K98KKKn21Zky1C9y/DLOVS-App-Screens?node-id=0-1&p=f&t=NDGbDICq0c3tA6cJ-0
 - **Video demo:** https://screenrec.com/share/fbS06nAG3K
 
-## Functional requirements in the web app
+## Functional requirements
 
-| | Requirement (proposal Table 4) | Where |
-|---|---|---|
-| FR01 | Registration by phone + SMS one-time code; officers created by admins only | Create Account → Confirm phone; Admin Panel |
-| FR02 | Anyone can verify without an account | *Verify a Parcel* (public) |
-| FR03 | Officers create, edit, deactivate parcel records | Register Parcel, Edit Details, Admin Panel |
-| FR04 | GPS capture with a 10 m accuracy warning | *Use my current location* on every GPS form |
-| FR05 | Signed, printable QR code per parcel | Parcel record → Show QR Code → Print |
-| FR06 | Verification pathways: parcel ID, owner name / neighbourhood / GPS location, national ID | Search (QR scanning is in the mobile app) |
-| FR07 | Full record: owner, GPS, dates, history, documents, disputes | Parcel record pages |
-| FR08 | Append-only ownership history | History table; database triggers refuse edits and deletes |
-| FR09 | Owner portfolio | *All parcels owned by…* (staff); *My Parcels* (citizens) |
-| FR10 | Document upload, officer verification | Citizen parcel page, staff parcel page, *Documents* queue |
-| FR11 | Land transfer with history | Transfer Ownership; citizen transfer requests |
-| FR12 | Ownership / boundary dispute flags | Public record page (citizens); *Disputes* (officers) |
-| FR13 | Report an unregistered parcel | *Report a Plot*; officers' *Unregistered Plots* queue |
-| FR14 | Officer audit trail + separation of duties | *Audit Log*; officers can't review documents on parcels they registered or uploaded |
-| FR15 | Notifications | 🔔 in-app notifications for everyone; SMS for events affecting a citizen's own land |
-| FR16 | Offline cache | Mobile app only |
-| FR17 | Search filters | Status, registration date range, document status |
-| FR18 | Low-bandwidth | Text-only pages, no map tiles (~135 KB gzipped app) |
-| FR19 | English and Arabic | العربية / English switch; full right-to-left layout |
-| FR20 | Account recovery | Forgot password (SMS code) for citizens; admin resets officer passwords |
-| FR21 | Administrator dashboard | Admin Panel + *Usage Reports* with CSV export |
+| | Requirement (proposal Table 4) | Web app | Mobile app |
+|---|---|---|---|
+| FR01 | Registration by phone + SMS one-time code; officers created by admins only | Create Account → Confirm phone; Admin Panel | Create Account → Confirm Phone |
+| FR02 | Anyone can verify without an account | *Verify a Parcel* | Home screen — no login needed |
+| FR03 | Officers create, edit, deactivate parcel records | Register Parcel, Edit Details, Admin Panel | — (officer tools are web only, as in the use case diagram) |
+| FR04 | GPS capture with a 10 m accuracy warning | *Use my current location* on every GPS form | Location check and ✓ badge on every record; *Near me* search; plot reports |
+| FR05 | Signed, printable QR code per parcel, encoding the verification URL | Parcel record → Show QR Code → Print | Scanned by the app; any phone camera opens the web record |
+| FR06 | Four verification pathways: QR, parcel ID, name / area / GPS, national ID | Search | Scan, and Search (ID, owner, area, national ID, near me) |
+| FR07 | Full record: owner, GPS, dates, history, documents, disputes | Parcel record pages | Ownership Record |
+| FR08 | Append-only ownership history | History table; database triggers refuse edits and deletes | Ownership history on every record |
+| FR09 | Owner portfolio, for any user | *All parcels owned by…* (public and staff); *My Parcels* | *All parcels owned by…*; My Parcels |
+| FR10 | Document upload, officer verification | Citizen parcel page, staff parcel page, *Documents* queue | My Parcel → Upload a document |
+| FR11 | Land transfer with history and a **new QR code** | Transfer Ownership (shows the new code to print); citizen transfer requests | My Parcel → Transfer to a buyer; old markers read as *replaced* |
+| FR12 | Ownership / boundary dispute flags | Public record page (citizens); *Disputes* (officers) | Flag a Dispute |
+| FR13 | Report an unregistered parcel | *Report a Plot*; officers' *Unregistered Plots* queue | *Report This Plot* on every empty search; Report a Plot |
+| FR14 | Officer audit trail + separation of duties | *Audit Log*; officers can't review documents on parcels they registered or uploaded | — |
+| FR15 | Notifications | 🔔 in-app; SMS for events affecting a citizen's own land | **Expo push** + Notifications screen; SMS |
+| FR16 | Offline cache (last 50 records) | — | Recently Viewed, with a "saved copy" warning |
+| FR17 | Search filters | Status, registration date range, document status | Same filters on search results |
+| FR18 | Low-bandwidth | Text-only pages, no map tiles (~138 KB gzipped app) | Text-only records; 15 s timeout before falling back to the cache |
+| FR19 | English and Arabic | العربية / English switch; full right-to-left layout | Same switch in every screen's header; right-to-left layout |
+| FR20 | Account recovery | Forgot password (SMS code) for citizens; admin resets officer passwords | Forgot Password? (SMS code) |
+| FR21 | Administrator dashboard | Admin Panel + *Usage Reports* with CSV export | — |
 
 **Security and data integrity**
 - Public sign-up only creates citizen accounts; one citizen account per national ID (the ID is what links an account to land).
 - **A national ID only links an account to land after a land officer has seen the ID card in person** (*ID Checks* queue).
   Until then the account can't see, upload to, or request a transfer of anyone's parcels — so typing someone else's ID
   number gets an impostor nothing, and an officer can reject the claim to free the ID for its real owner.
+- **ID checks are only requested for national IDs that own land.** Anyone can sign up to flag disputes or report
+  plots, but an account without land never reaches the officers' *ID Checks* queue. When land is later registered or
+  transferred to that ID, the account is told by SMS and in-app notification to bring the ID card in once.
 - Deactivating an account or changing a role takes effect on the next request.
-- National IDs, document files and QR signatures are never sent to the public.
+- **Owners are registered with four names** (first name, middle name, second middle name, surname), as on South Sudanese
+  IDs and passports — for new parcels, transfers and transfer requests. Two people called "Akoi Deng" are common;
+  four names rarely collide.
+- National IDs, phone numbers, document files and QR signatures are never sent to the public.
+- **Every transfer issues a new QR code.** The signature covers a version number, so the previous owner's marker still
+  reads as a genuine DLOVS code but is flagged *replaced* — the warning sign of someone reselling land they've sold.
 - Documents are **encrypted at rest** (AES-256-GCM) before they're stored, and checked by content — a renamed file isn't accepted as a PDF.
+- **No transfer without the owner's consent.** A transfer goes through only with one of:
+  - the owner's own transfer request — and only to the buyer named in it;
+  - an SMS code sent to the owner's registered phone, which the owner reads to the officer ("if you did NOT agree, do
+    not share it");
+  - for owners without an account, the written consent recorded by the officer **and approved by a second officer**.
+
+  No single officer can move land on their own word.
 - Transfers lock the parcel and are refused while it's disputed, deactivated, or if someone else transferred it first.
+- **Dispute flags are limited:** one open dispute per person per parcel, and at most 3 open disputes per account, so
+  one account can't freeze sales across the register (a flag blocks transfers until an officer resolves it).
 - Login and SMS-code endpoints are rate-limited; codes are hashed, expire after 10 minutes, and lock after 5 wrong tries.
 - Security headers (helmet), CORS allow-list, bcrypt passwords, JWT sessions.
 
@@ -116,7 +133,7 @@ is written to an audit log that the database itself refuses to alter.
 | ![AR public](docs/screenshots/ar_public_parcel.png) | ![AR dashboard](docs/screenshots/ar_staff_dashboard.png) | <img src="docs/screenshots/phone_public_parcel.png" width="200"> | <img src="docs/screenshots/phone_citizen_parcels.png" width="200"> |
 
 <details>
-<summary>Mobile app screenshots (next phase)</summary>
+<summary>Mobile app screenshots (taken before the documents, notifications and Arabic screens were added)</summary>
 
 | Home | Verified record | Forged QR code | Offline copy |
 |---|---|---|---|
@@ -143,6 +160,11 @@ psql -d dlovs_db -f db/schema.sql
 #   psql -d dlovs_db -f db/migrations/001_user_national_id_and_active.sql
 #   psql -d dlovs_db -f db/migrations/002_web_portal_documents_notifications.sql
 #   psql -d dlovs_db -f db/migrations/003_national_id_verification.sql
+#   psql -d dlovs_db -f db/migrations/004_qr_versions_and_push_tokens.sql
+#   psql -d dlovs_db -f db/migrations/005_parcel_city.sql
+#   psql -d dlovs_db -f db/migrations/006_pending_transfers.sql
+#   psql -d dlovs_db -f db/migrations/007_transfer_reasons.sql
+#   psql -d dlovs_db -f db/migrations/008_request_reasons.sql
 
 npm run seed                # demo accounts and parcels (empty database only)
 npm start                   # http://localhost:4000
@@ -156,6 +178,7 @@ Optional settings in `backend/.env` — everything works without them for a loca
 | `CLOUDINARY_URL` | Encrypted documents are stored in `backend/uploads/` | Encrypted documents are stored in Cloudinary (needed on Render, which has no lasting disk) |
 | `DOCUMENT_ENCRYPTION_KEY` | A development key is derived from `JWT_SECRET` | **Required in production.** 64 hex characters; losing it makes stored documents unreadable |
 | `CORS_ORIGINS` | Any website may call the API | Only the listed web app addresses may |
+| `PUBLIC_WEB_URL` | QR codes link to `http://localhost:5173/verify/…` | QR codes link to the deployed web app — **set it before printing markers** |
 
 Not using the demo data? Create the first administrator with
 `npm run create-admin -- "Full Name" "+211900000009" "password"`, then create officers from the Admin Panel.
@@ -169,7 +192,7 @@ cp .env.example .env        # VITE_API_URL=http://localhost:4000/api
 npm run dev                 # http://localhost:5173
 ```
 
-### 3. Mobile app (optional for this submission)
+### 3. Mobile app
 
 ```bash
 cd mobile
@@ -177,6 +200,19 @@ npm install
 cp .env.example .env        # EXPO_PUBLIC_API_URL=http://<your computer's Wi-Fi IP>:4000/api
 npx expo start              # scan the terminal QR code with Expo Go
 ```
+
+Everything except push notifications works in Expo Go. Push needs an Android build — see
+[mobile/README.md](mobile/README.md) for `eas init` and building the APK.
+
+### 4. Automated tests
+
+```bash
+cd backend
+npm test                    # Jest + Supertest against a separate dlovs_test database
+```
+
+The tests create `dlovs_test` on the same PostgreSQL server as `DATABASE_URL` (or use `TEST_DATABASE_URL`) and reload
+the schema on every run. They refuse to run against a database whose name doesn't end in `_test`.
 
 ### Demo accounts (from `npm run seed`)
 
@@ -187,8 +223,8 @@ All passwords are `pass1234`.
 | Administrator | +211900000009 | Ayen Garang | Admin Panel, Usage Reports |
 | Land officer | +211900000001 | Officer Deng Majok | Registered parcels #1, #2, #5, #6 |
 | Land officer | +211900000003 | Officer Lado Wani | Registered #3, #4 — so he can review documents on Deng's parcels |
-| Citizen | +211900000002 | Akoi Deng (ID SS-0001) | Owns parcels #1 and #2 |
-| Citizen | +211900000004 | Nyandeng Kuol (ID SS-0004) | Owns parcel #3 (after a transfer) |
+| Citizen | +211900000002 | Akoi Deng Majok Garang (ID SS-0001) | Owns parcels #1 and #2 |
+| Citizen | +211900000004 | Nyandeng Kuol Ajak Mayen (ID SS-0004) | Owns parcel #3 (after a transfer) |
 
 The seed parcels cover every state: #1–2 active, #3 transferred, #4 under an open ownership dispute, #5 with a resolved
 boundary dispute, #6 deactivated as fraudulent. To create a new citizen, use *Create Account* — the SMS code appears on
@@ -337,18 +373,25 @@ erDiagram
 | POST | `/api/auth/forgot-password` → `/reset-password-with-code` | Anyone | Citizen password reset by SMS |
 | POST | `/api/auth/reset-password` | Logged in | Change your own password (needs the current one) |
 | GET | `/api/parcels/search?by=&query=` | Anyone | `by`: `any`, `parcel_id`, `owner_name`, `neighbourhood`, `national_id` (exact), or `near` with `lat`, `lng`, `radius` |
-| GET | `/api/parcels/:id/verify` | Anyone | Ownership record (identity fields only for staff) |
+| GET | `/api/parcels/neighbourhoods` | Anyone | Juba neighbourhoods for the parcel forms' dropdown |
+| GET | `/api/parcels/:id/verify?signature=` | Anyone | Ownership record (identity fields only for staff). With a scanned QR signature, `qr_check` is `valid` or `superseded` (replaced by a transfer); a forged one returns 400 `QR_INVALID` |
 | GET | `/api/parcels/mine` | Citizen | Parcels registered to my national ID |
 | POST · PUT | `/api/parcels` · `/api/parcels/:id` | Land officer | Register (with QR) · edit location details |
-| POST | `/api/parcels/:id/transfer` | Land officer | Transfer; optional `transfer_request_id` completes a citizen's request |
+| GET | `/api/parcels/:id/transfer-consent` | Land officer | Which consent a transfer needs (owner's SMS code or a second officer), and any transfer already waiting |
+| GET | `/api/parcels/transfer-reasons` | Anyone | Reasons for a transfer (sale, inheritance, gift, court order, government allocation, correction, other) |
+| POST | `/api/parcels/:id/transfer` | Land officer | Needs a `reason` (and `reason_details` for *Other*), shown in the ownership history. With `transfer_request_id`: completes the owner's request (200). Otherwise starts a transfer that waits for consent (202): SMS code to the owner, or `consent_document` for a second officer |
+| GET | `/api/pending-transfers` | Staff | Transfers waiting for consent |
+| POST | `/api/pending-transfers/:id/confirm` · `/resend` | Officer who started it | Enter the owner's code (new QR issued) · send a new code |
+| PUT | `/api/pending-transfers/:id/approve` · `/reject` · `/cancel` | Another officer · starter or admin | Approve or reject the written consent · cancel |
 | POST · GET | `/api/parcels/:id/documents` | Owner, land officer | Upload (multipart, 5 MB) · list |
 | GET · PUT | `/api/documents` · `/api/documents/:id/review` | Officers | Review queue · verify or reject (separation of duties enforced) |
 | GET | `/api/documents/:id/file` | Staff, uploader, owner | Decrypted file |
-| POST | `/api/parcels/:id/transfer-requests` | Owner | Ask for a transfer to a buyer |
+| POST | `/api/parcels/:id/transfer-requests` | Owner | Ask for a transfer to a buyer, with a `reason` (and `reason_details` for *Other*) |
 | GET · PUT | `/api/transfer-requests` · `/:id/reject` | Officers | Queue · reject with a reason |
 | POST · GET · PUT | `/api/unregistered-reports` | Citizen · officers | Report a plot · queue · close |
 | POST · GET · PUT | `/api/disputes` · `/:id/resolve` | Citizen · officers | Flag · list · resolve |
-| GET | `/api/owners/:id` | Staff | Owner portfolio |
+| GET | `/api/owners/:id` | Anyone | Owner portfolio (national ID and phone only for staff) |
+| POST · DELETE | `/api/push-tokens` | Logged in | Register / remove the mobile app's Expo push token |
 | GET · PUT | `/api/id-checks` · `/api/id-checks/:userId` | Staff | Citizens waiting for an in-person ID check · confirm or reject |
 | GET · PUT | `/api/notifications` · `/read-all` | Logged in | Notifications |
 | GET | `/api/parcels/stats` | Staff | Dashboard counts and queues |
@@ -365,8 +408,8 @@ The server decides who may review a document, and the web app shows the reason i
 function reviewBlock(user, doc) {
   if (user.role !== 'land_officer') return 'Only land officers review documents';
   if (doc.verification_status !== 'pending') return 'Already reviewed';
-  if (doc.registered_by === user.user_id) return 'You registered this parcel — another officer must review its documents';
-  if (doc.uploaded_by === user.user_id) return 'You uploaded this document — another officer must review it';
+  if (doc.registered_by === user.user_id) return 'You registered this parcel — another officer reviews its documents';
+  if (doc.uploaded_by === user.user_id) return 'You uploaded this document — another officer reviews it';
   return null;
 }
 ```
@@ -425,7 +468,15 @@ const t = (text, vars) => {
 
 ## Testing
 
-Run during development against a fresh copy of the database:
+**Automated (`npm test` in `backend/`)** — 44 Jest + Supertest tests, including the proposal's evaluation metric (d):
+20 officer transactions (5 parcel registrations, 5 document approvals, 5 transfers, 5 dispute resolutions), each
+checked for exactly one audit-log entry with the officer and a timestamp. The others cover SMS-code sign-up, roles,
+guest access, signed / forged / replaced QR codes, transfers (new QR, disputed parcels, double sales, owner consent by
+SMS code or second officer, swapped buyers), append-only
+triggers, all verification pathways, the public portfolio, separation of duties, file type and 5 MB limits, encryption
+at rest, disputes, plot reports, transfer requests, ID checks and push tokens.
+
+Also run during development against a fresh copy of the database:
 - **129 API checks** — sign-up and SMS codes (wrong codes, lock-out, reuse), password resets, every role restriction,
   document upload (wrong file type, over 5 MB, non-owner), separation of duties, encryption on disk, append-only
   triggers, in-person ID checks (including an impostor using a real owner's ID), transfers (disputed, deactivated, simultaneous double sale), requests, reports, notifications, rate limiting.
@@ -443,15 +494,17 @@ Everything runs on free tiers, as budgeted in the proposal (Table 1):
 | **Netlify** | Web app (static Vite build) | `web/public/_redirects` makes page refreshes work |
 | **Cloudinary** | Encrypted documents | Required on Render, whose disk is wiped on every deploy |
 | **Africa's Talking** | SMS codes and alerts | Sandbox username `sandbox` during the capstone (no cost) |
-| **Expo EAS** | Mobile app APK (next phase) | `eas.json` has a `preview` profile |
+| **Expo EAS** | Mobile app APK and push notifications | `mobile/eas.json` has a `preview` profile that builds an APK |
 
 **Steps**
-1. **API (Render):** New Web Service → root `backend`, build `npm install`, start `npm start`. Add PostgreSQL. Set
-   `DATABASE_URL`, `JWT_SECRET`, `QR_SIGNING_SECRET`, `DOCUMENT_ENCRYPTION_KEY`, `CLOUDINARY_URL`, `AT_USERNAME`,
-   `AT_API_KEY`, `NODE_ENV=production`, and `CORS_ORIGINS=https://<your-site>.netlify.app`. Run `db/schema.sql`
-   once, then `npm run create-admin` from the Render shell.
-2. **Web app (Netlify):** New site → base `web`, build `npm run build`, publish `web/dist`, set
-   `VITE_API_URL=https://<render-service>.onrender.com/api`.
+1. **API + database (Render):** New → Blueprint → this repository. [`render.yaml`](render.yaml) creates the API and
+   PostgreSQL and generates `JWT_SECRET` and `QR_SIGNING_SECRET`; fill in `DOCUMENT_ENCRYPTION_KEY`, `CLOUDINARY_URL`,
+   `CORS_ORIGINS` and `PUBLIC_WEB_URL` (both the Netlify address) and `AT_API_KEY`. Then load the schema once with
+   `psql "<External Database URL>" -f backend/db/schema.sql` and run `npm run create-admin` from the Render shell.
+2. **Web app (Netlify):** New site from this repository — [`netlify.toml`](netlify.toml) sets the base, build and
+   publish folders. Set `VITE_API_URL=https://<render-service>.onrender.com/api`.
+3. **Mobile app:** set `EXPO_PUBLIC_API_URL` to the Render API, then `eas build -p android --profile preview` (see
+   [mobile/README.md](mobile/README.md)) and install the APK on the test phones.
 
 ## Known limitations
 
@@ -463,6 +516,15 @@ Everything runs on free tiers, as budgeted in the proposal (Table 1):
 - Officers aren't assigned to areas yet, so every officer is notified of every new dispute (proposal FR15 mentions
   "jurisdiction").
 - National IDs are checked by an officer looking at the ID card; DLOVS can't yet verify an ID against a national register.
+- **QR signatures are checked by the API, not on the phone** (the proposal's NFR03 says the app checks them). Checking
+  on the phone would mean putting the signing secret inside the APK, where anyone could extract it and sign forged
+  codes. The scanned signature is sent with the verification request instead, and a forged code is refused there.
+- **QR codes in the public owner portfolio** (FR09) are staff-only; the public sees the portfolio's parcels and links to
+  each record, and printing markers stays an officer task.
+- Markers printed before the QR code held a verification URL contain a small JSON code instead; the mobile app still
+  reads them, but a plain phone camera won't open them. Reprint them from the parcel page.
+- **Push notifications** need an EAS project ID and a real Android build (Expo Go no longer supports push); without
+  them the app falls back to the Notifications screen and SMS.
 
 ## Code files
 
@@ -474,7 +536,8 @@ dlovs/
 │   ├── controllers/            auth, parcels, documents, disputes, requests, admin, audit
 │   ├── routes/                 endpoint → controller mapping with role checks
 │   ├── middleware/             auth (JWT + roles), upload (5 MB limit)
-│   ├── utils/                  qr, documentStorage (encryption), phoneCodes, sms, notify
+│   ├── utils/                  qr, documentStorage (encryption), phoneCodes, sms, push, notify
+│   ├── tests/                  Jest + Supertest API tests (npm test)
 │   └── scripts/                seed.js (demo data), createAdmin.js
 ├── web/                        React web app
 │   └── src/
@@ -482,6 +545,14 @@ dlovs/
 │       ├── components/         layouts, search, parcel record sections, documents, notifications
 │       ├── i18n/               language switch and Arabic translations
 │       └── utils/              dates, audit labels
-├── mobile/                     React Native / Expo app (next phase)
+├── mobile/                     React Native / Expo app
+│   └── src/
+│       ├── app/                screens (Expo Router): scan, search, parcel/[id], owner/[id], mine,
+│       │                       my-parcel/[id], dispute, report-plot, notifications, account, sign-in screens
+│       ├── components/         buttons, cards, banners, chips, status pills
+│       ├── i18n/               language switch and Arabic translations
+│       └── utils/              offline cache, GPS + Haversine, QR parsing, push notifications
+├── render.yaml                 Render blueprint (API + PostgreSQL)
+├── netlify.toml                Netlify build for the web app
 └── docs/screenshots/
 ```

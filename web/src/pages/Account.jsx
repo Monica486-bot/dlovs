@@ -51,7 +51,7 @@ export default function Account() {
                 {user?.national_id || t('Not set')}
                 {user?.national_id && (
                   <span className="muted small">
-                    {' · '}{user.national_id_verified ? t('Confirmed') : t('ID check pending')}
+                    {' · '}{user.national_id_verified ? t('Confirmed') : t('Not confirmed yet')}
                   </span>
                 )}
               </dd>

@@ -1,19 +1,3 @@
-// Encrypted document storage (FR10, NFR10).
-//
-// Every file is encrypted with AES-256-GCM before it leaves this process, so
-// encryption at rest doesn't depend on the storage provider. The stored blob
-// is: 12-byte IV | 16-byte auth tag | ciphertext.
-//
-// Where blobs go:
-//   - Cloudinary (private raw uploads) when CLOUDINARY_URL is set
-//   - otherwise the local directory UPLOAD_DIR (default backend/uploads).
-//     Note: Render's free web services have no persistent disk, so use
-//     Cloudinary there.
-//
-// DOCUMENT_ENCRYPTION_KEY: 32 bytes as 64 hex characters. Generate one with
-//   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-// Losing this key makes every stored document unreadable.
-
 const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
@@ -25,6 +9,7 @@ if (useCloudinary) {
   cloudinary = require('cloudinary').v2; // reads CLOUDINARY_URL from the environment
 }
 
+// DOCUMENT_ENCRYPTION_KEY: 64 hex characters
 function encryptionKey() {
   const hex = process.env.DOCUMENT_ENCRYPTION_KEY;
   if (hex && /^[0-9a-fA-F]{64}$/.test(hex)) return Buffer.from(hex, 'hex');
@@ -48,6 +33,8 @@ function decrypt(blob) {
   return Buffer.concat([decipher.update(blob.subarray(28)), decipher.final()]);
 }
 
+// FR10 / NFR10: encrypted with AES-256-GCM, then stored in Cloudinary or the
+// local uploads folder.
 // Returns a storage reference to save in document.file_url.
 async function saveDocument(buffer) {
   const blob = encrypt(buffer);

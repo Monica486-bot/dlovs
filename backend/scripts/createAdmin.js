@@ -1,12 +1,9 @@
-// Creates the first Administrator account. Public registration only creates
-// citizens (FR01), so the first admin has to be created from the server.
-//
-// Usage: npm run create-admin -- "Full Name" "+211900000000" "password"
-
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const bcrypt = require('bcrypt');
 const pool = require('../db/pool');
 
+// Creates the first administrator account.
+// Usage: npm run create-admin -- "Full Name" "+211900000000" "password"
 async function main() {
   const [fullName, phoneNumber, password] = process.argv.slice(2);
   if (!fullName || !phoneNumber || !password) {

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import api, { errorMessage } from '../api/client';
 import { useT } from '../i18n';
 import LocationButton from '../components/LocationButton';
+import NeighbourhoodSelect from '../components/NeighbourhoodSelect';
 
 // FR03: LandOfficer updates a parcel's location details. Ownership changes go
 // through Transfer Ownership instead, so they always leave a history entry.
@@ -71,7 +72,7 @@ export default function EditParcel() {
             {t('Registered owner:')} <strong>{original.owner_name}</strong>
           </p>
           <form onSubmit={submit}>
-            <label>{t('Neighbourhood')}<input {...field('neighbourhood')} required /></label>
+            <NeighbourhoodSelect value={form.neighbourhood} onChange={(neighbourhood) => setForm({ ...form, neighbourhood })} />
             <div className="field-row">
               <label>{t('GPS Latitude')}<input {...field('gps_lat')} inputMode="decimal" required dir="ltr" /></label>
               <label>{t('GPS Longitude')}<input {...field('gps_lng')} inputMode="decimal" required dir="ltr" /></label>

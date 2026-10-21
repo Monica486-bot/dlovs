@@ -4,10 +4,8 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const authController = require('../controllers/authController');
 
-// NFR03: slow down password guessing and SMS abuse.
-// Limits are per phone number, with a looser per-network backstop. Limiting
-// by network alone would lock out a whole field-testing session, where dozens
-// of participants share one Wi-Fi connection (one IP address).
+// NFR03: rate limits per phone number, with a looser per-network limit
+// (many field-test users may share one Wi-Fi).
 const phoneKey = (req) => `phone:${String(req.body?.phone_number || '').replace(/[\s-]/g, '')}`;
 const common = { standardHeaders: 'draft-7', legacyHeaders: false };
 

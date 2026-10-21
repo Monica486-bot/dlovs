@@ -1,17 +1,8 @@
-// Implements the User base class methods from the Class Diagram (Figure 4):
-// login(), logout(), updateProfile(), resetPassword().
-// Public registration is for Citizens only (FR01). Land Officer and
-// Administrator accounts are created by an administrator — see
-// adminController.createUser and scripts/createAdmin.js.
-//
-// FR01: citizens confirm their phone number with an SMS code before they can
-// log in. FR20: citizens reset a forgotten password with an SMS code; officer
-// passwords are reset by an administrator.
-
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const pool = require('../db/pool');
 const { issueCode, checkCode, CodeError } = require('../utils/phoneCodes');
+const { fourPartName } = require('../utils/names');
 require('dotenv').config();
 
 const PLATFORMS = ['mobile', 'web'];
@@ -25,12 +16,19 @@ function sendCodeError(res, err, fallback) {
   return res.status(500).json({ error: fallback });
 }
 
+// FR01: citizen sign-up with phone and password; the phone is confirmed by SMS code.
+// Staff accounts are created by an administrator (adminController).
 async function register(req, res) {
-  const { full_name, password, national_id, platform = 'mobile' } = req.body;
+  const { password, national_id, platform = 'mobile' } = req.body;
   const phone_number = normalisePhone(req.body.phone_number);
-  if (!full_name?.trim() || !phone_number || !password) {
+  if (!req.body.full_name?.trim() || !phone_number || !password) {
     return res.status(400).json({ error: 'full_name, phone_number, and password are required' });
   }
+  // four names, as on the ID card: the officer's ID check compares them with
+  // the four names parcels are registered under
+  const names = fourPartName(req.body.full_name, 'your');
+  if (names.error) return res.status(400).json({ error: names.error });
+  const full_name = names.name;
   if (!PHONE_PATTERN.test(phone_number)) {
     return res.status(400).json({ error: 'Enter the phone number with its country code, e.g. +211912345678' });
   }
@@ -46,7 +44,7 @@ async function register(req, res) {
       `INSERT INTO "user" (full_name, phone_number, password_hash, role, platform, national_id, phone_verified)
        VALUES ($1, $2, $3, 'citizen', $4, $5, false)
        RETURNING user_id, full_name, phone_number, role, platform, national_id, created_at`,
-      [full_name.trim(), phone_number, password_hash, platform, national_id?.trim() || null]
+      [full_name, phone_number, password_hash, platform, national_id?.trim() || null]
     );
     const { devCode } = await issueCode(phone_number, 'verify');
     res.status(201).json({ ...result.rows[0], verification_required: true, dev_code: devCode });
@@ -152,7 +150,13 @@ function logout(req, res) {
 
 // updateProfile(): void
 async function updateProfile(req, res) {
-  const { full_name, national_id } = req.body;
+  const { national_id } = req.body;
+  let full_name = null;
+  if (req.body.full_name) {
+    const names = fourPartName(req.body.full_name, 'your');
+    if (names.error) return res.status(400).json({ error: names.error });
+    full_name = names.name;
+  }
   try {
     if (national_id) {
       // national ID links the account to registered parcels, so it can be set
@@ -219,6 +223,7 @@ async function forgotPassword(req, res) {
   }
 }
 
+// FR20: set a new password with the SMS code
 async function resetPasswordWithCode(req, res) {
   const phone_number = normalisePhone(req.body.phone_number);
   const { code, new_password } = req.body;

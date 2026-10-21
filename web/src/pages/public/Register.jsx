@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api, { errorMessage } from '../../api/client';
 import { useT } from '../../i18n';
+import FourNames from '../../components/FourNames';
+import { EMPTY_NAMES, joinNames } from '../../utils/names';
 
 // FR01: citizens register with a phone number and password (no email), then
 // confirm the number with an SMS code.
 export default function Register() {
   const { t } = useT();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ full_name: '', phone_number: '', national_id: '', password: '', confirm: '' });
+  const [form, setForm] = useState({ names: EMPTY_NAMES, phone_number: '', national_id: '', password: '', confirm: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const field = (name) => ({ value: form[name], onChange: (e) => setForm({ ...form, [name]: e.target.value }) });
@@ -23,7 +25,7 @@ export default function Register() {
     setSaving(true);
     try {
       const { data } = await api.post('/auth/register', {
-        full_name: form.full_name.trim(),
+        full_name: joinNames(form.names),
         phone_number: form.phone_number.trim(),
         national_id: form.national_id.trim() || undefined,
         password: form.password,
@@ -42,7 +44,7 @@ export default function Register() {
       <form className="auth-card wide" onSubmit={submit}>
         <h2>{t('Create Account')}</h2>
         <p className="page-subtitle">{t('Manage your land and flag disputes')}</p>
-        <label>{t('Full name')}<input {...field('full_name')} autoComplete="name" required /></label>
+        <FourNames legend={t('Full name')} parts={form.names} onChange={(names) => setForm({ ...form, names })} />
         <label>
           {t('Phone Number')}
           <input {...field('phone_number')} autoComplete="tel" inputMode="tel" required dir="ltr" />

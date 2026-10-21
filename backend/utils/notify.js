@@ -1,10 +1,9 @@
-// FR15 notifications: an in-app notification (shown in the web app's bell),
-// plus an SMS for the events that affect a citizen's own land.
-// Failures are logged, never thrown — a notification must not undo the action.
-
 const pool = require('../db/pool');
 const { sendSms } = require('./sms');
+const { sendPush } = require('./push');
 
+// FR15: in-app notification, Expo push and (optionally) SMS.
+// Failures are logged, never thrown.
 async function notifyUsers(userIds, message, { link = null, sms = false } = {}) {
   const ids = [...new Set(userIds.filter(Boolean))];
   if (ids.length === 0) return;
@@ -14,6 +13,7 @@ async function notifyUsers(userIds, message, { link = null, sms = false } = {}) 
        SELECT id, $2, $3 FROM unnest($1::int[]) AS id`,
       [ids, message, link]
     );
+    await sendPush(ids, message, { link });
     if (sms) {
       const phones = await pool.query(
         `SELECT phone_number FROM "user" WHERE user_id = ANY($1::int[]) AND is_active`,
@@ -61,4 +61,30 @@ async function accountIdsForNationalId(nationalId) {
   return result.rows.map((r) => r.user_id);
 }
 
-module.exports = { notifyUsers, notifyOfficers, ownerAccountIds, accountIdsForNationalId };
+// Citizen accounts that entered this national ID but haven't shown the ID
+// card yet — told when land is registered to it, so they come in for the check.
+async function unconfirmedAccountIdsForNationalId(nationalId) {
+  if (!nationalId) return [];
+  const result = await pool.query(
+    `SELECT user_id FROM "user" WHERE national_id = $1 AND role = 'citizen' AND is_active
+     AND national_id_verified_at IS NULL`,
+    [nationalId]
+  );
+  return result.rows.map((r) => r.user_id);
+}
+
+// Tells a not-yet-confirmed account that land now stands under its national ID.
+async function askForIdCheck(nationalId, parcelId) {
+  try {
+    const ids = await unconfirmedAccountIdsForNationalId(nationalId);
+    await notifyUsers(
+      ids,
+      `Parcel #${parcelId} has been registered to your national ID. Show your ID card at the land office once, so it appears under My Parcels.`,
+      { link: '/my', sms: true }
+    );
+  } catch (err) {
+    console.error('Notification failed:', err.message);
+  }
+}
+
+module.exports = { notifyUsers, notifyOfficers, ownerAccountIds, accountIdsForNationalId, askForIdCheck };

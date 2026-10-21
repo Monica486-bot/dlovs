@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import api, { errorMessage } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useT } from '../../i18n';
@@ -8,10 +8,11 @@ import FlagDispute from '../../components/FlagDispute';
 import StatusBadge from '../../components/StatusBadge';
 import { DisputesTable, HistoryTable, OwnerFacts, RecordWarnings } from '../../components/ParcelRecord';
 
-// FR02 / FR07: the public ownership record. Identity documents and QR
-// signatures are never sent here; documents show only their review status.
+// FR02 / FR07: the public ownership record; FR05 QR check via ?s=.
 export default function PublicParcel() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const signature = searchParams.get('s') || undefined;
   const { t } = useT();
   const { user, isStaff } = useAuth();
   const [record, setRecord] = useState(null);
@@ -19,10 +20,14 @@ export default function PublicParcel() {
   const [notice, setNotice] = useState('');
 
   const load = useCallback(() => {
-    api.get(`/parcels/${id}/verify`)
+    api.get(`/parcels/${id}/verify`, { params: { signature } })
       .then(({ data }) => { setRecord(data); setError(''); })
-      .catch((err) => setError(err.response?.status === 404 ? 'not_found' : errorMessage(err, t('Failed to load parcel'))));
-  }, [id, t]);
+      .catch((err) => {
+        if (err.response?.status === 404) setError('not_found');
+        else if (err.response?.data?.code === 'QR_INVALID') setError('invalid_qr');
+        else setError(errorMessage(err, t('Failed to load parcel')));
+      });
+  }, [id, signature, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -37,20 +42,43 @@ export default function PublicParcel() {
       </div>
     );
   }
+  if (error === 'invalid_qr') {
+    return (
+      <div>
+        <p className="breadcrumb"><Link to="/verify">{t('← Verify a Parcel')}</Link></p>
+        <div className="notice danger">
+          <strong>{t('This QR code is not genuine')}</strong>{' '}
+          {t('This code does not match parcel #{id} and may be forged. Do not pay until a land officer has checked it.', { id })}
+        </div>
+        <Link className="btn secondary" to={`/verify/${id}`}>{t('View the registered record for parcel #{id}', { id })}</Link>
+      </div>
+    );
+  }
   if (error) return <div className="error-text">{error}</div>;
   if (!record) return <p className="muted">{t('Loading…')}</p>;
 
-  const { parcel, ownership_history: history, disputes, documents } = record;
+  const { parcel, ownership_history: history, disputes, documents, qr_check: qrCheck, qr_issued_at: qrIssuedAt } = record;
 
   return (
     <div>
       <p className="breadcrumb"><Link to="/verify">{t('← Verify a Parcel')}</Link></p>
       <h2>{t('Parcel #{id}', { id: parcel.parcel_id })} <StatusBadge status={parcel.status} /></h2>
       {notice && <div className="notice success">{notice}</div>}
+      {qrCheck === 'valid' && (
+        <div className="notice success">
+          <strong>{t('Genuine DLOVS QR code')}</strong> {t("This marker's code matches the one issued for parcel #{id}.", { id: parcel.parcel_id })}
+        </div>
+      )}
+      {qrCheck === 'superseded' && (
+        <div className="notice danger">
+          <strong>{t('This QR code has been replaced')}</strong>{' '}
+          {t('Ownership changed on {date}. Whoever shows this old marker may no longer own the plot — the current owner is shown below.', { date: formatDate(qrIssuedAt) })}
+        </div>
+      )}
       <RecordWarnings parcel={parcel} disputes={disputes} />
 
       <div className="detail-grid">
-        <OwnerFacts parcel={parcel} documents={documents} ownerLink={isStaff ? `/owners/${parcel.current_owner_id}` : null} />
+        <OwnerFacts parcel={parcel} documents={documents} ownerLink={isStaff ? `/owners/${parcel.current_owner_id}` : `/verify/owners/${parcel.current_owner_id}`} />
         <div className="card">
           <h3>{t('Documents on file')}</h3>
           {documents.length === 0 ? (

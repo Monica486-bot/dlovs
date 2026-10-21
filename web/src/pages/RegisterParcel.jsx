@@ -3,10 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import api, { errorMessage } from '../api/client';
 import { useT } from '../i18n';
 import LocationButton from '../components/LocationButton';
+import NeighbourhoodSelect from '../components/NeighbourhoodSelect';
+import DocumentTypeSelect from '../components/DocumentTypeSelect';
+import FourNames from '../components/FourNames';
+import { EMPTY_NAMES, joinNames } from '../utils/names';
 
 const initialForm = {
   gps_lat: '', gps_lng: '', neighbourhood: '', area_sqm: '',
-  owner_full_name: '', owner_contact: '', document_type: '', national_id: '',
+  owner_names: EMPTY_NAMES, owner_contact: '', document_type: '', national_id: '',
 };
 
 // FR03 / FR04 / FR05: LandOfficer.createParcelRecord(data) — registers the
@@ -30,7 +34,7 @@ export default function RegisterParcel() {
         neighbourhood: form.neighbourhood,
         area_sqm: form.area_sqm ? parseFloat(form.area_sqm) : null,
         owner: {
-          full_name: form.owner_full_name,
+          full_name: joinNames(form.owner_names),
           contact_number: form.owner_contact,
           document_type: form.document_type,
           national_id: form.national_id,
@@ -56,7 +60,7 @@ export default function RegisterParcel() {
       <div className="card">
         <form onSubmit={handleSubmit}>
           <h3>{t('Parcel Details')}</h3>
-          <label>{t('Neighbourhood')}<input {...field('neighbourhood')} required /></label>
+          <NeighbourhoodSelect value={form.neighbourhood} onChange={(neighbourhood) => setForm({ ...form, neighbourhood })} />
           <div className="field-row">
             <label>{t('GPS Latitude')}<input {...field('gps_lat')} inputMode="decimal" required dir="ltr" /></label>
             <label>{t('GPS Longitude')}<input {...field('gps_lng')} inputMode="decimal" required dir="ltr" /></label>
@@ -65,12 +69,12 @@ export default function RegisterParcel() {
           <label>{t('Parcel size (m²)')}<input {...field('area_sqm')} inputMode="decimal" /></label>
 
           <h3>{t('Owner')}</h3>
-          <label>{t('Owner Full Name')}<input {...field('owner_full_name')} required /></label>
+          <FourNames legend={t('Owner Full Name')} parts={form.owner_names} onChange={(owner_names) => setForm({ ...form, owner_names })} />
           <div className="field-row">
             <label>{t('National ID')}<input {...field('national_id')} /></label>
             <label>{t('Owner Phone Number')}<input {...field('owner_contact')} dir="ltr" /></label>
           </div>
-          <label>{t('Document Type')}<input {...field('document_type')} /></label>
+          <DocumentTypeSelect label={t('Document Type')} value={form.document_type} onChange={(document_type) => setForm({ ...form, document_type })} />
           {error && <div className="error-text">{error}</div>}
           <button className="btn" type="submit" disabled={loading}>{loading ? t('Registering…') : t('Save & Generate QR Code')}</button>
         </form>

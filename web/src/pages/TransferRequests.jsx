@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api, { errorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
+import { reasonLabel } from '../utils/transferReasons';
 import { formatDate } from '../utils/format';
 import StatusBadge from '../components/StatusBadge';
 
@@ -44,7 +45,6 @@ export default function TransferRequests() {
   return (
     <div>
       <h2>{t('Transfers')}</h2>
-      <p className="page-subtitle">{t('Transfer requests from parcel owners')}</p>
       <div className="tabs" role="tablist">
         {['pending', 'completed', 'rejected'].map((s) => (
           <button key={s} role="tab" aria-selected={status === s} className={status === s ? 'active' : ''} onClick={() => { setStatus(s); setNotice(''); }}>{t(s)}</button>
@@ -74,6 +74,7 @@ export default function TransferRequests() {
           <dl className="facts compact">
             <dt>{t('Current Owner')}</dt><dd>{r.owner_name}</dd>
             <dt>{t('New Owner')}</dt><dd>{r.buyer_full_name} · {r.buyer_national_id}{r.buyer_contact && <> · <span dir="ltr">{r.buyer_contact}</span></>}</dd>
+            <dt>{t('Reason for transfer')}</dt><dd>{reasonLabel(t, r.transfer_reason, r.transfer_reason_details)}</dd>
             <dt>{t('Requested')}</dt><dd>{formatDate(r.created_at)}</dd>
             {r.notes && (<><dt>{t('Note')}</dt><dd>{r.notes}</dd></>)}
             {r.status !== 'pending' && (<><dt>{t('Handled')}</dt><dd>{r.handled_by_name}, {formatDate(r.handled_at)}{r.response_notes && ` — ${r.response_notes}`}</dd></>)}
