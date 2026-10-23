@@ -12,7 +12,7 @@ const TYPES = [
   { key: 'boundary', label: 'Boundary', hint: 'The plot\'s edges or size are wrong, or overlap with a neighbour.' },
 ];
 
-// Citizen.flagDispute(parcelId) — FR12.
+// Citizen.flagDispute(parcelId): FR12.
 export default function FlagDispute() {
   const { parcelId } = useLocalSearchParams();
   const { user, logout } = useAuth();

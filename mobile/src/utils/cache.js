@@ -1,5 +1,5 @@
 // Offline cache (FR16 / NFR09): keeps the last 50 viewed parcel records on the
-// device so a verification can still be shown without a connection — always
+// device so a verification can still be shown without a connection. It is always
 // labelled as cached, with the time it was last verified online.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

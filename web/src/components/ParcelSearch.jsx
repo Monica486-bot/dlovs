@@ -18,13 +18,16 @@ const MODES = {
   national_id: 'National ID',
   near: 'Near a GPS point',
 };
+// a national ID is private: only land officers and administrators search by it
+const STAFF_ONLY = ['national_id'];
 const RADII = [50, 100, 200, 500, 1000];
 
 export default function ParcelSearch({ recordPath }) {
   const { t } = useT();
   const { user, isStaff } = useAuth();
   const [params, setParams] = useSearchParams();
-  const urlBy = MODES[params.get('by')] ? params.get('by') : 'any';
+  const modes = Object.entries(MODES).filter(([key]) => isStaff || !STAFF_ONLY.includes(key));
+  const urlBy = modes.some(([key]) => key === params.get('by')) ? params.get('by') : 'any';
   const urlQuery = params.get('q') || '';
   const urlLat = params.get('lat') || '';
   const urlLng = params.get('lng') || '';
@@ -76,7 +79,7 @@ export default function ParcelSearch({ recordPath }) {
         <form onSubmit={submit}>
           <div className="inline-form">
             <select value={by} onChange={(e) => setBy(e.target.value)} aria-label={t('Search by')}>
-              {Object.entries(MODES).map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}
+              {modes.map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}
             </select>
             {by !== 'near' && (
               <input

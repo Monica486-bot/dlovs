@@ -111,7 +111,7 @@ export default function UsageReports() {
           <div className="stat-grid">
             {TOTALS.map(([key, label]) => (
               <div className="stat" key={key}>
-                <span className="stat-value">{report.totals[key] ?? '—'}</span>
+                <span className="stat-value">{report.totals[key] ?? '-'}</span>
                 <span className="stat-label">{t(label)}</span>
               </div>
             ))}

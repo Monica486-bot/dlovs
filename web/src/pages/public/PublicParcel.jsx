@@ -72,7 +72,7 @@ export default function PublicParcel() {
       {qrCheck === 'superseded' && (
         <div className="notice danger">
           <strong>{t('This QR code has been replaced')}</strong>{' '}
-          {t('Ownership changed on {date}. Whoever shows this old marker may no longer own the plot — the current owner is shown below.', { date: formatDate(qrIssuedAt) })}
+          {t('Ownership changed on {date}. Whoever shows this old marker may no longer own the plot. The current owner is shown below.', { date: formatDate(qrIssuedAt) })}
         </div>
       )}
       <RecordWarnings parcel={parcel} disputes={disputes} />

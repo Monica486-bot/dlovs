@@ -80,7 +80,7 @@ export default function TransferApprovals() {
             <div className="actions">
               {p.can_approve && <button className="btn" onClick={() => approve(p)}>{t('Approve Transfer')}</button>}
               {p.can_approve && <button className="btn secondary" onClick={() => { setRejecting(p.transfer_id); setReason(''); }}>{t('Reject')}</button>}
-              {!p.can_approve && p.status === 'awaiting_approval' && <span className="muted">{t('You started this transfer — another officer must approve it.')}</span>}
+              {!p.can_approve && p.status === 'awaiting_approval' && <span className="muted">{t('You started this transfer, so another officer must approve it.')}</span>}
               {p.can_cancel && (
                 <button className="btn secondary" onClick={() => window.confirm(t('Cancel this transfer? Ownership stays as it is.')) && act(api.put(`/pending-transfers/${p.transfer_id}/cancel`), t('Transfer cancelled.'))}>
                   {t('Cancel Transfer')}

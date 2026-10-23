@@ -85,7 +85,7 @@ export default function ReportPlot() {
       />
       <Field label={t('Who claims to own it? (optional)')} value={form.claimed_owner} onChangeText={set('claimed_owner')} />
       <Button
-        title={position ? t('Location added (±{n} m) — update', { n: Math.round(position.accuracy) }) : t('Add My Current Location')}
+        title={position ? t('Location added (±{n} m): update', { n: Math.round(position.accuracy) }) : t('Add My Current Location')}
         variant="secondary"
         onPress={locate}
         loading={locating}

@@ -9,7 +9,7 @@ import { formatDate } from '../../utils/format';
 import { colors } from '../../theme';
 
 // FR09: every parcel registered to one owner, so a buyer can check what a
-// seller claims to own — and notice a seller with many plots or many recent
+// seller claims to own, and notice a seller with many plots or many recent
 // sales. The API leaves out the owner's national ID and phone number.
 export default function OwnerPortfolio() {
   const { id } = useLocalSearchParams();

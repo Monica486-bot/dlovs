@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const pool = require('../db/pool');
+const { secret } = require('../utils/secrets');
 const { issueCode, checkCode, CodeError } = require('../utils/phoneCodes');
 const { fourPartName } = require('../utils/names');
 require('dotenv').config();
@@ -121,7 +122,7 @@ async function login(req, res) {
 
     const token = jwt.sign(
       { user_id: user.user_id, role: user.role, full_name: user.full_name },
-      process.env.JWT_SECRET,
+      secret('JWT_SECRET'),
       { expiresIn: '12h' }
     );
     res.json({ token, user: userPayload(user) });
@@ -141,7 +142,7 @@ async function me(req, res) {
   }
 }
 
-// logout(): void — JWTs are stateless, so logout is handled client-side by
+// logout(): void. JWTs are stateless, so logout is handled client-side by
 // discarding the token. This endpoint exists so the class diagram's contract
 // is honestly represented in the API surface.
 function logout(req, res) {
@@ -182,7 +183,7 @@ async function updateProfile(req, res) {
   }
 }
 
-// resetPassword(): void — change your own password while logged in
+// resetPassword(): void. Change your own password while logged in
 async function resetPassword(req, res) {
   const { current_password, new_password } = req.body;
   if (!new_password || new_password.length < 6) {
@@ -202,7 +203,7 @@ async function resetPassword(req, res) {
   }
 }
 
-// FR20: forgotten password — citizens get an SMS code. Staff are told to ask
+// FR20: forgotten password. Citizens get an SMS code. Staff are told to ask
 // an administrator. The response doesn't reveal whether a number is
 // registered, except to say staff accounts are reset by an administrator.
 async function forgotPassword(req, res) {

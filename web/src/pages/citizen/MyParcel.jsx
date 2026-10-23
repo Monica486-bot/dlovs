@@ -88,7 +88,7 @@ export default function MyParcel() {
           <p key={r.request_id} className="muted small">
             {t('Request to transfer to {buyer}:', { buyer: r.buyer_full_name })} <StatusBadge status={r.status} />
             {r.transfer_reason && ` · ${reasonLabel(t, r.transfer_reason, r.transfer_reason_details)}`}
-            {r.response_notes && ` — ${r.response_notes}`}
+            {r.response_notes && `: ${r.response_notes}`}
           </p>
         ))}
       </div>
@@ -120,9 +120,11 @@ function TransferRequestForm({ parcelId, onSent }) {
     setSaving(true);
     try {
       const { buyer_names, ...rest } = form;
-      await api.post(`/parcels/${parcelId}/transfer-requests`, { ...rest, buyer_full_name: joinNames(buyer_names) });
+      const { data } = await api.post(`/parcels/${parcelId}/transfer-requests`, { ...rest, buyer_full_name: joinNames(buyer_names) });
       setOpen(false);
-      onSent(t('✓ Transfer request sent. A land officer will contact you and the buyer.'));
+      onSent(data.buyer_can_accept
+        ? t('✓ Transfer request sent to the buyer. They accept it in DLOVS with a code sent to their phone; no visit to the land office is needed.')
+        : t('✓ Transfer request sent. A land officer will contact you and the buyer.'));
     } catch (err) {
       setError(errorMessage(err, t('Failed to submit transfer request')));
     } finally {

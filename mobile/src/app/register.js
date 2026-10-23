@@ -9,7 +9,7 @@ import { useT } from '../i18n';
 // four names, as on the national ID card or passport
 const NAME_PARTS = ['First name', 'Middle name', 'Second middle name', 'Surname'];
 
-// FR01: citizens register with phone number and password — no email — then
+// FR01: citizens register with phone number and password (no email), then
 // confirm the number with the SMS code on the next screen.
 export default function Register() {
   const { register } = useAuth();

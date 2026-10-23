@@ -129,7 +129,7 @@ export default function Admin() {
                       </select>
                     </td>
                     <td dir="ltr">{u.phone_number}</td>
-                    <td>{u.national_id || '—'}</td>
+                    <td>{u.national_id || '-'}</td>
                     <td><StatusBadge status={u.is_active ? 'active' : 'deactivated'} label={u.is_active ? t('Active') : t('Suspended')} /></td>
                     <td className="nowrap">{formatDate(u.created_at)}</td>
                     <td className="cell-actions">

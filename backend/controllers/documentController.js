@@ -1,6 +1,6 @@
 const pool = require('../db/pool');
 const { saveDocument, readDocument } = require('../utils/documentStorage');
-const { notifyUsers, notifyOfficers } = require('../utils/notify');
+const { notifyUsers, notifyOfficers, alertOwner } = require('../utils/notify');
 
 const STAFF_ROLES = ['land_officer', 'administrator'];
 const DOCUMENT_TYPES = ['Allocation Letter', 'Customary Certificate', 'Witness Agreement', 'Sale Agreement', 'Title Deed', 'Other'];
@@ -32,8 +32,8 @@ async function isParcelOwner(userId, parcelId) {
 function reviewBlock(user, doc) {
   if (user.role !== 'land_officer') return 'Only land officers review documents';
   if (doc.verification_status !== 'pending') return 'Already reviewed';
-  if (doc.registered_by === user.user_id) return 'You registered this parcel — another officer reviews its documents';
-  if (doc.uploaded_by === user.user_id) return 'You uploaded this document — another officer reviews it';
+  if (doc.registered_by === user.user_id) return 'You registered this parcel, so another officer reviews its documents';
+  if (doc.uploaded_by === user.user_id) return 'You uploaded this document, so another officer reviews it';
   return null;
 }
 
@@ -93,8 +93,9 @@ async function uploadDocument(req, res) {
         `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'UPLOAD_DOCUMENT', $2, $3)`,
         [req.user.user_id, parcelId, `Uploaded ${documentType} (${originalName}) on the owner's behalf`]
       );
+      alertOwner(parcelId, req.user, `uploaded a ${documentType} to parcel #${parcelId} on your behalf.`);
     }
-    notifyOfficers(`New ${documentType} uploaded for parcel #${parcelId} — waiting for review`, { link: '/documents' });
+    notifyOfficers(`New ${documentType} uploaded for parcel #${parcelId}, waiting for review`, { link: '/documents' });
     res.status(201).json({ document_id: documentId, verification_status: 'pending' });
   } catch (err) {
     console.error(err);
@@ -102,7 +103,7 @@ async function uploadDocument(req, res) {
   }
 }
 
-// GET /api/parcels/:id/documents — staff, or the citizen who owns the parcel
+// GET /api/parcels/:id/documents: staff, or the citizen who owns the parcel
 async function listParcelDocuments(req, res) {
   const parcelId = Number(req.params.id);
   try {
@@ -120,7 +121,7 @@ async function listParcelDocuments(req, res) {
   }
 }
 
-// GET /api/documents?status=pending — review queue for officers
+// GET /api/documents?status=pending: review queue for officers
 async function listDocuments(req, res) {
   const status = req.query.status || 'pending';
   if (!['pending', 'verified', 'rejected', 'all'].includes(status)) {
@@ -192,6 +193,7 @@ async function reviewDocument(req, res) {
         : `Your ${doc.document_type} for parcel #${doc.parcel_id} was rejected: ${reason}`,
       { link: `/my/parcels/${doc.parcel_id}`, sms: true }
     );
+    alertOwner(doc.parcel_id, req.user, `${decision} the ${doc.document_type} on parcel #${doc.parcel_id}.`, { except: [doc.uploaded_by] });
     res.json({ message: `Document ${decision}`, document_id: doc.document_id });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -202,7 +204,7 @@ async function reviewDocument(req, res) {
   }
 }
 
-// GET /api/documents/:id/file — staff, the uploader, or the parcel's owner
+// GET /api/documents/:id/file: staff, the uploader, or the parcel's owner
 async function downloadDocument(req, res) {
   try {
     const result = await pool.query(

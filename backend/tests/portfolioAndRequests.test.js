@@ -19,12 +19,25 @@ describe('FR06 verification pathways', () => {
     expect(ids(await find({ query: String(parcel.parcel_id), by: 'parcel_id' }))).toContain(parcel.parcel_id);
     expect(ids(await find({ query: 'nyandeng path', by: 'owner_name' }))).toContain(parcel.parcel_id);
     expect(ids(await find({ query: 'Block 7', by: 'neighbourhood' }))).toContain(parcel.parcel_id);
-    expect(ids(await find({ query: nationalId, by: 'national_id' }))).toEqual([parcel.parcel_id]);
-    // national ID is exact match only — no browsing by partial IDs
-    expect(ids(await find({ query: nationalId.slice(0, -1), by: 'national_id' }))).toEqual([]);
+    // national ID is private: officers only, and exact match only (no browsing by partial IDs)
+    const byId = (query) => find({ query, by: 'national_id' }).set('Authorization', `Bearer ${officer.token}`);
+    expect(ids(await byId(nationalId))).toEqual([parcel.parcel_id]);
+    expect(ids(await byId(nationalId.slice(0, -1)))).toEqual([]);
     const near = await find({ by: 'near', lat: 4.8594, lng: 31.5713, radius: 50 });
     expect(ids(near)).toContain(parcel.parcel_id);
     expect(near.body.find((p) => p.parcel_id === parcel.parcel_id).distance_m).toBe(0);
+  });
+
+  test("guests and citizens can't find someone's land by their national ID", async () => {
+    const nationalId = uniqueNationalId();
+    await createParcel(officer.token, { nationalId });
+    const citizen = await createCitizen();
+    const search = () => request(app).get('/api/parcels/search').query({ query: nationalId, by: 'national_id' });
+    await search().expect(403);
+    await search().set('Authorization', `Bearer ${citizen.token}`).expect(403);
+    // nor through the "any" search
+    const any = await request(app).get('/api/parcels/search').query({ query: nationalId });
+    expect(any.body).toEqual([]);
   });
 
   test('searching the city finds parcels in every neighbourhood; "Hai" and casing are ignored', async () => {

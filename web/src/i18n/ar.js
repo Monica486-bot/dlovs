@@ -93,7 +93,7 @@ export default {
   'Search failed': 'فشل البحث',
   'GPS Latitude': 'خط العرض',
   'GPS Longitude': 'خط الطول',
-  'This parcel is not registered in DLOVS — proceed with caution.': 'هذه القطعة غير مسجلة في DLOVS — تصرّف بحذر.',
+  'This parcel is not registered in DLOVS. Proceed with caution.': 'هذه القطعة غير مسجلة في DLOVS، تصرّف بحذر.',
   'No parcel matches {what}.': 'لا توجد قطعة تطابق {what}.',
   'Report this plot to a land officer': 'أبلغ موظف الأراضي عن هذه القطعة',
   'Log in to report this plot to a land officer': 'سجّل الدخول لإبلاغ موظف الأراضي عن هذه القطعة',
@@ -121,8 +121,8 @@ export default {
   'Getting location…': 'جارٍ تحديد الموقع…',
   'Use my current location': 'استخدم موقعي الحالي',
   'Accurate to {m} m ✓': 'دقة {m} م ✓',
-  'Location accuracy is low ({m} m) — verify parcel boundaries manually, or capture the point with a phone standing on the plot.':
-    'دقة الموقع منخفضة ({m} م) — تحقّق من حدود القطعة يدوياً، أو التقط النقطة بهاتف وأنت واقف على القطعة.',
+  'Location accuracy is low ({m} m). Verify parcel boundaries manually, or capture the point with a phone standing on the plot.':
+    'دقة الموقع منخفضة ({m} م)، تحقّق من حدود القطعة يدوياً، أو التقط النقطة بهاتف وأنت واقف على القطعة.',
 
   // ---- parcel record
   'Parcel #{id}': 'القطعة رقم {id}',
@@ -132,9 +132,9 @@ export default {
   '← Parcel #{id}': '→ القطعة رقم {id}',
   'Record deactivated.': 'السجل معطّل.',
   "Deactivated as fraudulent. Do not proceed with any sale.": "عُطّل لأنه احتيالي. لا تُتمّ أي عملية بيع.",
-  'Disputed — {n} open dispute(s).': 'متنازع عليها — {n} نزاع مفتوح.',
-  'Someone has challenged this parcel. It cannot be transferred until a land officer resolves the dispute — do not pay for it before then.':
-    'اعترض أحدهم على هذه القطعة. لا يمكن نقل ملكيتها حتى يسوّي موظف الأراضي النزاع — لا تدفع ثمنها قبل ذلك.',
+  'Disputed: {n} open dispute(s).': 'متنازع عليها، {n} نزاع مفتوح.',
+  'Someone has challenged this parcel. It cannot be transferred until a land officer resolves the dispute. Do not pay for it before then.':
+    'اعترض أحدهم على هذه القطعة. لا يمكن نقل ملكيتها حتى يسوّي موظف الأراضي النزاع، لا تدفع ثمنها قبل ذلك.',
   'Registered owner': 'المالك المسجّل',
   'All parcels owned by {name} →': 'كل القطع المملوكة لـ {name} ←',
   'National ID': 'الرقم الوطني',
@@ -147,7 +147,7 @@ export default {
   From: 'من',
   To: 'إلى',
   Notes: 'ملاحظات',
-  '— (first registration)': '— (التسجيل الأول)',
+  '- (first registration)': '- (التسجيل الأول)',
   'No disputes on record.': 'لا توجد نزاعات مسجلة.',
   Reported: 'تاريخ البلاغ',
   Type: 'النوع',
@@ -250,7 +250,7 @@ export default {
   'National ID entered': 'الرقم الوطني المُدخل',
   'Registered owner with this ID': 'المالك المسجّل بهذا الرقم',
   'Signed up': 'تاريخ التسجيل',
-  'Name differs from the account — check carefully': 'الاسم مختلف عن الحساب — تحقّق بعناية',
+  'Name differs from the account: check carefully': 'الاسم مختلف عن الحساب، تحقّق بعناية',
   'No land registered to this ID yet': 'لا توجد أرض مسجلة بهذا الرقم بعد',
   'ID Card Checked': 'تم فحص البطاقة',
   'Reject ID': 'رفض الهوية',
@@ -350,11 +350,11 @@ export default {
   'Review failed': 'فشلت المراجعة',
   '{type} for parcel #{id} verified.': 'تم توثيق {type} للقطعة رقم {id}.',
   '{type} for parcel #{id} rejected. The uploader has been told why.': 'تم رفض {type} للقطعة رقم {id}، وأُبلغ رافعه بالسبب.',
-  "You registered this parcel — another officer reviews its documents": "أنت سجّلت هذه القطعة — يراجع مستنداتها موظف آخر",
-  "You uploaded this document — another officer reviews it": "أنت رفعت هذا المستند — يراجعه موظف آخر",
+  "You registered this parcel, so another officer reviews its documents": "أنت سجّلت هذه القطعة، يراجع مستنداتها موظف آخر",
+  "You uploaded this document, so another officer reviews it": "أنت رفعت هذا المستند، يراجعه موظف آخر",
   'Already reviewed': 'تمت مراجعته',
-  "Upload a scan brought in by the owner. Another officer must review it — you can't review documents you uploaded.":
-    'ارفع نسخة أحضرها المالك. يجب أن يراجعها موظف آخر — لا يمكنك مراجعة مستندات رفعتها بنفسك.',
+  "Upload a scan brought in by the owner. Another officer must review it, as you can't review documents you uploaded.":
+    'ارفع نسخة أحضرها المالك. يجب أن يراجعها موظف آخر، لا يمكنك مراجعة مستندات رفعتها بنفسك.',
   'Upload a scan or photo of your land documents. It stays private: only you and land officers can open it. Other people only see whether it has been verified.':
     'ارفع نسخة ممسوحة أو صورة من مستندات أرضك. تبقى خاصة: لا يفتحها إلا أنت وموظفو الأراضي، ويرى الآخرون فقط هل وُثّقت أم لا.',
   'Document type': 'نوع المستند',
@@ -473,7 +473,7 @@ export default {
   'Change Details': 'تعديل البيانات',
   'Transfer failed': 'فشل النقل',
   'Ownership transferred to {name}.': 'تم نقل الملكية إلى {name}.',
-  'Transfer Ownership — Parcel #{id}': 'نقل الملكية — القطعة رقم {id}',
+  'Transfer Ownership: Parcel #{id}': 'نقل الملكية، القطعة رقم {id}',
   'This parcel has an open dispute. Resolve it before transferring ownership.': 'على هذه القطعة نزاع مفتوح. سوِّه قبل نقل الملكية.',
   'This parcel record has been deactivated and cannot be transferred.': 'سجل هذه القطعة معطّل ولا يمكن نقل ملكيته.',
 
@@ -485,8 +485,8 @@ export default {
   Contact: 'الهاتف',
   'Parcels owned now': 'القطع المملوكة حالياً',
   'Parcels transferred away': 'القطع المنقولة لآخرين',
-  'This owner holds {n} parcels. Check that each was registered with proper documents — brokers sometimes register several plots under one name.':
-    'يملك هذا المالك {n} قطع. تحقّق من أن كل قطعة سُجّلت بمستندات صحيحة — يسجّل السماسرة أحياناً عدة قطع باسم واحد.',
+  'This owner holds {n} parcels. Check that each was registered with proper documents, as brokers sometimes register several plots under one name.':
+    'يملك هذا المالك {n} قطع. تحقّق من أن كل قطعة سُجّلت بمستندات صحيحة، يسجّل السماسرة أحياناً عدة قطع باسم واحد.',
   'Current parcels': 'القطع الحالية',
   'No parcels currently registered to this owner.': 'لا توجد قطع مسجلة حالياً باسم هذا المالك.',
   'Previously owned': 'مملوكة سابقاً',
@@ -512,15 +512,15 @@ export default {
     'تمت تسوية النزاع على القطعة رقم {id} وتسجيله في سجل التدقيق، وأُبلغ المعنيون.',
 
   // ---- unregistered plot reports (staff)
-  'Citizens report plots that have no DLOVS record — often a sign of an informal sale. Visit the plot, register it if the claim holds, then close the report.':
-    'يبلّغ المواطنون عن قطع ليس لها سجل في DLOVS — وغالباً ما يدل ذلك على بيع غير رسمي. زُر القطعة وسجّلها إن صحّ الادعاء، ثم أغلق البلاغ.',
+  'Citizens report plots that have no DLOVS record, often a sign of an informal sale. Visit the plot, register it if the claim holds, then close the report.':
+    'يبلّغ المواطنون عن قطع ليس لها سجل في DLOVS، وغالباً ما يدل ذلك على بيع غير رسمي. زُر القطعة وسجّلها إن صحّ الادعاء، ثم أغلق البلاغ.',
   'No reports here.': 'لا توجد بلاغات هنا.',
   'Close Report': 'إغلاق البلاغ',
   'Claimed owner: {name}': 'المالك المدّعى: {name}',
   'Reported {date} by {name}': 'أُبلغ عنه في {date} بواسطة {name}',
   '{who} on {date}:': '{who} في {date}:',
-  'Registered — the plot is now in DLOVS': 'سُجّلت — القطعة الآن في DLOVS',
-  'Dismissed — nothing to register': 'أُغلق — لا شيء للتسجيل',
+  'Registered: the plot is now in DLOVS': 'سُجّلت، القطعة الآن في DLOVS',
+  'Dismissed: nothing to register': 'أُغلق، لا شيء للتسجيل',
   'New parcel ID (optional)': 'رقم القطعة الجديدة (اختياري)',
   'Note for the citizen': 'ملاحظة للمواطن',
   'Report closed. The citizen who reported it has been notified.': 'أُغلق البلاغ، وأُبلغ المواطن الذي قدّمه.',
@@ -549,8 +549,8 @@ export default {
   // ---- audit log
   'Every officer and administrator action is recorded here. The database refuses any change or deletion.':
     'يُسجَّل هنا كل إجراء لموظف أو مدير. ترفض قاعدة البيانات أي تعديل أو حذف.',
-  'Your actions — registrations, edits, transfers, document reviews, dispute resolutions — are recorded here. The database refuses any change or deletion.':
-    'تُسجَّل هنا إجراءاتك — التسجيلات والتعديلات ونقل الملكية ومراجعة المستندات وتسوية النزاعات. ترفض قاعدة البيانات أي تعديل أو حذف.',
+  'Your actions (registrations, edits, transfers, document reviews, dispute resolutions) are recorded here. The database refuses any change or deletion.':
+    'تُسجَّل هنا إجراءاتك، التسجيلات والتعديلات ونقل الملكية ومراجعة المستندات وتسوية النزاعات. ترفض قاعدة البيانات أي تعديل أو حذف.',
   'All actions': 'كل الإجراءات',
   'Hide record views': 'إخفاء مرات الاطلاع',
   '{shown} of {total} entries': '{shown} من {total} إدخال',
@@ -638,8 +638,8 @@ export default {
   'Could not get your location.': 'تعذّر تحديد موقعك.',
   'GPS captured · {m} m': 'تم تحديد الموقع · {m} م',
   'Low accuracy ({m} m)': 'دقة منخفضة ({m} م)',
-  'Deactivated — record found to be fraudulent': 'معطّل — ثبت أن السجل مزوّر',
-  'Disputed — not available for sale until resolved': 'متنازع عليها — غير متاحة للبيع حتى حل النزاع',
+  'Deactivated: record found to be fraudulent': 'معطّل، ثبت أن السجل مزوّر',
+  'Disputed: not available for sale until resolved': 'متنازع عليها، غير متاحة للبيع حتى حل النزاع',
   'Search by owner name or plot location': 'ابحث باسم المالك أو موقع القطعة',
   'Not registered': 'غير مسجلة',
   'Report this plot': 'أبلغ عن هذه القطعة',
@@ -757,7 +757,7 @@ export default {
   "This code does not match parcel #{id} and may be forged. Do not pay until a land officer has checked it.": "هذا الرمز لا يطابق القطعة رقم {id} وقد يكون مزوّرًا. لا تدفع حتى يتحقق منه موظف أراضٍ.",
   'View the registered record for parcel #{id}': 'عرض السجل المسجّل للقطعة رقم {id}',
   'This QR code has been replaced': 'تم استبدال رمز QR هذا',
-  "Ownership changed on {date}. Whoever shows this old marker may no longer own the plot — the current owner is shown below.": "تغيّرت الملكية في {date}. من يعرض هذه العلامة القديمة قد لا يملك القطعة الآن — المالك الحالي معروض أدناه.",
+  "Ownership changed on {date}. Whoever shows this old marker may no longer own the plot. The current owner is shown below.": "تغيّرت الملكية في {date}. من يعرض هذه العلامة القديمة قد لا يملك القطعة الآن، المالك الحالي معروض أدناه.",
   'Ownership transferred to {name}. A new QR code has been issued: print it and replace the marker on the plot.':
     'نُقلت الملكية إلى {name}. صدر رمز QR جديد: اطبعه واستبدل العلامة الموجودة على القطعة.',
   'Parcels registered to {name}': 'القطع المسجلة باسم {name}',
@@ -818,10 +818,10 @@ export default {
   "Waiting for consent": "بانتظار الموافقة",
   "Waiting for the owner to give the SMS code to {name}": "بانتظار أن يعطي المالك الرمز إلى {name}",
   "Why is the consent not enough?": "لماذا لا تكفي الموافقة؟",
-  "You started this transfer — another officer must approve it.": "أنت بدأت هذا النقل — يجب أن يوافق عليه موظف آخر.",
+  "You started this transfer, so another officer must approve it.": "أنت بدأت هذا النقل، يجب أن يوافق عليه موظف آخر.",
   "e.g. Sale agreement signed before the Munuki chief, 12 Oct 2026, 3 witnesses": "مثال: عقد بيع موقّع أمام سلطان منوكي، 12 أكتوبر 2026، 3 شهود",
   // ---- design polish
-  "Registered — no open disputes": "مسجلة — لا توجد نزاعات مفتوحة",
+  "Registered: no open disputes": "مسجلة، لا توجد نزاعات مفتوحة",
   "Recently updated parcels": "القطع المحدّثة مؤخرًا",
   "Search the register by parcel ID, owner, neighbourhood, national ID or location": "ابحث في السجل برقم القطعة أو المالك أو الحي أو الرقم الوطني أو الموقع",
   "Scan or search": "امسح أو ابحث",
@@ -850,8 +850,8 @@ export default {
   "Current parcels: {now} · Transferred away: {before}": "القطع الحالية: {now} · نُقلت ملكيتها: {before}",
   "{n} open dispute": "نزاعات مفتوحة: {n}",
   "{n} open disputes": "نزاعات مفتوحة: {n}",
-  "Disputed — {n} open dispute": "متنازع عليها — نزاعات مفتوحة: {n}",
-  "Disputed — {n} open disputes": "متنازع عليها — نزاعات مفتوحة: {n}",
+  "Disputed: {n} open dispute": "متنازع عليها، نزاعات مفتوحة: {n}",
+  "Disputed: {n} open disputes": "متنازع عليها، نزاعات مفتوحة: {n}",
   "Search the register": "البحث في السجل",
   "No documents uploaded": "لم تُرفع أي مستندات",
   "Documents: {verified} verified, {pending} awaiting review": "المستندات: {verified} تم التحقق منها، {pending} بانتظار المراجعة",
@@ -870,4 +870,18 @@ export default {
   "Middle name": "الاسم الأوسط",
   "Second middle name": "الاسم الأوسط الثاني",
   "Surname": "اسم العائلة",
+  "Decline this transfer?": "رفض هذا النقل؟",
+  "{owner} wants to transfer parcel #{id} to you": "يريد {owner} نقل القطعة رقم {id} إليك",
+  "Check the parcel record": "تحقق من سجل القطعة",
+  "Only accept after you have checked the plot and agreed the terms with the owner. Accepting registers the parcel to you straight away.": "لا تقبل إلا بعد أن تتحقق من القطعة وتتفق على الشروط مع المالك. القبول يسجّل القطعة باسمك فورًا.",
+  "Accept: send me a code": "قبول: أرسل لي رمزًا",
+  "Decline": "رفض",
+  "A code was sent to {phone}.": "أُرسل رمز إلى {phone}.",
+  "Code": "الرمز",
+  "Accept the transfer": "قبول النقل",
+  "Waiting for the buyer to accept in DLOVS": "بانتظار قبول المشتري في DLOVS",
+  "✓ Transfer request sent to the buyer. They accept it in DLOVS with a code sent to their phone; no visit to the land office is needed.": "✓ أُرسل طلب النقل إلى المشتري. يقبله في DLOVS برمز يُرسل إلى هاتفه، ولا حاجة لزيارة مكتب الأراضي.",
+  "Buyer": "المشتري",
+  "Has a confirmed account and can accept in DLOVS without an officer. Process it here only if they come to the office.": "لديه حساب مؤكد ويمكنه القبول في DLOVS دون موظف. عالج الطلب هنا فقط إذا حضر إلى المكتب.",
+  "Only land officers can search by national ID": "البحث بالرقم الوطني متاح لموظفي الأراضي فقط",
 };

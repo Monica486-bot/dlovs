@@ -63,7 +63,7 @@ export default function TransferParcel() {
 
   const field = (name) => ({ value: form[name], onChange: (e) => setForm({ ...form, [name]: e.target.value }) });
 
-  // FR11: the transfer issued a new QR code — show it ready to print, since
+  // FR11: the transfer issued a new QR code. Show it ready to print, since
   // the old marker now reads as replaced. replace: Back doesn't return to a
   // form for a transfer that's already done.
   function finished(data) {
@@ -183,7 +183,7 @@ export default function TransferParcel() {
     return (
       <div>
         {back}
-        <h2>{t('Transfer Ownership — Parcel #{id}', { id })}</h2>
+        <h2>{t('Transfer Ownership: Parcel #{id}', { id })}</h2>
         {ownerCard}
         <div className="card">
           <h3>{t('Waiting for consent')}</h3>
@@ -242,7 +242,7 @@ export default function TransferParcel() {
   return (
     <div>
       {back}
-      <h2>{t('Transfer Ownership — Parcel #{id}', { id })}</h2>
+      <h2>{t('Transfer Ownership: Parcel #{id}', { id })}</h2>
       {request && (
         <p className="page-subtitle">{t('Request from {name} · {date}', { name: request.requested_by_name, date: formatDate(request.created_at) })}</p>
       )}

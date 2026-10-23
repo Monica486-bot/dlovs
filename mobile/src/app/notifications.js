@@ -8,7 +8,7 @@ import { screenForLink } from '../utils/push';
 import { formatDateTime } from '../utils/format';
 import { colors } from '../theme';
 
-// FR15: the same notifications the web app's bell shows — disputes on your
+// FR15: the same notifications the web app's bell shows: disputes on your
 // parcels, document reviews, transfers, report and ID check outcomes.
 export default function Notifications() {
   const { user, logout } = useAuth();

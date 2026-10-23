@@ -9,17 +9,17 @@ export function setFormatLanguage(lang) {
 }
 
 export function formatDate(value) {
-  return value ? new Date(value).toLocaleDateString(locale, DATE) : '—';
+  return value ? new Date(value).toLocaleDateString(locale, DATE) : '-';
 }
 
 export function formatDateTime(value) {
   return value
     ? new Date(value).toLocaleString(locale, { ...DATE, hour: '2-digit', minute: '2-digit' })
-    : '—';
+    : '-';
 }
 
 export function formatBytes(bytes) {
-  if (!bytes && bytes !== 0) return '—';
+  if (!bytes && bytes !== 0) return '-';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -34,7 +34,7 @@ export function localDate(value) {
 
 // "2 min ago", "3 hr ago", "5 days ago"; older than a month falls back to the date.
 export function formatRelative(value) {
-  if (!value) return '—';
+  if (!value) return '-';
   const seconds = (new Date(value).getTime() - Date.now()) / 1000;
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style: 'short' });
   const steps = [[60, 'second'], [3600, 'minute'], [86400, 'hour'], [86400 * 30, 'day']];

@@ -1,4 +1,4 @@
-// The DLOVS Express app, without starting a server — index.js listens, and
+// The DLOVS Express app, without starting a server. index.js listens, and
 // the tests (tests/) call it directly through Supertest.
 
 require('dotenv').config();

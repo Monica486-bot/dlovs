@@ -68,7 +68,7 @@ export default function Disputes() {
           <p className="dispute-description">{d.description || <span className="muted">{t('No description given.')}</span>}</p>
           <dl className="facts compact">
             <dt>{t('Type')}</dt><dd className="cap">{t(d.dispute_type)}</dd>
-            <dt>{t('Claimant')}</dt><dd>{d.reporter_name || '—'}{d.reporter_phone && <> · <span dir="ltr">{d.reporter_phone}</span></>}</dd>
+            <dt>{t('Claimant')}</dt><dd>{d.reporter_name || '-'}{d.reporter_phone && <> · <span dir="ltr">{d.reporter_phone}</span></>}</dd>
             <dt>{t('Respondent (current record)')}</dt><dd>{d.owner_name}</dd>
             <dt>{t('Filed')}</dt><dd>{formatDate(d.created_at)}</dd>
           </dl>

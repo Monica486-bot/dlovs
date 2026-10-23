@@ -13,7 +13,7 @@ const initialForm = {
   owner_names: EMPTY_NAMES, owner_contact: '', document_type: '', national_id: '',
 };
 
-// FR03 / FR04 / FR05: LandOfficer.createParcelRecord(data) — registers the
+// FR03 / FR04 / FR05: LandOfficer.createParcelRecord(data): registers the
 // parcel and generates its signed QR code.
 export default function RegisterParcel() {
   const { t } = useT();

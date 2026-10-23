@@ -1,4 +1,4 @@
-// FR11 / FR14: ownership only changes with proof of the owner's consent —
+// FR11 / FR14: ownership only changes with proof of the owner's consent:
 // their own transfer request, an SMS code they read to the officer, or written
 // consent checked by a second officer.
 const { app, pool, request, createStaff, createCitizen, createParcel, uniqueNationalId, hasNotification } = require('./helpers');
@@ -37,7 +37,7 @@ describe('owner with an account: SMS code', () => {
     expect(await ownerOf(parcel.parcel_id)).toBe('Akoi Deng Majok Garang');
 
     // the owner is warned in the app too
-    expect(await hasNotification(owner.token, (n) => n.message.includes('only give it to the officer if you agreed'))).toBe(true);
+    expect(await hasNotification(owner.token, (n) => n.message.includes('Only give it to the officer if you agreed'))).toBe(true);
 
     const id = res.body.transfer_id;
     const wrong = res.body.dev_code === '000000' ? '111111' : '000000';
@@ -137,6 +137,141 @@ describe('reason for the transfer', () => {
   test('the list of reasons is available to the forms', async () => {
     const res = await request(app).get('/api/parcels/transfer-reasons');
     expect(res.body).toEqual(expect.arrayContaining(['Sale', 'Inheritance', 'Gift', 'Court order', 'Other']));
+  });
+});
+
+describe('officer-free transfer: the buyer accepts with an SMS code', () => {
+  // createCitizen signs up under this name
+  const ACCOUNT_NAME = 'Test Citizen Deng Majok';
+
+  async function ownerAndBuyer() {
+    const nationalId = uniqueNationalId();
+    const owner = await createCitizen({ nationalId, verifiedBy: officer.token });
+    const parcel = await createParcel(officer.token, { ownerName: 'Akoi Deng Majok Garang', nationalId });
+    const buyer = await createCitizen({ verifiedBy: officer.token });
+    const asked = await request(app).post(`/api/parcels/${parcel.parcel_id}/transfer-requests`).set(auth(owner))
+      .send({ buyer_full_name: ACCOUNT_NAME, buyer_national_id: buyer.nationalId, reason: 'Sale' });
+    expect(asked.status).toBe(201);
+    return { owner, buyer, parcel, requestId: asked.body.request_id, asked };
+  }
+
+  test('owner requests, buyer accepts with the code, and the land moves with no officer', async () => {
+    const { owner, buyer, parcel, requestId, asked } = await ownerAndBuyer();
+    expect(asked.body.buyer_can_accept).toBe(true);
+    expect(await hasNotification(buyer.token, (n) => n.message.includes(`parcel #${parcel.parcel_id} to you`))).toBe(true);
+
+    // the buyer sees it as incoming, without the code hash
+    const mine = await request(app).get('/api/transfer-requests').set(auth(buyer));
+    const incoming = mine.body.find((r) => r.request_id === requestId);
+    expect(incoming.incoming).toBe(true);
+    expect(incoming.accept_code_hash).toBeUndefined();
+
+    // only the named buyer can accept, and the owner can't ask for the buyer's code
+    await request(app).post(`/api/transfer-requests/${requestId}/accept-code`).set(auth(owner)).expect(404);
+    const sent = await request(app).post(`/api/transfer-requests/${requestId}/accept-code`).set(auth(buyer)).expect(200);
+    const wrong = sent.body.dev_code === '000000' ? '111111' : '000000';
+    await request(app).post(`/api/transfer-requests/${requestId}/accept`).set(auth(buyer)).send({ code: wrong }).expect(400);
+    expect(await ownerOf(parcel.parcel_id)).toBe('Akoi Deng Majok Garang');
+
+    const done = await request(app).post(`/api/transfer-requests/${requestId}/accept`).set(auth(buyer)).send({ code: sent.body.dev_code });
+    expect(done.status).toBe(200);
+    expect(done.body.status).toBe('completed');
+    expect(await ownerOf(parcel.parcel_id)).toBe(ACCOUNT_NAME);
+
+    // recorded, with no officer, and the officers are asked to replace the marker
+    const log = await actions(parcel.parcel_id);
+    expect(log).toEqual(expect.arrayContaining([{ action_type: 'PROCESS_TRANSFER', officer_id: null }]));
+    const processed = await pool.query(
+      `SELECT details FROM audit_log WHERE parcel_id = $1 AND action_type = 'PROCESS_TRANSFER'`, [parcel.parcel_id]);
+    expect(processed.rows[0].details).toMatch(/buyer's SMS code/);
+    expect(await hasNotification(officer.token, (n) => n.message.includes(`Parcel #${parcel.parcel_id} was transferred`))).toBe(true);
+    expect(await hasNotification(owner.token, (n) => n.message.includes('transferred from you'))).toBe(true);
+    await request(app).post(`/api/transfer-requests/${requestId}/accept`).set(auth(buyer)).send({ code: sent.body.dev_code }).expect(409);
+  });
+
+  test('the buyer can decline; a buyer without a confirmed account goes to the officers', async () => {
+    const { owner, buyer, parcel, requestId } = await ownerAndBuyer();
+    await request(app).put(`/api/transfer-requests/${requestId}/decline`).set(auth(buyer)).send({}).expect(200);
+    expect(await ownerOf(parcel.parcel_id)).toBe('Akoi Deng Majok Garang');
+    expect(await hasNotification(owner.token, (n) => n.message.includes('declined'))).toBe(true);
+
+    // an unconfirmed buyer can't accept: the request waits for an officer
+    const unconfirmed = await createCitizen();
+    const asked = await request(app).post(`/api/parcels/${parcel.parcel_id}/transfer-requests`).set(auth(owner))
+      .send({ buyer_full_name: ACCOUNT_NAME, buyer_national_id: unconfirmed.nationalId, reason: 'Sale' });
+    expect(asked.body.buyer_can_accept).toBe(false);
+    await request(app).post(`/api/transfer-requests/${asked.body.request_id}/accept-code`).set(auth(unconfirmed)).expect(404);
+  });
+
+  test('a disputed parcel cannot be accepted', async () => {
+    const { buyer, parcel, requestId } = await ownerAndBuyer();
+    const sent = await request(app).post(`/api/transfer-requests/${requestId}/accept-code`).set(auth(buyer)).expect(200);
+    await pool.query(`UPDATE parcel SET status = 'disputed' WHERE parcel_id = $1`, [parcel.parcel_id]);
+    const res = await request(app).post(`/api/transfer-requests/${requestId}/accept`).set(auth(buyer)).send({ code: sent.body.dev_code });
+    expect(res.status).toBe(409);
+    expect(await ownerOf(parcel.parcel_id)).toBe('Akoi Deng Majok Garang');
+  });
+});
+
+describe('the owner is told about every officer action on their land', () => {
+  test('registration, edits and deactivation reach the owner', async () => {
+    const nationalId = uniqueNationalId();
+    const owner = await createCitizen({ nationalId, verifiedBy: officer.token });
+    const parcel = await createParcel(officer.token, { nationalId });
+    expect(await hasNotification(owner.token, (n) => n.message.includes(`registered parcel #${parcel.parcel_id}`))).toBe(true);
+
+    await request(app).put(`/api/parcels/${parcel.parcel_id}`).set(auth(second)).send({ area_sqm: 750 }).expect(200);
+    expect(await hasNotification(owner.token, (n) => n.message.includes('Officer Second Officer') && n.message.includes('area_sqm'))).toBe(true);
+
+    const admin = await createStaff('administrator', 'Chief Administrator');
+    await request(app).put(`/api/admin/parcels/${parcel.parcel_id}/deactivate`).set(auth(admin)).expect(200);
+    expect(await hasNotification(owner.token, (n) => n.message.includes('deactivated'))).toBe(true);
+  });
+});
+
+describe('a national ID belongs to one person', () => {
+  test('a transfer to a registered national ID under another name is refused, not given to the ID holder', async () => {
+    const heldId = uniqueNationalId();
+    const holder = await createParcel(officer.token, { ownerName: 'Garang Akol Deng Mayen', nationalId: heldId });
+    const parcel = await createParcel(officer.token, { ownerName: 'Peter Lomoro Taban Wani' });
+    const consent_document = 'Sale agreement signed before the area chief';
+
+    const wrong = await start(parcel.parcel_id, { consent_document, new_owner: { full_name: BUYER, national_id: heldId } });
+    expect(wrong.status).toBe(409);
+    expect(wrong.body.code).toBe('NATIONAL_ID_NAME_MISMATCH');
+    expect(wrong.body.error).toMatch(/Garang Akol Deng Mayen/);
+    expect(await ownerOf(parcel.parcel_id)).toBe('Peter Lomoro Taban Wani');
+    expect(await ownerOf(holder.parcel_id)).toBe('Garang Akol Deng Mayen');
+
+    // the same person (spacing and capitals aside) joins their existing portfolio
+    const same = await start(parcel.parcel_id, { consent_document, new_owner: { full_name: 'garang  akol deng MAYEN', national_id: heldId } });
+    expect(same.status).toBe(202);
+    await request(app).put(`/api/pending-transfers/${same.body.transfer_id}/approve`).set(auth(second)).expect(200);
+    const owners = await pool.query('SELECT DISTINCT current_owner_id FROM parcel WHERE parcel_id = ANY($1)', [[holder.parcel_id, parcel.parcel_id]]);
+    expect(owners.rows).toHaveLength(1);
+  });
+
+  test('registering a parcel to a held national ID under another name is refused', async () => {
+    const heldId = uniqueNationalId();
+    await createParcel(officer.token, { ownerName: 'Garang Akol Deng Mayen', nationalId: heldId });
+    const res = await request(app).post('/api/parcels').set(auth(officer)).send({
+      gps_lat: 4.86, gps_lng: 31.57, neighbourhood: 'Munuki', owner: { full_name: BUYER, national_id: heldId },
+    });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('NATIONAL_ID_NAME_MISMATCH');
+  });
+
+  test("a citizen's request naming a held ID under another name is refused without revealing the holder", async () => {
+    const heldId = uniqueNationalId();
+    await createParcel(officer.token, { ownerName: 'Garang Akol Deng Mayen', nationalId: heldId });
+    const nationalId = uniqueNationalId();
+    const owner = await createCitizen({ nationalId, verifiedBy: officer.token });
+    const parcel = await createParcel(officer.token, { nationalId });
+    const res = await request(app).post(`/api/parcels/${parcel.parcel_id}/transfer-requests`).set(auth(owner))
+      .send({ buyer_full_name: BUYER, buyer_national_id: heldId, reason: 'Sale' });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('NATIONAL_ID_NAME_MISMATCH');
+    expect(res.body.error).not.toMatch(/Garang/);
   });
 });
 

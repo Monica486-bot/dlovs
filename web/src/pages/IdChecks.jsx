@@ -5,7 +5,7 @@ import { formatDate } from '../utils/format';
 
 // A citizen's national ID links their account to land only after an officer
 // has seen the ID card in person. Without this check, anyone could type a
-// real owner's ID number and see — or try to sell — their land.
+// real owner's ID number and see (or try to sell) their land.
 export default function IdChecks() {
   const { t, tn } = useT();
   const [checks, setChecks] = useState(null);
@@ -72,7 +72,7 @@ export default function IdChecks() {
                           )}
                         </>
                       ) : (
-                        <span className="muted">—</span>
+                        <span className="muted">-</span>
                       )}
                     </td>
                     <td>{formatDate(c.created_at)}</td>

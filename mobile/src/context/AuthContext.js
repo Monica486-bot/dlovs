@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
   const pushToken = useRef(null);
 
   // FR15: tell the API where to push this account's notifications. Best
-  // effort — the app works the same without push.
+  // effort. The app works the same without push.
   const enablePush = useCallback(async () => {
     const token = await getPushToken();
     if (!token) return;
@@ -57,7 +57,7 @@ export function AuthProvider({ children }) {
           enablePush();
         }
       } catch (err) {
-        // corrupted storage — start logged out
+        // corrupted storage: start logged out
       } finally {
         setReady(true);
       }

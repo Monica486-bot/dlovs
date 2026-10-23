@@ -4,7 +4,7 @@ const { notifyUsers, notifyOfficers, ownerAccountIds } = require('../utils/notif
 // open (unresolved) disputes one account may have at a time
 const MAX_OPEN_DISPUTES_PER_ACCOUNT = 3;
 
-// Citizen.flagDispute(parcelId) — from the mobile app or the web portal (FR12)
+// Citizen.flagDispute(parcelId): from the mobile app or the web portal (FR12)
 async function flagDispute(req, res) {
   const { parcel_id, dispute_type } = req.body;
   const description = req.body.description?.trim();
@@ -74,7 +74,7 @@ async function flagDispute(req, res) {
   }
 }
 
-// LandOfficer "Respond to Dispute Flags" — list open/under_review disputes
+// LandOfficer "Respond to Dispute Flags": list open/under_review disputes
 async function listDisputes(req, res) {
   try {
     const result = await pool.query(
@@ -118,7 +118,7 @@ async function resolveDispute(req, res) {
     const dispute = result.rows[0];
     const parcel_id = dispute.parcel_id;
 
-    // only clear the "disputed" flag if no other open disputes remain — and
+    // only clear the "disputed" flag if no other open disputes remain, and
     // never reactivate a deactivated record
     const remaining = await client.query(
       `SELECT COUNT(*) FROM dispute WHERE parcel_id = $1 AND status != 'resolved'`,

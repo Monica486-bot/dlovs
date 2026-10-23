@@ -62,7 +62,7 @@ export default function AuditLog() {
                     <td className="nowrap">{formatDateTime(l.timestamp)}</td>
                     <td>{l.officer_name || <span className="muted">{t('Public (no account)')}</span>}</td>
                     <td>{t(actionLabel(l.action_type))}</td>
-                    <td>{l.parcel_id ? <Link to={`/parcels/${l.parcel_id}`}>#{l.parcel_id}</Link> : '—'}</td>
+                    <td>{l.parcel_id ? <Link to={`/parcels/${l.parcel_id}`}>#{l.parcel_id}</Link> : '-'}</td>
                     <td>{l.details}</td>
                   </tr>
                 ))}

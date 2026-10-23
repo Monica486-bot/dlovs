@@ -4,7 +4,7 @@ import * as Location from 'expo-location';
 // accuracy estimate is within this many metres.
 export const GPS_THRESHOLD_METRES = 10;
 
-// Great-circle distance in metres — same formula as the backend's
+// Great-circle distance in metres, same formula as the backend's
 // haversineMeters, run on the device so the check also works for cached
 // records while offline.
 export function haversineMetres(lat1, lng1, lat2, lng2) {
@@ -17,7 +17,7 @@ export function haversineMetres(lat1, lng1, lat2, lng2) {
 }
 
 // Returns { lat, lng, accuracy } or null if permission is denied or no fix is
-// available. Never throws — verification must still work without GPS.
+// available. Never throws: verification must still work without GPS.
 export async function getDeviceLocation() {
   try {
     const { status } = await Location.requestForegroundPermissionsAsync();

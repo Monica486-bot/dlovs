@@ -6,7 +6,7 @@ import { formatDate } from '../../utils/format';
 import StatusBadge from '../../components/StatusBadge';
 
 // FR09 for everyone: all parcels registered to an owner, so a buyer can check
-// that what a seller claims matches the register — and notice a seller with
+// that what a seller claims matches the register, and notice a seller with
 // many plots or many recent sales. National ID and phone are staff-only.
 export default function PublicOwner() {
   const { id } = useParams();

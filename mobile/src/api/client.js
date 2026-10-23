@@ -20,7 +20,7 @@ export class ApiError extends Error {
   }
 }
 
-// Thrown when the request never reached the server — the caller should fall
+// Thrown when the request never reached the server. The caller should fall
 // back to the offline cache.
 export class NetworkError extends Error {}
 
@@ -65,6 +65,6 @@ export const api = {
   post: (path, body) => request('POST', path, { body }),
   put: (path, body) => request('PUT', path, { body }),
   delete: (path, body) => request('DELETE', path, { body }),
-  // FormData with a file part — FR10 document upload
+  // FormData with a file part (FR10 document upload)
   upload: (path, form) => request('POST', path, { form, timeout: UPLOAD_TIMEOUT_MS }),
 };

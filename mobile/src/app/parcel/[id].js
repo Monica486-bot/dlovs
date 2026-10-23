@@ -59,7 +59,7 @@ export default function ParcelRecord() {
     load();
   }, [load]);
 
-  // FR04 location check — runs alongside the record fetch so it never slows
+  // FR04 location check. It runs alongside the record fetch so it never slows
   // the verification result down.
   useEffect(() => {
     let cancelled = false;
@@ -94,7 +94,7 @@ export default function ParcelRecord() {
   if (state === 'not_found') {
     return (
       <Screen>
-        <Banner tone="warning" title={t('This parcel is not registered in DLOVS — proceed with caution.')}>
+        <Banner tone="warning" title={t('This parcel is not registered in DLOVS. Proceed with caution.')}>
           {t("No record exists for parcel #{id}. Check the seller's documents with the land office before paying.", { id })}
         </Banner>
         <ReportPlotButton />
@@ -122,8 +122,8 @@ export default function ParcelRecord() {
   return (
     <Screen>
       {state === 'cached' && (
-        <Banner tone="warning" title={t('Offline — this is a saved copy, not a live record')}>
-          {t('Last checked {time}. Ownership may have changed — check again online before paying.', { time: formatDateTime(cachedAt) })}
+        <Banner tone="warning" title={t('Offline: this is a saved copy, not a live record')}>
+          {t('Last checked {time}. Ownership may have changed, so check again online before paying.', { time: formatDateTime(cachedAt) })}
         </Banner>
       )}
       {state === 'live' && qrCheck === 'valid' && (
@@ -133,7 +133,7 @@ export default function ParcelRecord() {
       )}
       {qrCheck === 'superseded' && (
         <Banner tone="danger" title={t('This QR code has been replaced')}>
-          {t('Ownership changed on {date}. Whoever shows this old marker may no longer own the plot — the current owner is shown below.', { date: formatDate(qrIssuedAt) })}
+          {t('Ownership changed on {date}. Whoever shows this old marker may no longer own the plot. The current owner is shown below.', { date: formatDate(qrIssuedAt) })}
         </Banner>
       )}
       {parcel.status === 'deactivated' && (
@@ -142,7 +142,7 @@ export default function ParcelRecord() {
         </Banner>
       )}
       {openDisputes.length > 0 && (
-        <Banner tone="warning" title={tn('Disputed — {n} open dispute', 'Disputed — {n} open disputes', openDisputes.length)}>
+        <Banner tone="warning" title={tn('Disputed: {n} open dispute', 'Disputed: {n} open disputes', openDisputes.length)}>
           {t('The {types} of this parcel is contested. Do not pay until a land officer resolves it.', { types: disputeTypes })}
         </Banner>
       )}
@@ -199,7 +199,7 @@ export default function ParcelRecord() {
                 <Muted>
                   {formatDate(h.transfer_date)}
                   {h.transfer_reason
-                    ? ` · ${t(h.transfer_reason)}${h.transfer_reason_details ? ` — ${h.transfer_reason_details}` : ''}`
+                    ? ` · ${t(h.transfer_reason)}${h.transfer_reason_details ? `: ${h.transfer_reason_details}` : ''}`
                     : ''}
                 </Muted>
               </View>
@@ -236,7 +236,7 @@ export default function ParcelRecord() {
               icon={d.status === 'resolved' ? 'checkmark-done' : 'alert-circle'}
               iconColor={d.status === 'resolved' ? colors.success : colors.warning}
               iconBg={d.status === 'resolved' ? colors.successPale : colors.warningPale}
-              title={t('{type} dispute — {status}', {
+              title={t('{type} dispute: {status}', {
                 type: t(d.dispute_type === 'boundary' ? 'Boundary' : 'Ownership'),
                 status: t(d.status === 'resolved' ? 'resolved' : d.status === 'under_review' ? 'under review' : 'open'),
               })}
@@ -277,7 +277,7 @@ function LocationCheck({ location, parcel }) {
     return <Muted>{t('Checking your location…')}</Muted>;
   }
   if (location.status === 'unavailable') {
-    return <Muted>{t("Location unavailable — the record is valid, but your position can't be confirmed.")}</Muted>;
+    return <Muted>{t("Location unavailable. The record is valid, but your position can't be confirmed.")}</Muted>;
   }
   const distance = haversineMetres(location.lat, location.lng, Number(parcel.gps_lat), Number(parcel.gps_lng));
   const rounded = Math.round(distance);

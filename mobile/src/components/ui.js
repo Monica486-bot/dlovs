@@ -104,7 +104,7 @@ export function Row({ label, value, icon }) {
         {icon ? <Icon name={icon} size={16} color={colors.faint} /> : null}
         <Text style={styles.rowLabel}>{label}</Text>
       </View>
-      <Text style={[styles.rowValue, { textAlign: rtl ? 'left' : 'right' }]} selectable>{value ?? '—'}</Text>
+      <Text style={[styles.rowValue, { textAlign: rtl ? 'left' : 'right' }]} selectable>{value ?? '-'}</Text>
     </View>
   );
 }

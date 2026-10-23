@@ -7,7 +7,7 @@ import StatusBadge from '../components/StatusBadge';
 
 // FR09: every parcel registered to one owner (matched by national ID), with
 // printable QR codes, plus parcels they have transferred away. A seller with
-// many plots — or many recent sales — is worth a closer look.
+// many plots (or many recent sales) is worth a closer look.
 export default function OwnerPortfolio() {
   const { id } = useParams();
   const { t } = useT();
@@ -48,7 +48,7 @@ export default function OwnerPortfolio() {
       <div className="card no-print">
         <dl className="facts">
           <dt>{t('National ID')}</dt><dd>{owner.national_id || t('Not recorded')}</dd>
-          <dt>{t('Contact')}</dt><dd dir="ltr">{owner.contact_number || '—'}</dd>
+          <dt>{t('Contact')}</dt><dd dir="ltr">{owner.contact_number || '-'}</dd>
           <dt>{t('Parcels owned now')}</dt><dd>{parcels.length}</dd>
           <dt>{t('Parcels transferred away')}</dt><dd>{previous.length}</dd>
         </dl>
@@ -72,7 +72,7 @@ export default function OwnerPortfolio() {
                       <td><Link to={`/parcels/${p.parcel_id}`}>#{p.parcel_id}</Link></td>
                       <td>{p.neighbourhood}</td>
                       <td dir="ltr">{Number(p.gps_lat).toFixed(5)}, {Number(p.gps_lng).toFixed(5)}</td>
-                      <td>{p.area_sqm ? t('{n} m²', { n: Number(p.area_sqm) }) : '—'}</td>
+                      <td>{p.area_sqm ? t('{n} m²', { n: Number(p.area_sqm) }) : '-'}</td>
                       <td>{formatDate(p.registered_date)}</td>
                       <td>{p.verified_documents}</td>
                       <td><StatusBadge status={p.status} /></td>

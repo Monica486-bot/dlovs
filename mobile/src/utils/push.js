@@ -46,7 +46,7 @@ export async function getPushToken() {
   }
 }
 
-// Calls open(link) when the user taps a push notification — including the one
+// Calls open(link) when the user taps a push notification, including the one
 // that launched the app. Returns an unsubscribe function.
 export function onNotificationTap(open) {
   const N = notifications();

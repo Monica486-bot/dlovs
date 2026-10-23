@@ -42,7 +42,7 @@ export default function Account() {
       <div className="card">
         <dl className="facts">
           <dt>{t('Name')}</dt><dd>{user?.full_name}</dd>
-          <dt>{t('Phone Number')}</dt><dd dir="ltr">{user?.phone_number || '—'}</dd>
+          <dt>{t('Phone Number')}</dt><dd dir="ltr">{user?.phone_number || '-'}</dd>
           <dt>{t('Role')}</dt><dd>{t(roleName)}</dd>
           {user?.role === 'citizen' && (
             <>

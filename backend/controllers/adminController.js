@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt');
 const pool = require('../db/pool');
+const { alertOwner } = require('../utils/notify');
 
 const ROLES = ['citizen', 'land_officer', 'administrator'];
 const NATIONAL_ID_UNIQUE = 'user_national_id_citizen_unique';
@@ -250,6 +251,7 @@ async function deactivateParcel(req, res) {
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Parcel not found' });
     await logAdminAction(req.user.user_id, 'DEACTIVATE_PARCEL', 'Parcel deactivated as fraudulent', id);
+    alertOwner(id, req.user, `deactivated the record of parcel #${id} as fraudulent.`);
     res.json({ message: 'Parcel deactivated', parcel_id: id });
   } catch (err) {
     console.error(err);
