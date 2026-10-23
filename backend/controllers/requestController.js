@@ -2,6 +2,7 @@ const pool = require('../db/pool');
 const { notifyUsers, notifyOfficers } = require('../utils/notify');
 const { isExpoPushToken } = require('../utils/push');
 const { fourPartName } = require('../utils/names');
+const { matchOwner, normalise } = require('../utils/owners');
 const { transferReason } = require('../utils/transferReasons');
 
 const STAFF_ROLES = ['land_officer', 'administrator'];
@@ -149,6 +150,14 @@ async function createTransferRequest(req, res) {
     if (buyerNationalId === row.owner_national_id) {
       return res.status(400).json({ error: 'The buyer is already the owner' });
     }
+    // Unlike officers, a citizen isn't told who the ID belongs to: that would
+    // let anyone look up the name behind a national ID.
+    if ((await matchOwner(pool, buyerNationalId, buyerName)).mismatch) {
+      return res.status(409).json({
+        error: "This national ID is registered under a different name. Check the buyer's ID card and enter their four names exactly as on it.",
+        code: 'NATIONAL_ID_NAME_MISMATCH',
+      });
+    }
     const pending = await pool.query(
       `SELECT 1 FROM transfer_request WHERE parcel_id = $1 AND status = 'pending'`,
       [parcelId]
@@ -156,15 +165,31 @@ async function createTransferRequest(req, res) {
     if (pending.rows.length > 0) {
       return res.status(409).json({ error: 'There is already a pending transfer request for this parcel' });
     }
+    // Officer-free transfer: a buyer whose account holds this national ID,
+    // confirmed in person and under the same name, can accept in the app.
+    const buyerAccount = await pool.query(
+      `SELECT user_id, full_name FROM "user" WHERE national_id = $1 AND role = 'citizen' AND is_active
+       AND national_id_verified_at IS NOT NULL`,
+      [buyerNationalId]
+    );
+    const buyerUser = buyerAccount.rows.find((u) => normalise(u.full_name) === normalise(buyerName));
     const result = await pool.query(
       `INSERT INTO transfer_request (parcel_id, requested_by, buyer_full_name, buyer_national_id, buyer_contact, notes,
-         transfer_reason, transfer_reason_details)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING request_id, status, created_at`,
+         transfer_reason, transfer_reason_details, buyer_user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING request_id, status, created_at`,
       [parcelId, req.user.user_id, buyerName, buyerNationalId, req.body.buyer_contact?.trim() || null, req.body.notes?.trim() || null,
-        reason.reason, reason.details]
+        reason.reason, reason.details, buyerUser?.user_id || null]
     );
-    notifyOfficers(`Transfer requested for parcel #${parcelId} to ${buyerName}`, { link: '/transfer-requests' });
-    res.status(201).json(result.rows[0]);
+    if (buyerUser) {
+      notifyUsers(
+        [buyerUser.user_id],
+        `${req.user.full_name} wants to transfer parcel #${parcelId} to you. Check the plot, then accept or decline under My Requests.`,
+        { link: '/my/requests', sms: true }
+      );
+    } else {
+      notifyOfficers(`Transfer requested for parcel #${parcelId} to ${buyerName}`, { link: '/transfer-requests' });
+    }
+    res.status(201).json({ ...result.rows[0], buyer_can_accept: Boolean(buyerUser) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to submit transfer request' });
@@ -180,7 +205,8 @@ async function listTransferRequests(req, res) {
   }
   const where = [];
   const params = [];
-  if (!isStaff) { params.push(req.user.user_id); where.push(`t.requested_by = $${params.length}`); }
+  // citizens: requests they made, and requests naming them as the buyer
+  if (!isStaff) { params.push(req.user.user_id); where.push(`(t.requested_by = $${params.length} OR t.buyer_user_id = $${params.length})`); }
   if (status !== 'all') { params.push(status); where.push(`t.status = $${params.length}`); }
   try {
     const result = await pool.query(
@@ -195,7 +221,11 @@ async function listTransferRequests(req, res) {
        ORDER BY t.created_at DESC LIMIT 200`,
       params
     );
-    res.json(result.rows);
+    res.json(result.rows.map(({ accept_code_hash, accept_code_attempts, accept_code_expires_at, ...r }) => {
+      const row = { ...r, buyer_can_accept: r.buyer_user_id != null, incoming: !isStaff && r.buyer_user_id === req.user.user_id };
+      if (!isStaff) delete row.requested_by_phone;
+      return row;
+    }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load transfer requests' });
@@ -211,7 +241,8 @@ async function getTransferRequest(req, res) {
       [req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Transfer request not found' });
-    res.json(result.rows[0]);
+    const { accept_code_hash, accept_code_attempts, accept_code_expires_at, ...request } = result.rows[0];
+    res.json(request);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load transfer request' });
@@ -392,7 +423,7 @@ async function getOwnerPortfolio(req, res) {
       [owner.owner_id, owner.national_id]
     );
     // The public sees the same names and parcels a search shows, grouped by
-    // person — not the details that would let a broker contact or impersonate
+    // person, not the details that would let a broker contact or impersonate
     // the owner.
     const { national_id, contact_number, ...publicOwner } = owner;
     res.json({ owner: staffView ? owner : publicOwner, parcels: parcels.rows, previously_owned: previous.rows });
@@ -402,7 +433,7 @@ async function getOwnerPortfolio(req, res) {
   }
 }
 
-// FR15: POST /api/push-tokens { token } — the mobile app's Expo push token.
+// FR15: POST /api/push-tokens { token }: the mobile app's Expo push token.
 // A device belongs to whoever logged in on it last.
 async function registerPushToken(req, res) {
   const token = req.body?.token;
@@ -420,7 +451,7 @@ async function registerPushToken(req, res) {
   }
 }
 
-// DELETE /api/push-tokens { token } — on logout, so the next person to use
+// DELETE /api/push-tokens { token }: on logout, so the next person to use
 // the phone doesn't receive this account's alerts.
 async function removePushToken(req, res) {
   try {

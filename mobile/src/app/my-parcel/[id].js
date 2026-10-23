@@ -45,7 +45,7 @@ export default function MyParcel() {
       setDocuments(docs);
       setTypes(docTypes);
       setReasons(transferReasons);
-      setRequests(myRequests.filter((r) => String(r.parcel_id) === String(id)));
+      setRequests(myRequests.filter((r) => !r.incoming && String(r.parcel_id) === String(id)));
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         await logout();
@@ -128,12 +128,12 @@ export default function MyParcel() {
           </View>
           <Muted>
             {t('Sent {date}', { date: formatDate(r.created_at) })}
-            {r.transfer_reason ? ` · ${t(r.transfer_reason)}${r.transfer_reason_details ? ` — ${r.transfer_reason_details}` : ''}` : ''}
+            {r.transfer_reason ? ` · ${t(r.transfer_reason)}${r.transfer_reason_details ? `: ${r.transfer_reason_details}` : ''}` : ''}
           </Muted>
           {r.response_notes ? <Muted>{t('Officer: {notes}', { notes: r.response_notes })}</Muted> : null}
         </Card>
       ))}
-      <TransferRequest parcel={parcel} reasons={reasons} pending={requests.some((r) => r.status === 'pending')} onSent={load} />
+      <TransferRequest parcel={parcel} reasons={reasons} pending={requests.find((r) => r.status === 'pending')} onSent={load} />
     </Screen>
   );
 }
@@ -204,7 +204,9 @@ function TransferRequest({ parcel, reasons, pending, onSent }) {
   if (sent && pending) {
     return (
       <Banner tone="success" title={t('✓ Transfer request sent')}>
-        {t('A land officer will contact you and the buyer before transferring.')}
+        {pending.buyer_can_accept
+          ? t('The buyer accepts it in DLOVS with a code sent to their phone. No visit to the land office is needed.')
+          : t('A land officer will contact you and the buyer before transferring.')}
       </Banner>
     );
   }
@@ -212,7 +214,13 @@ function TransferRequest({ parcel, reasons, pending, onSent }) {
     return <Muted>{t('This parcel is {status} and cannot be transferred until a land officer resolves it.', { status: t(parcel.status) })}</Muted>;
   }
   if (pending) {
-    return <Muted>{t('Waiting for a land officer, who will contact you and the buyer.')}</Muted>;
+    return (
+      <Muted>
+        {pending.buyer_can_accept
+          ? t('Waiting for the buyer to accept in DLOVS.')
+          : t('Waiting for a land officer, who will contact you and the buyer.')}
+      </Muted>
+    );
   }
 
   async function submit() {

@@ -76,8 +76,11 @@ export default function TransferRequests() {
             <dt>{t('New Owner')}</dt><dd>{r.buyer_full_name} · {r.buyer_national_id}{r.buyer_contact && <> · <span dir="ltr">{r.buyer_contact}</span></>}</dd>
             <dt>{t('Reason for transfer')}</dt><dd>{reasonLabel(t, r.transfer_reason, r.transfer_reason_details)}</dd>
             <dt>{t('Requested')}</dt><dd>{formatDate(r.created_at)}</dd>
+            {r.status === 'pending' && r.buyer_can_accept && (
+              <><dt>{t('Buyer')}</dt><dd>{t('Has a confirmed account and can accept in DLOVS without an officer. Process it here only if they come to the office.')}</dd></>
+            )}
             {r.notes && (<><dt>{t('Note')}</dt><dd>{r.notes}</dd></>)}
-            {r.status !== 'pending' && (<><dt>{t('Handled')}</dt><dd>{r.handled_by_name}, {formatDate(r.handled_at)}{r.response_notes && ` — ${r.response_notes}`}</dd></>)}
+            {r.status !== 'pending' && (<><dt>{t('Handled')}</dt><dd>{r.handled_by_name}, {formatDate(r.handled_at)}{r.response_notes && `: ${r.response_notes}`}</dd></>)}
           </dl>
           {r.status === 'pending' && r.parcel_status !== 'active' && (
             <p className="warning-text" style={{ marginBottom: 0 }}>{t('Parcel is {status}', { status: t(r.parcel_status) })}</p>

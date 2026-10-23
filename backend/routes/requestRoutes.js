@@ -4,6 +4,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth, optionalAuth, requireRole } = require('../middleware/auth');
 const c = require('../controllers/requestController');
+const transfers = require('../controllers/transferController');
 
 router.param('id', (req, res, next, id) => {
   if (!/^\d+$/.test(id)) return res.status(404).json({ error: 'Not found' });
@@ -19,6 +20,11 @@ router.put('/unregistered-reports/:id', requireAuth, requireRole('land_officer')
 router.get('/transfer-requests', requireAuth, c.listTransferRequests);
 router.get('/transfer-requests/:id', requireAuth, staff, c.getTransferRequest);
 router.put('/transfer-requests/:id/reject', requireAuth, requireRole('land_officer'), c.rejectTransferRequest);
+// officer-free transfer: the buyer accepts (or declines) with an SMS code
+const citizen = requireRole('citizen');
+router.post('/transfer-requests/:id/accept-code', requireAuth, citizen, transfers.sendAcceptCode);
+router.post('/transfer-requests/:id/accept', requireAuth, citizen, transfers.acceptTransferRequest);
+router.put('/transfer-requests/:id/decline', requireAuth, citizen, transfers.declineTransferRequest);
 
 router.get('/notifications', requireAuth, c.listNotifications);
 router.put('/notifications/read-all', requireAuth, c.markNotificationsRead);
