@@ -180,9 +180,17 @@ CREATE TABLE IF NOT EXISTS transfer_request (
     created_at        TIMESTAMP NOT NULL DEFAULT now(),
     handled_by        INTEGER REFERENCES "user"(user_id),
     handled_at        TIMESTAMP,
-    response_notes    TEXT
+    response_notes    TEXT,
+    -- Officer-free transfer: set when the buyer has an account whose national
+    -- ID an officer has confirmed, so the buyer can accept with an SMS code
+    buyer_user_id     INTEGER REFERENCES "user"(user_id),
+    accept_code_hash  TEXT,
+    accept_code_attempts INTEGER NOT NULL DEFAULT 0,
+    accept_code_expires_at TIMESTAMP,
+    accept_code_sent_at TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_transfer_request_status ON transfer_request(status);
+CREATE INDEX IF NOT EXISTS idx_transfer_request_buyer ON transfer_request(buyer_user_id) WHERE buyer_user_id IS NOT NULL;
 
 -- FR11: direct transfers waiting for the owner's SMS code or a second
 -- officer's approval of the written consent

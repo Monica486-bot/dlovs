@@ -1,8 +1,8 @@
 -- Owner consent for transfers an officer starts directly (not from a citizen's
 -- transfer request). Ownership only changes once consent is proven:
---   owner_code      — the owner has a confirmed account: they get an SMS code
+--   owner_code: the owner has a confirmed account, so they get an SMS code
 --                     and read it to the officer (status awaiting_owner)
---   second_officer  — the owner has no account: the officer records the paper
+--   second_officer: the owner has no account, so the officer records the paper
 --                     consent document and another officer approves it
 --                     (status awaiting_approval)
 CREATE TABLE IF NOT EXISTS pending_transfer (

@@ -1,8 +1,9 @@
 const crypto = require('crypto');
 const pool = require('../db/pool');
 const { generateQrDataUrl } = require('../utils/qr');
-const { notifyUsers, accountIdsForNationalId, askForIdCheck } = require('../utils/notify');
+const { notifyUsers, notifyOfficers, accountIdsForNationalId, askForIdCheck, alertOwner } = require('../utils/notify');
 const { fourPartName } = require('../utils/names');
+const { matchOwner } = require('../utils/owners');
 const { transferReason } = require('../utils/transferReasons');
 const { sendSms, smsConfigured } = require('../utils/sms');
 
@@ -50,7 +51,7 @@ async function lockParcel(client, parcelId, expectedOwnerId) {
   // If someone else transferred the parcel in the meantime, refuse rather
   // than sell the same plot twice.
   if (expectedOwnerId != null && Number(expectedOwnerId) !== current.current_owner_id) {
-    throw new TransferError(409, `Ownership changed since you opened this page — the parcel is now registered to ${current.owner_name}. Reload and check before transferring.`);
+    throw new TransferError(409, `Ownership changed since you opened this page. The parcel is now registered to ${current.owner_name}. Reload and check before transferring.`);
   }
   // Selling a disputed or fraudulent plot is exactly what DLOVS exists to stop.
   if (current.status !== 'active') {
@@ -66,16 +67,12 @@ async function lockParcel(client, parcelId, expectedOwnerId) {
 // to notify people afterwards.
 async function executeTransfer(client, { parcelId, current, newOwner, notes, officerId, requestId, consent, reason }) {
   // Reuse the owner record when the buyer's national ID is already
-  // registered, so all their parcels appear in one portfolio (FR09).
-  let newOwnerId = null;
-  let newOwnerName = newOwner.full_name;
-  if (newOwner.national_id) {
-    const existing = await client.query('SELECT owner_id, full_name FROM owner WHERE national_id = $1 ORDER BY owner_id LIMIT 1', [newOwner.national_id]);
-    if (existing.rows[0]) {
-      newOwnerId = existing.rows[0].owner_id;
-      newOwnerName = existing.rows[0].full_name;
-    }
-  }
+  // registered, but only for the same person (see utils/owners.js). Checked
+  // again here because the name may have been registered after the start.
+  const match = await matchOwner(client, newOwner.national_id, newOwner.full_name);
+  if (match.mismatch) throw new TransferError(409, match.mismatch, 'NATIONAL_ID_NAME_MISMATCH');
+  let newOwnerId = match.owner?.owner_id ?? null;
+  const newOwnerName = match.owner?.full_name ?? newOwner.full_name;
   if (!newOwnerId) {
     const ownerResult = await client.query(
       `INSERT INTO owner (full_name, contact_number, document_type, national_id) VALUES ($1, $2, $3, $4) RETURNING owner_id`,
@@ -174,14 +171,14 @@ async function sendConsentCode(accounts, code, parcelId, newOwnerName, officerNa
   await Promise.all(accounts.map((a) => sendSms(a.phone_number, text)));
   notifyUsers(
     accounts.map((a) => a.user_id),
-    `Officer ${officerName} started transferring parcel #${parcelId} to ${newOwnerName}. A code was sent to your phone by SMS — only give it to the officer if you agreed to this transfer.`,
+    `Officer ${officerName} started transferring parcel #${parcelId} to ${newOwnerName}. A code was sent to your phone by SMS. Only give it to the officer if you agreed to this transfer.`,
     { link: '/my' }
   );
   const exposeForDemo = !smsConfigured() && process.env.NODE_ENV !== 'production';
   return exposeForDemo ? code : undefined;
 }
 
-// GET /api/parcels/:id/transfer-consent — which consent the transfer form
+// GET /api/parcels/:id/transfer-consent: which consent the transfer form
 // must collect, and any transfer already waiting.
 async function transferConsent(req, res) {
   try {
@@ -204,7 +201,7 @@ async function transferConsent(req, res) {
 
 // FR11: start a transfer. Ownership changes only with the owner's consent:
 // their own request, an SMS code, or written consent approved by a second officer.
-// POST /api/parcels/:id/transfer — LandOfficer.processTransfer(parcelId)
+// POST /api/parcels/:id/transfer: LandOfficer.processTransfer(parcelId)
 async function startTransfer(req, res) {
   const parcelId = Number(req.params.id);
   const { new_owner, notes, expected_owner_id, transfer_request_id } = req.body;
@@ -226,11 +223,13 @@ async function startTransfer(req, res) {
     if (newOwner.national_id && newOwner.national_id === current.owner_national_id) {
       throw new TransferError(409, `${current.owner_name} already owns this parcel`);
     }
+    const match = await matchOwner(client, newOwner.national_id, newOwner.full_name);
+    if (match.mismatch) throw new TransferError(409, match.mismatch, 'NATIONAL_ID_NAME_MISMATCH');
     if (await openTransferFor(client, parcelId)) {
       throw new TransferError(409, 'A transfer of this parcel is already waiting for consent. Complete or cancel it first.');
     }
 
-    // 1. A citizen's transfer request is the owner's consent — for the buyer
+    // 1. A citizen's transfer request is the owner's consent, for the buyer
     // they named, and nobody else.
     if (transfer_request_id != null) {
       const requestResult = await client.query(
@@ -283,7 +282,7 @@ async function startTransfer(req, res) {
     // 3. No account: the paper consent, approved by a second officer.
     const consentDocument = req.body.consent_document?.trim();
     if (!consentDocument || consentDocument.length < 10) {
-      throw new TransferError(400, "Describe the owner's written consent — the document, who signed it and where — so a second officer can check it", 'CONSENT_DOCUMENT_REQUIRED');
+      throw new TransferError(400, "Describe the owner's written consent (the document, who signed it and where) so a second officer can check it", 'CONSENT_DOCUMENT_REQUIRED');
     }
     const inserted = await client.query(
       `INSERT INTO pending_transfer (parcel_id, expected_owner_id, new_owner_name, new_owner_national_id, new_owner_contact,
@@ -338,7 +337,7 @@ const pendingOwner = (p) => ({
   document_type: p.new_owner_document,
 });
 
-// POST /api/pending-transfers/:id/confirm { code } — the officer enters the
+// POST /api/pending-transfers/:id/confirm { code }: the officer enters the
 // code the owner read out
 async function confirmWithCode(req, res) {
   const code = String(req.body?.code || '').trim();
@@ -384,7 +383,7 @@ async function confirmWithCode(req, res) {
   }
 }
 
-// POST /api/pending-transfers/:id/resend — a new code, e.g. the SMS was lost
+// POST /api/pending-transfers/:id/resend: a new code, e.g. the SMS was lost
 async function resendCode(req, res) {
   const client = await pool.connect();
   try {
@@ -413,7 +412,7 @@ async function resendCode(req, res) {
   }
 }
 
-// PUT /api/pending-transfers/:id/approve — a second officer checks the
+// PUT /api/pending-transfers/:id/approve: a second officer checks the
 // consent document and approves (FR14 separation of duties)
 async function approveTransfer(req, res) {
   const client = await pool.connect();
@@ -421,7 +420,7 @@ async function approveTransfer(req, res) {
     await client.query('BEGIN');
     const pending = await lockPending(client, req.params.id, 'awaiting_approval');
     if (pending.started_by === req.user.user_id) {
-      throw new TransferError(403, 'You started this transfer — another officer must approve it');
+      throw new TransferError(403, 'You started this transfer, so another officer must approve it');
     }
     const current = await lockParcel(client, pending.parcel_id, pending.expected_owner_id);
     const newOwner = pendingOwner(pending);
@@ -451,7 +450,7 @@ async function approveTransfer(req, res) {
   }
 }
 
-// PUT /api/pending-transfers/:id/reject { reason } — the second officer
+// PUT /api/pending-transfers/:id/reject { reason }: the second officer
 // isn't satisfied with the consent document
 async function rejectTransfer(req, res) {
   const reason = req.body?.reason?.trim();
@@ -461,7 +460,7 @@ async function rejectTransfer(req, res) {
     await client.query('BEGIN');
     const pending = await lockPending(client, req.params.id, 'awaiting_approval');
     if (pending.started_by === req.user.user_id) {
-      throw new TransferError(403, 'You started this transfer — cancel it instead');
+      throw new TransferError(403, 'You started this transfer, so cancel it instead');
     }
     await client.query(
       `UPDATE pending_transfer SET status = 'rejected', decided_by = $1, decided_at = now(), decision_notes = $2 WHERE transfer_id = $3`,
@@ -482,7 +481,7 @@ async function rejectTransfer(req, res) {
   }
 }
 
-// PUT /api/pending-transfers/:id/cancel — by the officer who started it, or
+// PUT /api/pending-transfers/:id/cancel: by the officer who started it, or
 // an administrator
 async function cancelTransfer(req, res) {
   const client = await pool.connect();
@@ -504,6 +503,9 @@ async function cancelTransfer(req, res) {
       [req.user.user_id, pending.parcel_id, `Cancelled transfer #${pending.transfer_id} to ${pending.new_owner_name}`]
     );
     await client.query('COMMIT');
+    if (pending.consent_method === 'owner_code') {
+      alertOwner(pending.parcel_id, req.user, `cancelled the transfer of parcel #${pending.parcel_id} to ${pending.new_owner_name}. The code you received no longer works.`);
+    }
     res.json({ status: 'cancelled' });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -523,7 +525,7 @@ function presentPending(user, p) {
   };
 }
 
-// GET /api/pending-transfers?status=open|all — the approvals queue
+// GET /api/pending-transfers?status=open|all: the approvals queue
 async function listPendingTransfers(req, res) {
   const status = req.query.status || 'open';
   if (!['open', 'all'].includes(status)) return res.status(400).json({ error: 'status must be open or all' });
@@ -546,7 +548,140 @@ async function listPendingTransfers(req, res) {
   }
 }
 
+// ---------- Officer-free transfers ----------
+// When the buyer named in an owner's transfer request has an account whose
+// national ID an officer has confirmed, the buyer accepts in the app with an
+// SMS code and the transfer completes without an officer. The owner's request
+// and the buyer's code are both parties' consent; the audit log still records
+// it, and officers can still complete the request at the office instead.
+
+const RESEND_SECONDS = 60;
+
+// The buyer's pending request, locked when inside a transaction.
+async function buyersRequest(db, requestId, userId, lock = false) {
+  const result = await db.query(
+    `SELECT t.*, u.national_id AS buyer_account_national_id, u.national_id_verified_at, u.phone_number AS buyer_phone
+     FROM transfer_request t JOIN "user" u ON u.user_id = t.buyer_user_id
+     WHERE t.request_id = $1 ${lock ? 'FOR UPDATE OF t' : ''}`,
+    [requestId]
+  );
+  const request = result.rows[0];
+  if (!request || request.buyer_user_id !== userId) throw new TransferError(404, 'Transfer request not found');
+  if (request.status !== 'pending') throw new TransferError(409, `This request is already ${request.status}`);
+  // the account must still hold the confirmed national ID the owner named
+  if (request.buyer_account_national_id !== request.buyer_national_id || !request.national_id_verified_at) {
+    throw new TransferError(403, 'Your national ID must be confirmed at the land office before you can accept land');
+  }
+  return request;
+}
+
+// POST /api/transfer-requests/:id/accept-code: the buyer asks for the SMS code
+async function sendAcceptCode(req, res) {
+  try {
+    const request = await buyersRequest(pool, Number(req.params.id), req.user.user_id);
+    if (request.accept_code_sent_at && Date.now() - new Date(request.accept_code_sent_at).getTime() < RESEND_SECONDS * 1000) {
+      throw new TransferError(429, 'Please wait a minute before requesting another code.');
+    }
+    const code = newCode();
+    await pool.query(
+      `UPDATE transfer_request SET accept_code_hash = $1, accept_code_attempts = 0, accept_code_sent_at = now(),
+         accept_code_expires_at = now() + make_interval(mins => $2) WHERE request_id = $3`,
+      [hashCode(code), CODE_TTL_MINUTES, request.request_id]
+    );
+    await sendSms(
+      request.buyer_phone,
+      `DLOVS: your code to accept parcel #${request.parcel_id} is ${code}. Only enter it if you agreed to this transfer and checked the plot.`
+    );
+    const exposeForDemo = !smsConfigured() && process.env.NODE_ENV !== 'production';
+    res.json({ sent_to: maskPhone(request.buyer_phone), dev_code: exposeForDemo ? code : undefined });
+  } catch (err) {
+    sendError(res, err, 'Failed to send the code');
+  }
+}
+
+// POST /api/transfer-requests/:id/accept: the buyer enters the code and the
+// parcel is transferred to them
+async function acceptTransferRequest(req, res) {
+  const requestId = Number(req.params.id);
+  const client = await pool.connect();
+  let request;
+  let current;
+  let done;
+  try {
+    await client.query('BEGIN');
+    request = await buyersRequest(client, requestId, req.user.user_id, true);
+    if (!request.accept_code_hash) throw new TransferError(400, 'Ask for a code first');
+    if (request.accept_code_attempts >= MAX_CODE_ATTEMPTS) {
+      throw new TransferError(429, 'Too many wrong codes. Ask for a new code.');
+    }
+    if (new Date(request.accept_code_expires_at) < new Date()) throw new TransferError(400, 'This code has expired. Ask for a new code.');
+    if (hashCode(String(req.body.code || '').trim()) !== request.accept_code_hash) {
+      await client.query('UPDATE transfer_request SET accept_code_attempts = accept_code_attempts + 1 WHERE request_id = $1', [requestId]);
+      await client.query('COMMIT');
+      return res.status(400).json({ error: 'Wrong code' });
+    }
+
+    current = await lockParcel(client, request.parcel_id);
+    // the land must still belong to the owner who made the request
+    const requester = await client.query(
+      'SELECT national_id FROM "user" WHERE user_id = $1 AND is_active AND national_id_verified_at IS NOT NULL',
+      [request.requested_by]
+    );
+    if (!requester.rows[0] || requester.rows[0].national_id !== current.owner_national_id) {
+      throw new TransferError(409, 'The parcel is no longer registered to the owner who made this request');
+    }
+    if (await openTransferFor(client, request.parcel_id)) {
+      throw new TransferError(409, 'An officer has started another transfer of this parcel. Contact the land office.');
+    }
+    done = await executeTransfer(client, {
+      parcelId: request.parcel_id,
+      current,
+      newOwner: { full_name: request.buyer_full_name, national_id: request.buyer_national_id, contact_number: request.buyer_contact },
+      notes: request.notes || 'Transfer agreed by the owner and the buyer in DLOVS',
+      officerId: null,
+      requestId,
+      consent: `owner's transfer request #${requestId} and the buyer's SMS code (no officer needed)`,
+      reason: { reason: request.transfer_reason, details: request.transfer_reason_details },
+    });
+    await client.query('UPDATE transfer_request SET handled_by = $1, accept_code_hash = NULL WHERE request_id = $2', [req.user.user_id, requestId]);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return sendError(res, err, 'Failed to accept the transfer');
+  } finally {
+    client.release();
+  }
+  notifyTransfer(request.parcel_id, current, { national_id: request.buyer_national_id }, done, request.requested_by);
+  // the old plot marker now reads "replaced", so an officer prints the new one
+  notifyOfficers(
+    `Parcel #${request.parcel_id} was transferred to ${done.newOwnerName} by the owner and buyer. Print and install the new QR marker.`,
+    { link: `/parcels/${request.parcel_id}` }
+  );
+  res.json(completed(request.parcel_id, done));
+}
+
+// PUT /api/transfer-requests/:id/decline: the buyer turns the request down
+async function declineTransferRequest(req, res) {
+  try {
+    const request = await buyersRequest(pool, Number(req.params.id), req.user.user_id);
+    const notes = req.body.reason?.trim() || 'The buyer declined the transfer';
+    await pool.query(
+      `UPDATE transfer_request SET status = 'rejected', handled_by = $1, handled_at = now(), response_notes = $2, accept_code_hash = NULL
+       WHERE request_id = $3 AND status = 'pending'`,
+      [req.user.user_id, notes, request.request_id]
+    );
+    notifyUsers(
+      [request.requested_by],
+      `${request.buyer_full_name} declined your request to transfer parcel #${request.parcel_id}: ${notes}`,
+      { link: '/my/requests', sms: true }
+    );
+    res.json({ status: 'rejected' });
+  } catch (err) {
+    sendError(res, err, 'Failed to decline the transfer');
+  }
+}
+
 module.exports = {
   transferConsent, startTransfer, confirmWithCode, resendCode, approveTransfer, rejectTransfer, cancelTransfer,
-  listPendingTransfers,
+  listPendingTransfers, sendAcceptCode, acceptTransferRequest, declineTransferRequest,
 };

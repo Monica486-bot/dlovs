@@ -1,8 +1,9 @@
 const pool = require('../db/pool');
 const { generateQrDataUrl, checkSignature } = require('../utils/qr');
-const { askForIdCheck } = require('../utils/notify');
+const { askForIdCheck, alertOwner } = require('../utils/notify');
 const { NEIGHBOURHOODS, CITY, canonicalNeighbourhood } = require('../utils/neighbourhoods');
 const { fourPartName } = require('../utils/names');
+const { matchOwner } = require('../utils/owners');
 const { TRANSFER_REASONS } = require('../utils/transferReasons');
 
 // FR03 / FR05: register a parcel and generate its signed QR code
@@ -26,13 +27,14 @@ async function createParcel(req, res) {
   try {
     await client.query('BEGIN');
 
-    // Reuse the owner record for a national ID that already owns land, so the
-    // owner's parcels stay together in one portfolio (FR09).
-    let owner_id = null;
-    if (nationalId) {
-      const existing = await client.query('SELECT owner_id FROM owner WHERE national_id = $1 ORDER BY owner_id LIMIT 1', [nationalId]);
-      owner_id = existing.rows[0]?.owner_id ?? null;
+    // Reuse the owner record for a national ID that already owns land, but
+    // only for the same person (see utils/owners.js).
+    const match = await matchOwner(client, nationalId, ownerName.name);
+    if (match.mismatch) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: match.mismatch, code: 'NATIONAL_ID_NAME_MISMATCH' });
     }
+    let owner_id = match.owner?.owner_id ?? null;
     if (!owner_id) {
       const ownerResult = await client.query(
         `INSERT INTO owner (full_name, contact_number, document_type, document_reference, national_id)
@@ -79,6 +81,7 @@ async function createParcel(req, res) {
     );
 
     askForIdCheck(nationalId, parcel_id);
+    alertOwner(parcel_id, req.user, `registered parcel #${parcel_id} in ${neighbourhood} to you.`);
 
     res.status(201).json({ ...full.rows[0], qr_data_url: dataUrl });
   } catch (err) {
@@ -108,7 +111,10 @@ async function getQrCode(req, res) {
 const STAFF_ROLES = ['land_officer', 'administrator'];
 const isStaff = (user) => Boolean(user && STAFF_ROLES.includes(user.role));
 
-// Search pathways (FR06). National ID is exact-match only, so IDs can't be browsed.
+// Search pathways (FR06). National ID is exact-match only, so IDs can't be
+// browsed, and staff-only: a national ID is private, so knowing someone's ID
+// number must not reveal their land.
+const STAFF_ONLY_SEARCHES = ['national_id'];
 const SEARCH_CONDITIONS = {
   parcel_id: 'CAST(p.parcel_id AS TEXT) = $1',
   // an area search matches the neighbourhood or the city ("Juba" finds them all)
@@ -129,7 +135,7 @@ const SEARCH_COLUMNS = `
   (SELECT COUNT(*)::int FROM document d WHERE d.parcel_id = p.parcel_id AND d.verification_status = 'verified') AS verified_documents,
   (SELECT COUNT(*)::int FROM document d WHERE d.parcel_id = p.parcel_id AND d.verification_status = 'pending') AS pending_documents`;
 
-// Guest.searchParcel(query) — no account required.
+// Guest.searchParcel(query): no account required.
 // by=near searches by GPS instead: ?by=near&lat=..&lng=..&radius=metres (FR06, FR17)
 async function searchParcel(req, res) {
   const by = req.query.by || 'any';
@@ -163,6 +169,9 @@ async function searchParcel(req, res) {
     if (!SEARCH_CONDITIONS[by]) {
       return res.status(400).json({ error: `by must be one of ${[...Object.keys(SEARCH_CONDITIONS), 'near'].join(', ')}` });
     }
+    if (STAFF_ONLY_SEARCHES.includes(by) && !isStaff(req.user)) {
+      return res.status(403).json({ error: 'Only land officers can search by national ID', code: 'STAFF_ONLY_SEARCH' });
+    }
     const result = await pool.query(
       `SELECT ${SEARCH_COLUMNS}
        FROM parcel p JOIN owner o ON o.owner_id = p.current_owner_id
@@ -193,11 +202,11 @@ async function verifyParcel(req, res) {
     if (parcelResult.rows.length === 0) return res.status(404).json({ error: 'Parcel not found' });
     const parcel = parcelResult.rows[0];
     // Steps 3-4: the scanned code's signature. A code from before the latest
-    // transfer is genuine but replaced (FR11) — the record is still shown, with
+    // transfer is genuine but replaced (FR11). The record is still shown, with
     // a warning, because that is how a previous owner would try to resell.
     const qr_check = signature ? checkSignature(id, parcel.qr_version, signature) : null;
     if (qr_check === 'invalid') {
-      return res.status(400).json({ error: 'Invalid QR signature — this code may be tampered with', code: 'QR_INVALID' });
+      return res.status(400).json({ error: 'Invalid QR signature: this code may be tampered with', code: 'QR_INVALID' });
     }
     // The public never sees identity details or the QR signature.
     if (!isStaff(req.user)) {
@@ -321,7 +330,7 @@ async function viewOwnParcels(req, res) {
 }
 
 // FR03: LandOfficer updates a parcel's location details. Ownership is never
-// edited here — it only changes through processTransfer, so it always has a
+// edited here. It only changes through processTransfer, so it always has a
 // history entry. Every change is audit-logged with old → new values.
 const EDITABLE_FIELDS = ['neighbourhood', 'gps_lat', 'gps_lng', 'area_sqm'];
 
@@ -381,9 +390,10 @@ async function updateParcel(req, res) {
     await client.query(`UPDATE parcel SET ${sets} WHERE parcel_id = $1`, [id, ...changed.map((f) => changes[f])]);
     await client.query(
       `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'UPDATE_PARCEL', $2, $3)`,
-      [req.user.user_id, id, changed.map((f) => `${f}: ${current[f] ?? '—'} → ${changes[f] ?? '—'}`).join('; ')]
+      [req.user.user_id, id, changed.map((f) => `${f}: ${current[f] ?? '-'} → ${changes[f] ?? '-'}`).join('; ')]
     );
     await client.query('COMMIT');
+    alertOwner(id, req.user, `changed the record of parcel #${id} (${changed.join(', ')}).`);
     res.json({ message: 'Parcel updated', parcel_id: Number(id), changed });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -455,7 +465,7 @@ async function getStats(req, res) {
   }
 }
 
-// Haversine distance in meters — used for the GPS ground-truth check.
+// Haversine distance in meters, used for the GPS ground-truth check.
 function haversineMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const toRad = (deg) => (deg * Math.PI) / 180;
