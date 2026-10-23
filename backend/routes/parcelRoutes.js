@@ -13,16 +13,16 @@ router.param('id', (req, res, next, id) => {
   next();
 });
 
-// Citizen use case — must be before /:id routes
+// Citizen use case, must be before /:id routes
 router.get('/mine', requireAuth, requireRole('citizen'), parcelController.viewOwnParcels);
 
-// Officer / administrator dashboard summary — also before /:id routes
+// Officer / administrator dashboard summary, also before /:id routes
 router.get('/stats', requireAuth, requireRole('land_officer', 'administrator'), parcelController.getStats);
 
 router.get('/neighbourhoods', parcelController.listNeighbourhoods);
 router.get('/transfer-reasons', parcelController.listTransferReasons);
 
-// Guest use cases — no account required, per the Use Case Diagram.
+// Guest use cases, no account required, per the Use Case Diagram.
 router.get('/search', optionalAuth, parcelController.searchParcel);
 router.get('/:id/verify', optionalAuth, parcelController.verifyParcel);
 
@@ -30,7 +30,7 @@ router.get('/:id/verify', optionalAuth, parcelController.verifyParcel);
 router.post('/', requireAuth, requireRole('land_officer'), parcelController.createParcel);
 router.put('/:id', requireAuth, requireRole('land_officer'), parcelController.updateParcel);
 router.get('/:id/qr', requireAuth, requireRole('land_officer', 'administrator'), parcelController.getQrCode);
-// FR11 transfers need the owner's consent first — see transferController
+// FR11 transfers need the owner's consent first, see transferController
 router.get('/:id/transfer-consent', requireAuth, requireRole('land_officer'), transferController.transferConsent);
 router.post('/:id/transfer', requireAuth, requireRole('land_officer'), transferController.startTransfer);
 

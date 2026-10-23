@@ -1,12 +1,13 @@
 const jwt = require('jsonwebtoken');
 const pool = require('../db/pool');
+const { secret } = require('../utils/secrets');
 require('dotenv').config();
 
 // Decodes the JWT and loads the user's current role and active status from
 // the database, so a deactivation or role change takes effect immediately
 // instead of when the token expires.
 async function loadUser(token) {
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const decoded = jwt.verify(token, secret('JWT_SECRET'));
   const result = await pool.query(
     'SELECT user_id, full_name, role, is_active FROM "user" WHERE user_id = $1',
     [decoded.user_id]

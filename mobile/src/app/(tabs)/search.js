@@ -10,14 +10,14 @@ import { getDeviceLocation } from '../../utils/location';
 import { formatDate } from '../../utils/format';
 import { colors } from '../../theme';
 
-// Verification pathways 2–4 (FR06): parcel ID, owner name / neighbourhood /
-// GPS location, and exact national ID. (Pathway 1, the QR code, is Scan.)
+// Verification pathways 2–3 (FR06): parcel ID, and owner name / neighbourhood /
+// GPS location. (Pathway 1, the QR code, is Scan. Pathway 4, national ID, is
+// for land officers only, since a national ID is private.)
 const MODES = [
   { key: 'any', label: 'Any', icon: 'search', placeholder: 'Parcel ID, owner name, or area' },
   { key: 'parcel_id', label: 'Parcel ID', icon: 'pricetag', placeholder: 'e.g. 12', keyboard: 'number-pad' },
   { key: 'owner_name', label: 'Owner', icon: 'person', placeholder: 'e.g. Akoi Deng' },
   { key: 'neighbourhood', label: 'Area', icon: 'business', placeholder: 'e.g. Munuki' },
-  { key: 'national_id', label: 'National ID', icon: 'card', placeholder: 'Full national ID number' },
   { key: 'near', label: 'Near me', icon: 'locate' },
 ];
 const RADII = [50, 100, 200, 500];
@@ -113,12 +113,11 @@ export default function Search() {
             onChangeText={setQuery}
             placeholder={t(current.placeholder)}
             keyboardType={current.keyboard || 'default'}
-            autoCapitalize={mode === 'national_id' ? 'characters' : 'words'}
+            autoCapitalize="words"
             returnKeyType="search"
             onSubmitEditing={search}
           />
           <Button title={t('Search')} icon="search" onPress={search} loading={loading} disabled={!query.trim()} />
-          {mode === 'national_id' && <Muted>{t('National ID search only matches the full, exact number.')}</Muted>}
         </>
       )}
 
@@ -166,7 +165,7 @@ export default function Search() {
 
       {results && results.length === 0 && (
         <>
-          <Banner tone="warning" title={t('This parcel is not registered in DLOVS — proceed with caution.')}>
+          <Banner tone="warning" title={t('This parcel is not registered in DLOVS. Proceed with caution.')}>
             {near
               ? t("No registered parcel within {n} m. Check any seller's documents with the land office before paying.", { n: radius })
               : t("Check the seller's documents with the land office before paying.")}
@@ -179,7 +178,7 @@ export default function Search() {
 
       {!results && !error && !loading && (
         <Empty icon="document-text" title={t('Check any plot in Juba')}>
-          {t('Search by parcel ID, owner, neighbourhood or national ID, or find registered parcels near you.')}
+          {t('Search by parcel ID, owner or neighbourhood, or find registered parcels near you.')}
         </Empty>
       )}
 
