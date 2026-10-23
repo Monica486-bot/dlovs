@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
+const { secret } = require('./secrets');
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
 const useCloudinary = Boolean(process.env.CLOUDINARY_URL);
@@ -16,8 +17,8 @@ function encryptionKey() {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('DOCUMENT_ENCRYPTION_KEY must be set to 64 hex characters in production');
   }
-  // development fallback, derived from the JWT secret so it's stable across restarts
-  return crypto.createHash('sha256').update(`dlovs-documents:${process.env.JWT_SECRET || 'dev'}`).digest();
+  // development only: derived from the JWT secret so it's stable across restarts
+  return crypto.createHash('sha256').update(`dlovs-documents:${secret('JWT_SECRET')}`).digest();
 }
 
 function encrypt(buffer) {

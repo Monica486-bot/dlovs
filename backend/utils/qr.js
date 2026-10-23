@@ -1,7 +1,8 @@
 const crypto = require('crypto');
 const QRCode = require('qrcode');
+const { secret } = require('./secrets');
 
-const QR_SECRET = process.env.QR_SIGNING_SECRET || 'dev-secret';
+const QR_SECRET = secret('QR_SIGNING_SECRET');
 // Where the web app's public pages live (no trailing slash).
 const PUBLIC_WEB_URL = (process.env.PUBLIC_WEB_URL || 'http://localhost:5173').replace(/\/+$/, '');
 
@@ -19,9 +20,9 @@ function sameSignature(expected, given) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-// 'valid' — the parcel's current code
-// 'superseded' — a genuine code from before the latest transfer
-// 'invalid' — not a code DLOVS issued for this parcel
+// 'valid': the parcel's current code
+// 'superseded': a genuine code from before the latest transfer
+// 'invalid': not a code DLOVS issued for this parcel
 function checkSignature(parcelId, currentVersion, signature) {
   if (sameSignature(signParcelId(parcelId, currentVersion), signature)) return 'valid';
   for (let v = Number(currentVersion) - 1; v >= 1; v--) {

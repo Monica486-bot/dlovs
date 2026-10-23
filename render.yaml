@@ -2,7 +2,7 @@
 # Render dashboard → New → Blueprint → pick this repository.
 # After the first deploy, load the schema once from your computer:
 #   psql "<External Database URL from Render>" -f backend/db/schema.sql
-# Note: Render's free PostgreSQL expires after 90 days (proposal Table 6) —
+# Note: Render's free PostgreSQL expires after 90 days (proposal Table 6), so
 # upgrade or migrate before then.
 services:
   - type: web
@@ -24,7 +24,7 @@ services:
         generateValue: true
       - key: QR_SIGNING_SECRET
         generateValue: true
-      # 64 hex characters — generate locally (see backend/.env.example) and keep a copy:
+      # 64 hex characters. Generate locally (see backend/.env.example) and keep a copy:
       # losing it makes every stored document unreadable
       - key: DOCUMENT_ENCRYPTION_KEY
         sync: false

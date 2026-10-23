@@ -19,7 +19,7 @@ class CodeError extends Error {
   }
 }
 
-// Creates and sends a code. Returns { devCode } — the code itself only when no
+// Creates and sends a code. Returns { devCode }: the code itself only when no
 // SMS provider is configured and NODE_ENV isn't production, so the flow can be
 // demonstrated locally. In production with no provider, it is never returned.
 async function issueCode(phoneNumber, purpose) {

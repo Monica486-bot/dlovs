@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('./utils/secrets').checkSecrets();
 const app = require('./app');
 
 const PORT = process.env.PORT || 4000;

@@ -1,9 +1,19 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const bcrypt = require('bcrypt');
 const pool = require('../db/pool');
-const { buildQrPayload } = require('../utils/qr');
 
-const PASSWORD = 'pass1234';
+// Demo data is for local demonstrations only, never the live database, and
+// its password comes from backend/.env rather than the code.
+if (process.env.NODE_ENV === 'production') {
+  console.error('Refusing to load demo data with NODE_ENV=production.');
+  process.exit(1);
+}
+const PASSWORD = process.env.SEED_PASSWORD;
+if (!PASSWORD || PASSWORD.length < 8) {
+  console.error('Set SEED_PASSWORD in backend/.env (at least 8 characters): the password for every demo account.');
+  process.exit(1);
+}
+const { buildQrPayload } = require('../utils/qr');
 
 const USERS = [
   { key: 'admin', full_name: 'Ayen Garang', phone: '+211900000009', role: 'administrator', platform: 'web' },
@@ -142,7 +152,7 @@ async function main() {
     }
 
     await client.query('COMMIT');
-    console.log(`Demo data loaded. Every account's password is "${PASSWORD}":`);
+    console.log("Demo data loaded. Every account's password is SEED_PASSWORD from backend/.env:");
     for (const u of USERS) console.log(`  ${u.role.padEnd(13)} ${u.phone}  ${u.full_name}`);
   } catch (err) {
     await client.query('ROLLBACK');

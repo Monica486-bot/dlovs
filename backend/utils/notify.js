@@ -62,7 +62,7 @@ async function accountIdsForNationalId(nationalId) {
 }
 
 // Citizen accounts that entered this national ID but haven't shown the ID
-// card yet — told when land is registered to it, so they come in for the check.
+// card yet. They are told when land is registered to it, so they come in for the check.
 async function unconfirmedAccountIdsForNationalId(nationalId) {
   if (!nationalId) return [];
   const result = await pool.query(
@@ -87,4 +87,20 @@ async function askForIdCheck(nationalId, parcelId) {
   }
 }
 
-module.exports = { notifyUsers, notifyOfficers, ownerAccountIds, accountIdsForNationalId, askForIdCheck };
+// The owner hears about every officer action on their land, by SMS as well,
+// so an officer can't change a record without the owner knowing.
+async function alertOwner(parcelId, officer, message, { except = [] } = {}) {
+  try {
+    const ids = (await ownerAccountIds(parcelId)).filter((id) => !except.includes(id));
+    const who = officer.role === 'administrator' ? 'Administrator' : 'Officer';
+    await notifyUsers(
+      ids,
+      `${who} ${officer.full_name}: ${message} If you don't recognise this, report it to the land office.`,
+      { link: `/my/parcels/${parcelId}`, sms: true }
+    );
+  } catch (err) {
+    console.error('Notification failed:', err.message);
+  }
+}
+
+module.exports = { notifyUsers, notifyOfficers, ownerAccountIds, accountIdsForNationalId, askForIdCheck, alertOwner };
