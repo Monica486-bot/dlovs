@@ -1,0 +1,73 @@
+import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
+import { secret } from './secrets';
+
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
+const useCloudinary = Boolean(process.env.CLOUDINARY_URL);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cloudinary: any = null;
+if (useCloudinary) cloudinary = require('cloudinary').v2;
+
+function encryptionKey(): Buffer {
+  const hex = process.env.DOCUMENT_ENCRYPTION_KEY;
+  if (hex && /^[0-9a-fA-F]{64}$/.test(hex)) return Buffer.from(hex, 'hex');
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('DOCUMENT_ENCRYPTION_KEY must be set to 64 hex characters in production');
+  }
+  return crypto.createHash('sha256').update(`dlovs-documents:${secret('JWT_SECRET')}`).digest();
+}
+
+function encrypt(buffer: Buffer): Buffer {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(), iv);
+  const ciphertext = Buffer.concat([cipher.update(buffer), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), ciphertext]);
+}
+
+function decrypt(blob: Buffer): Buffer {
+  const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey(), blob.subarray(0, 12));
+  decipher.setAuthTag(blob.subarray(12, 28));
+  return Buffer.concat([decipher.update(blob.subarray(28)), decipher.final()]);
+}
+
+export async function saveDocument(buffer: Buffer): Promise<string> {
+  const blob = encrypt(buffer);
+  const name = crypto.randomUUID();
+  if (useCloudinary) {
+    const result = await new Promise<{ public_id: string }>((resolve, reject) => {
+      cloudinary.uploader
+        .upload_stream({ resource_type: 'raw', type: 'private', folder: 'dlovs', public_id: `${name}.bin` }, (err: Error, res: { public_id: string }) =>
+          err ? reject(err) : resolve(res)
+        )
+        .end(blob);
+    });
+    return `cloudinary:${result.public_id}`;
+  }
+  await fs.mkdir(UPLOAD_DIR, { recursive: true });
+  await fs.writeFile(path.join(UPLOAD_DIR, `${name}.bin`), blob);
+  return `local:${name}.bin`;
+}
+
+export async function readDocument(reference: string): Promise<Buffer> {
+  let blob: Buffer;
+  if (reference.startsWith('local:')) {
+    const name = path.basename(reference.slice('local:'.length));
+    blob = await fs.readFile(path.join(UPLOAD_DIR, name));
+  } else if (reference.startsWith('cloudinary:')) {
+    if (!cloudinary) throw new Error('Document is stored in Cloudinary but CLOUDINARY_URL is not set');
+    const publicId = reference.slice('cloudinary:'.length);
+    const url = cloudinary.utils.private_download_url(publicId, '', {
+      resource_type: 'raw', type: 'private',
+      expires_at: Math.floor(Date.now() / 1000) + 60,
+    });
+    const response = await fetch(url, { signal: AbortSignal.timeout(20000) });
+    if (!response.ok) throw new Error(`Cloudinary download failed (${response.status})`);
+    blob = Buffer.from(await response.arrayBuffer());
+  } else {
+    throw new Error('Unknown document storage reference');
+  }
+  return decrypt(blob);
+}
+
+export const storageBackend = useCloudinary ? 'cloudinary' : 'local';
