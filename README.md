@@ -11,9 +11,9 @@ is written to an audit log that the database itself refuses to alter.
 
 | Component | Tech | Users |
 |---|---|---|
-| **Backend API** | Node.js / Express 5, PostgreSQL | Shared by both apps |
-| **Web app** | React 19 + Vite, English and Arabic | The public, citizens, land officers, administrators |
-| **Mobile app** | React Native, Expo SDK 57, English and Arabic | The public and citizens, scanning QR codes on the ground |
+| **Backend API** | Node.js / Express 5, TypeScript, PostgreSQL | Shared by both apps |
+| **Web app** | React 19 + Vite + TypeScript, English and Arabic | The public, citizens, land officers, administrators |
+| **Mobile app** | React Native, Expo SDK 57, TypeScript, English and Arabic | The public and citizens, scanning QR codes on the ground |
 
 ## Links
 
@@ -417,7 +417,7 @@ erDiagram
 
 ## Code highlights
 
-**Separation of duties**: [`backend/controllers/documentController.js`](backend/controllers/documentController.js).
+**Separation of duties**: [`backend/controllers/documentController.ts`](backend/controllers/documentController.ts).
 The server decides who may review a document, and the web app shows the reason instead of the buttons:
 
 ```js
@@ -430,7 +430,7 @@ function reviewBlock(user, doc) {
 }
 ```
 
-**Documents encrypted at rest**: [`backend/utils/documentStorage.js`](backend/utils/documentStorage.js). Files are
+**Documents encrypted at rest**: [`backend/utils/documentStorage.ts`](backend/utils/documentStorage.ts). Files are
 encrypted before they leave the server, so it doesn't matter whether they land on disk or in Cloudinary:
 
 ```js
@@ -449,7 +449,7 @@ CREATE TRIGGER ownership_history_append_only BEFORE UPDATE OR DELETE ON ownershi
   FOR EACH ROW EXECUTE FUNCTION dlovs_append_only();   -- raises "ownership_history is append-only"
 ```
 
-**No double sales**: [`backend/controllers/parcelController.js`](backend/controllers/parcelController.js). Tested
+**No double sales**: [`backend/controllers/parcelController.ts`](backend/controllers/parcelController.ts). Tested
 with two officers transferring the same plot at the same instant: one succeeds, the other is refused:
 
 ```js
@@ -460,7 +460,7 @@ if (expected_owner_id != null && Number(expected_owner_id) !== current.current_o
 }
 ```
 
-**SMS codes**: [`backend/utils/phoneCodes.js`](backend/utils/phoneCodes.js). Hashed, single-use, 10-minute expiry,
+**SMS codes**: [`backend/utils/phoneCodes.ts`](backend/utils/phoneCodes.ts). Hashed, single-use, 10-minute expiry,
 5 attempts, one request a minute; compared in constant time:
 
 ```js
@@ -471,7 +471,7 @@ if (!crypto.timingSafeEqual(given, Buffer.from(row.code_hash))) {
 }
 ```
 
-**Arabic and right-to-left**: [`web/src/i18n/index.jsx`](web/src/i18n/index.jsx). English text in the code is the
+**Arabic and right-to-left**: [`web/src/i18n/index.tsx`](web/src/i18n/index.tsx). English text in the code is the
 lookup key; missing translations are logged in development (all 503 are translated):
 
 ```js
@@ -556,7 +556,7 @@ dlovs/
 │   ├── middleware/             auth (JWT + roles), upload (5 MB limit)
 │   ├── utils/                  qr, documentStorage (encryption), phoneCodes, sms, push, notify
 │   ├── tests/                  Jest + Supertest API tests (npm test)
-│   └── scripts/                seed.js (demo data), createAdmin.js
+│   └── scripts/                seed.js, createAdmin.js (plain JS utility scripts)
 ├── web/                        React web app
 │   └── src/
 │       ├── pages/              staff pages; public/ (verify, sign-up, password reset); citizen/
