@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -8,41 +9,55 @@ import { getPushToken } from '../utils/push';
 const TOKEN_KEY = 'dlovs_token';
 const USER_KEY = 'dlovs_user';
 
-// SecureStore keeps the token encrypted on the device; it doesn't exist in
-// the browser preview, so fall back to AsyncStorage there.
+export interface DlovsUser {
+  user_id: number;
+  full_name: string;
+  role: 'citizen' | 'land_officer' | 'administrator';
+  phone_number: string;
+  national_id: string | null;
+  national_id_verified: boolean;
+}
+
+interface AuthContextValue {
+  user: DlovsUser | null;
+  ready: boolean;
+  login: (phone_number: string, password: string) => Promise<DlovsUser>;
+  register: (args: { full_name: string; phone_number: string; password: string; national_id?: string }) => Promise<unknown>;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<DlovsUser>;
+}
+
 const storage = Platform.OS === 'web'
   ? {
-      get: (k) => AsyncStorage.getItem(k),
-      set: (k, v) => AsyncStorage.setItem(k, v),
-      remove: (k) => AsyncStorage.removeItem(k),
+      get: (k: string) => AsyncStorage.getItem(k),
+      set: (k: string, v: string) => AsyncStorage.setItem(k, v),
+      remove: (k: string) => AsyncStorage.removeItem(k),
     }
   : {
-      get: (k) => SecureStore.getItemAsync(k),
-      set: (k, v) => SecureStore.setItemAsync(k, v),
-      remove: (k) => SecureStore.deleteItemAsync(k),
+      get: (k: string) => SecureStore.getItemAsync(k),
+      set: (k: string, v: string) => SecureStore.setItemAsync(k, v),
+      remove: (k: string) => SecureStore.deleteItemAsync(k),
     };
 
-const AuthContext = createContext(null);
+const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<DlovsUser | null>(null);
   const [ready, setReady] = useState(false);
-  const pushToken = useRef(null);
+  const pushToken = useRef<string | null>(null);
 
-  // FR15: tell the API where to push this account's notifications. Best
-  // effort. The app works the same without push.
   const enablePush = useCallback(async () => {
     const token = await getPushToken();
     if (!token) return;
     try {
       await api.post('/push-tokens', { token });
       pushToken.current = token;
-    } catch (err) {
-      // offline or server error: try again on the next login or app start
+    } catch {
+      // offline or server error: try again on next login
     }
   }, []);
 
-  const saveUser = useCallback(async (next) => {
+  const saveUser = useCallback(async (next: DlovsUser) => {
     setUser(next);
     await storage.set(USER_KEY, JSON.stringify(next));
   }, []);
@@ -53,10 +68,10 @@ export function AuthProvider({ children }) {
         const [token, storedUser] = await Promise.all([storage.get(TOKEN_KEY), storage.get(USER_KEY)]);
         if (token && storedUser) {
           setAuthToken(token);
-          setUser(JSON.parse(storedUser));
+          setUser(JSON.parse(storedUser) as DlovsUser);
           enablePush();
         }
-      } catch (err) {
+      } catch {
         // corrupted storage: start logged out
       } finally {
         setReady(true);
@@ -64,8 +79,8 @@ export function AuthProvider({ children }) {
     })();
   }, [enablePush]);
 
-  const login = useCallback(async (phone_number, password) => {
-    const data = await api.post('/auth/login', { phone_number, password });
+  const login = useCallback(async (phone_number: string, password: string): Promise<DlovsUser> => {
+    const data = await api.post<{ token: string; user: DlovsUser }>('/auth/login', { phone_number, password });
     setAuthToken(data.token);
     await storage.set(TOKEN_KEY, data.token);
     await saveUser(data.user);
@@ -73,25 +88,19 @@ export function AuthProvider({ children }) {
     return data.user;
   }, [saveUser, enablePush]);
 
-  // FR01: registering sends an SMS code; the account can't log in until the
-  // phone number is confirmed (see app/verify-phone.js). Resolves to the
-  // server's reply, which includes dev_code when no SMS provider is set up.
   const register = useCallback(
-    ({ full_name, phone_number, password, national_id }) =>
+    ({ full_name, phone_number, password, national_id }: { full_name: string; phone_number: string; password: string; national_id?: string }) =>
       api.post('/auth/register', { full_name, phone_number, password, national_id, platform: 'mobile' }),
     []
   );
 
-  // Reload the profile, e.g. after adding a national ID or an officer's ID check
-  const refreshUser = useCallback(async () => {
-    const fresh = await api.get('/auth/me');
+  const refreshUser = useCallback(async (): Promise<DlovsUser> => {
+    const fresh = await api.get<DlovsUser>('/auth/me');
     await saveUser(fresh);
     return fresh;
   }, [saveUser]);
 
   const logout = useCallback(async () => {
-    // stop this phone receiving the account's alerts; the request picks up the
-    // auth token synchronously, before it is cleared below
     if (pushToken.current) {
       api.delete('/push-tokens', { token: pushToken.current }).catch(() => {});
       pushToken.current = null;
@@ -108,6 +117,8 @@ export function AuthProvider({ children }) {
   );
 }
 
-export function useAuth() {
-  return useContext(AuthContext);
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
+  return ctx;
 }

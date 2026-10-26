@@ -1,14 +1,22 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ar from './ar';
 import { setFormatLanguage } from '../utils/format';
 
-const STORAGE_KEY = 'dlovs_lang';
-const LanguageContext = createContext(null);
-const reported = new Set();
+interface LanguageContextValue {
+  lang: string;
+  setLang: (lang: string) => void;
+  t: (text: string, vars?: Record<string, string | number>) => string;
+  tn: (one: string, other: string, n: number, vars?: Record<string, string | number>) => string;
+  rtl: boolean;
+}
 
-// FR19: English / Arabic, as in the web app. Arabic is right-to-left.
-export function LanguageProvider({ children }) {
+const STORAGE_KEY = 'dlovs_lang';
+const LanguageContext = createContext<LanguageContextValue | null>(null);
+const reported = new Set<string>();
+
+export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState('en');
 
   useEffect(() => {
@@ -17,19 +25,18 @@ export function LanguageProvider({ children }) {
       .catch(() => {});
   }, []);
 
-  const setLang = useCallback((next) => {
+  const setLang = useCallback((next: string) => {
     setLangState(next);
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
   }, []);
 
-  // set before children render, so dates format in the right language
   setFormatLanguage(lang);
 
   const t = useCallback(
-    (text, vars) => {
+    (text: string, vars?: Record<string, string | number>): string => {
       let result = text;
       if (lang === 'ar') {
-        if (ar[text] !== undefined) result = ar[text];
+        if ((ar as Record<string, string>)[text] !== undefined) result = (ar as Record<string, string>)[text];
         else if (__DEV__ && !reported.has(text)) {
           reported.add(text);
           console.warn(`[i18n] missing Arabic: ${JSON.stringify(text)}`);
@@ -40,13 +47,17 @@ export function LanguageProvider({ children }) {
     [lang]
   );
 
-  // tn('{n} parcel', '{n} parcels', n): English needs a different string for
-  // one; the Arabic translations use a neutral "label: n" form for both.
-  const tn = useCallback((one, other, n, vars) => t(n === 1 ? one : other, { n, ...vars }), [t]);
+  const tn = useCallback(
+    (one: string, other: string, n: number, vars?: Record<string, string | number>) => t(n === 1 ? one : other, { n, ...vars }),
+    [t]
+  );
+
   const value = useMemo(() => ({ lang, setLang, t, tn, rtl: lang === 'ar' }), [lang, setLang, t, tn]);
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
-export function useT() {
-  return useContext(LanguageContext);
+export function useT(): LanguageContextValue {
+  const ctx = useContext(LanguageContext);
+  if (!ctx) throw new Error('useT must be used inside LanguageProvider');
+  return ctx;
 }
