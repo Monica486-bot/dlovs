@@ -188,7 +188,7 @@ Optional settings in `backend/.env`. Everything works without them for a local d
 
 | Setting | Without it | With it |
 |---|---|---|
-| `AT_API_KEY` (+ `AT_USERNAME=sandbox`) | SMS codes are printed in the server log, and shown on screen in a "Demo mode" box | Codes and notifications are sent through Africa's Talking (sandbox or live) |
+| `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` + `TWILIO_FROM_NUMBER` | SMS codes are printed in the server log, and shown on screen in a "Demo mode" box | Codes and notifications are sent through Twilio |
 | `CLOUDINARY_URL` | Encrypted documents are stored in `backend/uploads/` | Encrypted documents are stored in Cloudinary (needed on Render, which has no lasting disk) |
 | `DOCUMENT_ENCRYPTION_KEY` | A development key is derived from `JWT_SECRET` | **Required in production.** 64 hex characters; losing it makes stored documents unreadable |
 | `CORS_ORIGINS` | Any website may call the API | Only the listed web app addresses may |
@@ -509,7 +509,7 @@ Everything runs on free tiers, as budgeted in the proposal (Table 1):
 | **Render.com** | Express API + PostgreSQL | Free web services sleep when idle (slow first request); free databases expire after a set period. Upgrade or migrate before field testing. |
 | **Netlify** | Web app (static Vite build) | `web/public/_redirects` makes page refreshes work |
 | **Cloudinary** | Encrypted documents | Required on Render, whose disk is wiped on every deploy |
-| **Africa's Talking** | SMS codes and alerts | Sandbox username `sandbox` during the capstone (no cost) |
+| **Twilio** | SMS codes and alerts | Demo mode (no account needed) prints codes to the server log and on screen |
 | **Expo EAS** | Mobile app APK and push notifications | `mobile/eas.json` has a `preview` profile that builds an APK |
 
 **Steps**
@@ -527,7 +527,7 @@ Everything runs on free tiers, as budgeted in the proposal (Table 1):
 - **Arabic** was drafted for the prototype and should be reviewed by a native speaker (ideally with Juba Arabic for the
   citizen pages) before field testing. Messages written by the server (error messages, audit details, notifications)
   are still in English.
-- **Cloudinary and Africa's Talking** are implemented but untested without accounts; the local-storage and on-screen-code
+- **Cloudinary and Twilio** are implemented but untested without accounts; the local-storage and on-screen-code
   paths are the ones exercised by the tests above.
 - Officers aren't assigned to areas yet, so every officer is notified of every new dispute (proposal FR15 mentions
   "jurisdiction").
