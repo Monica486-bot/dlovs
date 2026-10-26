@@ -1,5 +1,4 @@
-// Readable names for audit_log.action_type values (translated with t()).
-export const ACTION_LABELS = {
+export const ACTION_LABELS: Record<string, string> = {
   CREATE_PARCEL: 'Registered parcel',
   UPDATE_PARCEL: 'Edited parcel',
   PROCESS_TRANSFER: 'Transferred ownership',
@@ -25,6 +24,6 @@ export const ACTION_LABELS = {
   REACTIVATE_USER: 'Reactivated account',
 };
 
-export function actionLabel(type) {
+export function actionLabel(type: string): string {
   return ACTION_LABELS[type] || type.replaceAll('_', ' ').toLowerCase();
 }

@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { AuthProvider, useAuth, homePath, STAFF_ROLES } from './context/AuthContext';
 import { LanguageProvider } from './i18n';
 import Layout from './components/Layout';
 import PublicLayout from './components/PublicLayout';
 
-// public
 import Login from './pages/Login';
 import Register from './pages/public/Register';
 import VerifyPhone from './pages/public/VerifyPhone';
@@ -12,15 +12,12 @@ import ForgotPassword from './pages/public/ForgotPassword';
 import PublicVerify from './pages/public/PublicVerify';
 import PublicParcel from './pages/public/PublicParcel';
 import PublicOwner from './pages/public/PublicOwner';
-// citizen
 import MyParcels from './pages/citizen/MyParcels';
 import MyParcel from './pages/citizen/MyParcel';
 import ReportPlot from './pages/citizen/ReportPlot';
 import MyRequests from './pages/citizen/MyRequests';
-// any logged-in user
 import Notifications from './pages/Notifications';
 import Account from './pages/Account';
-// staff
 import Dashboard from './pages/Dashboard';
 import RegisterParcel from './pages/RegisterParcel';
 import SearchVerify from './pages/SearchVerify';
@@ -38,17 +35,15 @@ import Admin from './pages/Admin';
 import UsageReports from './pages/UsageReports';
 import IdChecks from './pages/IdChecks';
 
-// Only lets in the given roles; everyone else goes to their own home page.
-function RequireRole({ roles, children }) {
+function RequireRole({ roles, children }: { roles?: string[]; children: ReactNode }) {
   const { user } = useAuth();
   const location = useLocation();
   if (!user) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to={homePath(user)} replace />;
-  return children;
+  return <>{children}</>;
 }
 
-// Notifications and Account use the layout that matches who is logged in.
-function ForAnyUser({ children }) {
+function ForAnyUser({ children }: { children: ReactNode }) {
   const { isStaff } = useAuth();
   return (
     <RequireRole>
@@ -67,9 +62,13 @@ const officer = ['land_officer'];
 const admin = ['administrator'];
 
 function AppRoutes() {
-  const staffPage = (page, roles = staff) => <RequireRole roles={roles}><Layout>{page}</Layout></RequireRole>;
-  const citizenPage = (page) => <RequireRole roles={['citizen']}><PublicLayout>{page}</PublicLayout></RequireRole>;
-  const publicPage = (page) => <PublicLayout>{page}</PublicLayout>;
+  const staffPage = (page: ReactNode, roles: string[] = staff) => (
+    <RequireRole roles={roles}><Layout>{page}</Layout></RequireRole>
+  );
+  const citizenPage = (page: ReactNode) => (
+    <RequireRole roles={['citizen']}><PublicLayout>{page}</PublicLayout></RequireRole>
+  );
+  const publicPage = (page: ReactNode) => <PublicLayout>{page}</PublicLayout>;
 
   return (
     <Routes>
