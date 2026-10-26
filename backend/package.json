@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node index.ts",
+    "dev": "tsc && node dist/index.js",
     "create-admin": "node scripts/createAdmin.js",
     "seed": "node scripts/seed.js",
     "test": "jest --runInBand"
@@ -27,6 +27,7 @@
     "multer": "^2.4.0",
     "pg": "^8.23.0",
     "qrcode": "^1.5.4",
+    "twilio": "^6.2.0",
     "uuid": "^14.0.2"
   },
   "devDependencies": {
@@ -42,6 +43,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/supertest": "^7.2.1",
     "@types/uuid": "^10.0.0",
+    "@typescript/typescript6": "npm:typescript@^5.4.5",
     "jest": "^30.5.2",
     "supertest": "^7.3.1",
     "ts-jest": "^29.4.15",
@@ -49,7 +51,6 @@
     "typescript": "^7.0.2"
   },
   "jest": {
-    "preset": "ts-jest",
     "testEnvironment": "node",
     "globalSetup": "./tests/globalSetup.ts",
     "setupFiles": [
@@ -58,6 +59,14 @@
     "testMatch": [
       "**/tests/**/*.test.ts"
     ],
-    "testTimeout": 120000
+    "testTimeout": 120000,
+    "transform": {
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "compiler": "@typescript/typescript6"
+        }
+      ]
+    }
   }
 }
