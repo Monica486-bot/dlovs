@@ -42,7 +42,7 @@ is written to an audit log that the database itself refuses to alter.
 | FR15 | Notifications | 🔔 in-app; SMS for events affecting a citizen's own land | **Expo push** + Notifications screen; SMS |
 | FR16 | Offline cache (last 50 records) | - | Recently Viewed, with a "saved copy" warning |
 | FR17 | Search filters | Status, registration date range, document status | Same filters on search results |
-| FR18 | Low-bandwidth | Text-only pages, no map tiles (~138 KB gzipped app) | Text-only records; 15 s timeout before falling back to the cache |
+| FR18 | Low-bandwidth | Text-only pages, no map tiles (~149 KB gzipped app) | Text-only records; 15 s timeout before falling back to the cache |
 | FR19 | English and Arabic | العربية / English switch; full right-to-left layout | Same switch in every screen's header; right-to-left layout |
 | FR20 | Account recovery | Forgot password (SMS code) for citizens; admin resets officer passwords | Forgot Password? (SMS code) |
 | FR21 | Administrator dashboard | Admin Panel + *Usage Reports* with CSV export | - |
@@ -89,6 +89,27 @@ is written to an audit log that the database itself refuses to alter.
 - **No secrets in the code.** `JWT_SECRET`, `QR_SIGNING_SECRET`, `DOCUMENT_ENCRYPTION_KEY`, API keys and the demo
   password come only from environment variables; the server refuses to start without them, and in production
   rejects placeholder or short values.
+
+## Changes from the proposal
+
+Every planned feature is implemented. These are the places where the build differs from the approved proposal, and why.
+
+| Proposal | What was built | Why |
+|---|---|---|
+| SMS one-time codes via **Africa's Talking** (FR01, Table 6) | **Twilio** | Africa's Talking's default Sender ID only delivers to Airtel Kenya numbers. Reaching South Sudanese (+211) numbers needs a dedicated Sender ID, applied for and approved per country, which the 12-week timeline couldn't absorb. Twilio delivers to +211 without one. All SMS goes through one function ([`backend/utils/sms.ts`](backend/utils/sms.ts)), so a regional provider can replace it later without touching the rest of the code. |
+| Any user can search by **national ID** (FR06) | National ID search is for land officers and administrators only | A national ID is private. A public search would let anyone who knows a person's ID number list all of their land. The public still has the other three pathways (QR code, parcel ID, owner name / area / GPS). |
+| The mobile app **checks the QR signature on the phone** (NFR03, Figure 5 step 4) | The app sends the scanned signature to the API, which checks it | Checking on the phone would mean shipping the signing secret inside the APK, where anyone could extract it and sign forged codes. A forged code is still refused before any record is shown. |
+| The public owner portfolio shows **each parcel's QR code** (FR09) | The public sees the parcels and a link to each record; QR codes are shown to staff | Printing markers stays an officer task, so every marker on the ground was issued by a land officer and appears in the audit log. |
+| **Land officers** process every transfer (FR11) | Officers still process transfers, but now need proof of the owner's consent; and a buyer whose national ID was confirmed in person can accept the owner's request directly with an SMS code | The proposal let one officer move land on their own word, which is the corruption risk the audit trail (FR14) exists for. Now a transfer needs the owner's own request, an SMS code from the owner's phone, or written consent approved by a second officer. When both owner and buyer are identity-checked, their two confirmations are stronger proof than an officer's signature, so no officer is needed; the transfer is still written to the audit log. |
+| **Leaflet / react-native-maps** for maps (Table 6) | Text-only records: coordinates, neighbourhood, and the phone's distance from the plot | Map tiles are the heaviest part of a page on 2G/3G (FR18), and the verification decision doesn't need a map: the GPS check (FR04) compares the phone's position with the registered point directly. |
+| **Expo BarCodeScanner** (Table 6) | `expo-camera`'s built-in barcode scanner | `expo-barcode-scanner` is deprecated and no longer part of recent Expo SDKs. |
+| **Cloudinary** stores documents, at-rest encryption "to be confirmed" (NFR10) | Documents are encrypted with AES-256-GCM by the API **before** upload; Cloudinary is used when configured, local disk otherwise | Encryption no longer depends on a third party's plan terms, and a leaked Cloudinary link only yields ciphertext. |
+| JavaScript (Table 6) | TypeScript across the API, web app and mobile app | Shared types catch mistakes in API responses at build time. |
+
+**Added beyond the proposal** (each answers a fraud route found while building): in-person national ID checks before an
+account is linked to land; owner consent for every transfer; a new QR *version* on every transfer, so an old marker
+reads as *replaced*; four-part owner names; a reason recorded for every transfer; limits on how many disputes one
+account can open.
 
 ## Screenshots
 
@@ -179,6 +200,8 @@ psql -d dlovs_db -f db/schema.sql
 #   psql -d dlovs_db -f db/migrations/006_pending_transfers.sql
 #   psql -d dlovs_db -f db/migrations/007_transfer_reasons.sql
 #   psql -d dlovs_db -f db/migrations/008_request_reasons.sql
+#   psql -d dlovs_db -f db/migrations/009_buyer_accepts_transfer.sql
+#   psql -d dlovs_db -f db/migrations/010_parcel_gps_index.sql
 
 npm run seed                # demo accounts and parcels (empty database only)
 npm start                   # http://localhost:4000
@@ -460,6 +483,23 @@ if (expected_owner_id != null && Number(expected_owner_id) !== current.current_o
 }
 ```
 
+**"Near me" search**: [`backend/controllers/parcelController.ts`](backend/controllers/parcelController.ts). The
+exact great-circle (Haversine) distance is expensive, so an indexed latitude/longitude box around the search circle
+removes distant parcels first. A degree of longitude shrinks towards the poles, so the box is widened by
+`1 / cos(latitude)`:
+
+```ts
+function boundingBox(lat: number, lng: number, radiusMetres: number) {
+  const dLat = radiusMetres / METRES_PER_DEGREE_LAT;
+  const dLng = radiusMetres / (METRES_PER_DEGREE_LAT * Math.max(Math.cos((lat * Math.PI) / 180), 0.01));
+  return { minLat: lat - dLat, maxLat: lat + dLat, minLng: lng - dLng, maxLng: lng + dLng };
+}
+// SQL: WHERE gps_lat BETWEEN … AND gps_lng BETWEEN …  →  Haversine on what's left  →  closest 50
+```
+
+With 50,000 parcels this took a 500 m search from 163 ms to 8 ms. The same Haversine formula runs on the phone to
+decide the ✓ *Location confirmed* badge (within 10 m, FR04), so it also works on cached records offline.
+
 **SMS codes**: [`backend/utils/phoneCodes.ts`](backend/utils/phoneCodes.ts). Hashed, single-use, 10-minute expiry,
 5 attempts, one request a minute; compared in constant time:
 
@@ -484,13 +524,50 @@ const t = (text, vars) => {
 
 ## Testing
 
-**Automated (`npm test` in `backend/`)**: 55 Jest + Supertest tests, including the proposal's evaluation metric (d):
-20 officer transactions (5 parcel registrations, 5 document approvals, 5 transfers, 5 dispute resolutions), each
-checked for exactly one audit-log entry with the officer and a timestamp. The others cover SMS-code sign-up, roles,
-guest access, signed / forged / replaced QR codes, transfers (new QR, disputed parcels, double sales, owner consent by
-SMS code or second officer, swapped buyers), append-only
-triggers, all verification pathways, the public portfolio, separation of duties, file type and 5 MB limits, encryption
-at rest, disputes, plot reports, transfer requests, ID checks and push tokens.
+### Automated tests
+
+`npm test` in `backend/` runs **55 Jest + Supertest tests** against a separate `dlovs_test` database that is rebuilt
+from `schema.sql` on every run. All 55 pass.
+
+| Test file | Tests | What it proves |
+|---|---|---|
+| [`auditTrail.test.ts`](backend/tests/auditTrail.test.ts) | 12 | **Evaluation metric (d):** 20 officer transactions (5 registrations, 5 document approvals, 5 transfers, 5 dispute resolutions), each with exactly one audit entry naming the officer, with a timestamp. FR10 file type, 5 MB limit and encryption at rest; FR14 separation of duties; FR12 dispute limits |
+| [`auth.test.ts`](backend/tests/auth.test.ts) | 7 | FR01 SMS sign-up (wrong, reused and locked codes); FR02 guest access; FR03 role checks; deactivated accounts refused on their next request |
+| [`portfolioAndRequests.test.ts`](backend/tests/portfolioAndRequests.test.ts) | 13 | FR06 all four pathways find the same parcel; GPS search at the edge of the radius in every direction; national ID search refused to the public; FR09 portfolio; FR13 plot reports; transfer requests; ID checks; FR15 push tokens |
+| [`qrAndTransfer.test.ts`](backend/tests/qrAndTransfer.test.ts) | 8 | FR05 signed, forged and *replaced* QR codes; FR11 transfers issue a new QR, refuse disputed parcels and simultaneous double sales; FR08 / NFR07 append-only triggers reject `UPDATE`, `DELETE` and `TRUNCATE` |
+| [`transferConsent.test.ts`](backend/tests/transferConsent.test.ts) | 15 | Owner consent by SMS code or a second officer; transfer reasons; buyer-accepted transfers; owners told of every officer action; one person per national ID; one transfer at a time |
+
+The tests found a real bug before deployment: SMS codes were stored without a time zone and compared in JavaScript, so
+with the API in UTC+3 and PostgreSQL in UTC+2 every code read as expired. Database sessions now run in UTC
+([`backend/db/pool.ts`](backend/db/pool.ts)).
+
+### Performance (NFR01, NFR05)
+
+Measured with 50 requests per endpoint against the API running locally, with a database of **50,000 parcels and
+40,000 owners** (the NFR05 target), spread over a 13 km square around Juba:
+
+| Request | Median | 95th percentile | Response size |
+|---|---|---|---|
+| Verify a parcel (full record, history, disputes, documents) | 11 ms | 29 ms | 0.7 KB |
+| Search by parcel ID | 15 ms | 18 ms | 0.2 KB |
+| Search by owner name | 45 ms | 69 ms | 0.2 KB |
+| Search by neighbourhood (50 results) | 8 ms | 15 ms | 11 KB |
+| Near me, 500 m | 8 ms | 12 ms | 12 KB |
+| Near me, 5 km (the maximum) | 218 ms | 320 ms | 12 KB |
+| Owner portfolio | 11 ms | 21 ms | 0.3 KB |
+
+Every response is far below NFR01's 50 KB limit. At 3G speeds (around 1 Mbit/s) the largest, 12 KB, takes about
+0.1 s to download, so the 3-second target leaves room for network latency. The web app is 149 KB gzipped (JavaScript
+and CSS, no map tiles or images).
+
+The "near me" search was the one bottleneck: it calculated the Haversine distance for every parcel in the database
+(163 ms for a 500 m search). It now filters by an indexed latitude/longitude box first, and only counts documents for
+the closest 50 (see *Code highlights*), bringing 500 m down to 8 ms with identical results.
+
+Still to measure in the field: response times over real 2G/3G networks in Juba, and the first request after Render's
+free tier has put the API to sleep (this can take tens of seconds, so wake the API before each testing session).
+
+### Manual testing
 
 Also run during development against a fresh copy of the database:
 - **129 API checks**: sign-up and SMS codes (wrong codes, lock-out, reuse), password resets, every role restriction,
@@ -515,7 +592,8 @@ Everything runs on free tiers, as budgeted in the proposal (Table 1):
 **Steps**
 1. **API + database (Render):** New → Blueprint → this repository. [`render.yaml`](render.yaml) creates the API and
    PostgreSQL and generates `JWT_SECRET` and `QR_SIGNING_SECRET`; fill in `DOCUMENT_ENCRYPTION_KEY`, `CLOUDINARY_URL`,
-   `CORS_ORIGINS` and `PUBLIC_WEB_URL` (both the Netlify address) and `AT_API_KEY`. Then load the schema once with
+   `CORS_ORIGINS` and `PUBLIC_WEB_URL` (both the Netlify address), and `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and
+   `TWILIO_FROM_NUMBER` (leave them empty to run in demo mode). Then load the schema once with
    `psql "<External Database URL>" -f backend/db/schema.sql` and run `npm run create-admin` from the Render shell.
 2. **Web app (Netlify):** New site from this repository. [`netlify.toml`](netlify.toml) sets the base, build and
    publish folders. Set `VITE_API_URL=https://<render-service>.onrender.com/api`.
@@ -531,14 +609,13 @@ Everything runs on free tiers, as budgeted in the proposal (Table 1):
   paths are the ones exercised by the tests above.
 - Officers aren't assigned to areas yet, so every officer is notified of every new dispute (proposal FR15 mentions
   "jurisdiction").
-- **National ID search is staff-only**, although the proposal's FR06 lists it as a public pathway: a national ID is
-  private, and a public search would let anyone who knows an ID number find that person's land.
 - National IDs are checked by an officer looking at the ID card; DLOVS can't yet verify an ID against a national register.
-- **QR signatures are checked by the API, not on the phone** (the proposal's NFR03 says the app checks them). Checking
-  on the phone would mean putting the signing secret inside the APK, where anyone could extract it and sign forged
-  codes. The scanned signature is sent with the verification request instead, and a forged code is refused there.
-- **QR codes in the public owner portfolio** (FR09) are staff-only; the public sees the portfolio's parcels and links to
-  each record, and printing markers stays an officer task.
+- **Offline records can't be re-checked for forgery.** Because the signature is checked by the API, a cached record
+  shows when it was last verified online but can't re-verify a QR code without a connection. Signing with a
+  public/private key pair (e.g. Ed25519) would let the phone check codes offline without holding a secret.
+- **Twilio trial accounts** only send to numbers verified in the Twilio console, and add a "Sent from your Twilio
+  trial account" prefix. Field testing with 40 participants needs a paid account (or demo mode, where codes are shown
+  on screen).
 - Markers printed before the QR code held a verification URL contain a small JSON code instead; the mobile app still
   reads them, but a plain phone camera won't open them. Reprint them from the parcel page.
 - **Push notifications** need an EAS project ID and a real Android build (Expo Go no longer supports push); without
