@@ -5,6 +5,7 @@ import { Banner, Button, Field, Muted, Screen } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme';
 import { useT } from '../i18n';
+import { errorMessage } from '../api/client';
 
 // four names, as on the national ID card or passport
 const NAME_PARTS = ['First name', 'Middle name', 'Second middle name', 'Surname'];
@@ -14,12 +15,12 @@ const NAME_PARTS = ['First name', 'Middle name', 'Second middle name', 'Surname'
 export default function Register() {
   const { register } = useAuth();
   const { t } = useT();
-  const { returnTo } = useLocalSearchParams();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const [form, setForm] = useState({ names: ['', '', '', ''], phone_number: '', national_id: '', password: '', confirm: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const set = (key) => (value) => setForm({ ...form, [key]: value });
+  const set = (key: 'phone_number' | 'national_id' | 'password' | 'confirm') => (value: string) => setForm({ ...form, [key]: value });
 
   async function submit() {
     if (form.password !== form.confirm) {
@@ -40,7 +41,7 @@ export default function Register() {
         params: { phone: data.phone_number, devCode: data.dev_code || '', returnTo: returnTo || '' },
       });
     } catch (err) {
-      setError(t(err.message));
+      setError(t(errorMessage(err)));
     } finally {
       setLoading(false);
     }

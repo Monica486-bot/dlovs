@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useT } from '../i18n';
 import { colors, radius } from '../theme';
 
-const PALETTE = {
+const PALETTE: Record<string, [string, string]> = {
   active: [colors.successPale, colors.success],
   verified: [colors.successPale, colors.success],
   completed: [colors.successPale, colors.success],
@@ -12,7 +12,7 @@ const PALETTE = {
   rejected: [colors.dangerPale, colors.danger],
 };
 
-const LABELS = {
+const LABELS: Record<string, string> = {
   active: 'Active',
   disputed: 'Disputed',
   deactivated: 'Deactivated',
@@ -22,7 +22,11 @@ const LABELS = {
   completed: 'Completed',
 };
 
-export default function StatusPill({ status }) {
+interface StatusPillProps {
+  status: string;
+}
+
+export default function StatusPill({ status }: StatusPillProps) {
   const { t } = useT();
   const [bg, fg] = PALETTE[status] || [colors.navyPale, colors.navy];
   return (

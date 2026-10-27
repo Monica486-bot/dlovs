@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
-import { api, ApiError } from '../api/client';
+import { api, ApiError, errorMessage } from '../api/client';
 import { Banner, Button, Field, Muted, Screen } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
 import { getDeviceLocation } from '../utils/location';
+import type { DeviceLocation } from '../utils/location';
 
 // FR13: report a plot that isn't in DLOVS, so a land officer can follow up
 // and register it.
@@ -12,12 +13,12 @@ export default function ReportPlot() {
   const { user, logout } = useAuth();
   const { t } = useT();
   const [form, setForm] = useState({ neighbourhood: '', location_details: '', claimed_owner: '' });
-  const [position, setPosition] = useState(null);
+  const [position, setPosition] = useState<DeviceLocation | null>(null);
   const [locating, setLocating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
-  const set = (key) => (value) => setForm({ ...form, [key]: value });
+  const set = (key: 'neighbourhood' | 'location_details' | 'claimed_owner') => (value: string) => setForm({ ...form, [key]: value });
 
   if (!user) {
     return (
@@ -55,7 +56,7 @@ export default function ReportPlot() {
         router.replace({ pathname: '/login', params: { returnTo: '/report-plot' } });
         return;
       }
-      setError(t(err.message));
+      setError(t(errorMessage(err)));
     } finally {
       setLoading(false);
     }
@@ -85,12 +86,12 @@ export default function ReportPlot() {
       />
       <Field label={t('Who claims to own it? (optional)')} value={form.claimed_owner} onChangeText={set('claimed_owner')} />
       <Button
-        title={position ? t('Location added (±{n} m): update', { n: Math.round(position.accuracy) }) : t('Add My Current Location')}
+        title={position ? t('Location added (±{n} m): update', { n: position.accuracy === null ? '?' : Math.round(position.accuracy) }) : t('Add My Current Location')}
         variant="secondary"
         onPress={locate}
         loading={locating}
       />
-      {position && position.accuracy > 10 ? (
+      {position && (position.accuracy === null || position.accuracy > 10) ? (
         <Banner tone="warning">{t('Location accuracy is low - verify parcel boundaries manually.')}</Banner>
       ) : null}
       {error ? <Banner tone="danger">{error}</Banner> : null}

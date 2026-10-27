@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { api, ApiError } from '../api/client';
+import { api, ApiError, errorMessage } from '../api/client';
 import { Banner, Button, Field, Muted, Screen } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
@@ -14,7 +14,7 @@ const TYPES = [
 
 // Citizen.flagDispute(parcelId): FR12.
 export default function FlagDispute() {
-  const { parcelId } = useLocalSearchParams();
+  const { parcelId } = useLocalSearchParams<{ parcelId: string }>();
   const { user, logout } = useAuth();
   const { t } = useT();
   const [type, setType] = useState('ownership');
@@ -35,7 +35,7 @@ export default function FlagDispute() {
         router.replace({ pathname: '/login', params: { returnTo: `/dispute?parcelId=${parcelId}` } });
         return;
       }
-      setError(t(err.message));
+      setError(t(errorMessage(err)));
     } finally {
       setLoading(false);
     }

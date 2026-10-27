@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { api } from '../api/client';
+import { api, errorMessage } from '../api/client';
 import { Banner, Button, Field, Muted, Screen } from '../components/ui';
 import { useT } from '../i18n';
+import type { CodeSent } from '../types';
 
 // FR20: a citizen resets a forgotten password with an SMS code. Officer and
 // administrator passwords are reset by an administrator.
 export default function ForgotPassword() {
   const { t } = useT();
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<{ phone?: string }>();
   const [step, setStep] = useState('phone'); // phone | code
   const [phone, setPhone] = useState(params.phone || '');
   const [code, setCode] = useState('');
@@ -23,7 +24,7 @@ export default function ForgotPassword() {
     setLoading(true);
     setError('');
     try {
-      const data = await api.post('/auth/forgot-password', { phone_number: phone.trim() });
+      const data = await api.post<CodeSent>('/auth/forgot-password', { phone_number: phone.trim() });
       if (data.staff) {
         setInfo(t('Land officer and administrator passwords are reset by a DLOVS administrator.'));
         return;
@@ -32,7 +33,7 @@ export default function ForgotPassword() {
       setInfo(t('If this number has an account, we sent it a 6-digit code by SMS. It expires in 10 minutes.'));
       setStep('code');
     } catch (err) {
-      setError(t(err.message));
+      setError(t(errorMessage(err)));
     } finally {
       setLoading(false);
     }
@@ -49,7 +50,7 @@ export default function ForgotPassword() {
       await api.post('/auth/reset-password-with-code', { phone_number: phone.trim(), code: code.trim(), new_password: password });
       router.replace({ pathname: '/login', params: { phone: phone.trim(), reset: '1' } });
     } catch (err) {
-      setError(t(err.message));
+      setError(t(errorMessage(err)));
     } finally {
       setLoading(false);
     }

@@ -230,6 +230,7 @@ export default {
   "You need an account to flag a dispute, so land officers can follow up with you.": "تحتاج إلى حساب للإبلاغ عن نزاع، حتى يتمكن موظفو الأراضي من متابعتك.",
   "Links your account to parcels registered to you. Never shown to others, and can only be set once.": "يربط حسابك بالقطع المسجلة باسمك. لا يظهر للآخرين أبدًا، ولا يمكن إدخاله إلا مرة واحدة.",
   "Your position is accurate to about {accuracy} m ({distance} m from the registered point). Move to open sky and try again.": "دقة موقعك نحو {accuracy} م (على بعد {distance} م من النقطة المسجلة). انتقل إلى مكان مكشوف وحاول مرة أخرى.",
+  "Your phone didn't report how accurate its position is ({distance} m from the registered point). Move to open sky and try again.": "لم يحدد هاتفك مدى دقة موقعه (على بعد {distance} م من النقطة المسجلة). انتقل إلى مكان مكشوف وحاول مرة أخرى.",
   "Waiting for a land officer, who will contact you and the buyer.": "بانتظار موظف الأراضي، الذي سيتواصل معك ومع المشتري.",
   "As on the national ID or passport.": "كما في البطاقة الوطنية أو جواز السفر.",
   "No parcels are registered to your national ID. If land is registered to it, we'll ask you to show your ID card at the land office.": "لا توجد قطع مسجلة برقمك الوطني. إذا سُجّلت أرض به، سنطلب منك عرض بطاقتك الوطنية في مكتب الأراضي.",

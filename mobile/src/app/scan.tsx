@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import type { BarcodeScanningResult } from 'expo-camera';
 import { router } from 'expo-router';
 import { Banner, Button, Muted, Screen } from '../components/ui';
 import { parseParcelQr } from '../utils/qr';
@@ -31,7 +32,7 @@ export default function Scan() {
     );
   }
 
-  function onScanned({ data }) {
+  function onScanned({ data }: BarcodeScanningResult) {
     if (handled.current) return;
     const parsed = parseParcelQr(data);
     if (!parsed) {

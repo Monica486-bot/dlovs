@@ -1,25 +1,29 @@
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { api, ApiError } from '../api/client';
+import { api, ApiError, errorMessage } from '../api/client';
 import { Banner, Button, Empty, List, ListItem, Muted, Screen } from '../components/ui';
 import StatusPill from '../components/StatusPill';
 import IncomingTransfer from '../components/IncomingTransfer';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
+import type { OwnParcels, TransferRequest } from '../types';
 
 // Citizen.viewOwnParcels(): parcels registered under the account's national
 // ID, once a land officer has checked the ID card in person.
 export default function MyParcels() {
   const { user, logout } = useAuth();
   const { t, tn } = useT();
-  const [data, setData] = useState(null);
-  const [incoming, setIncoming] = useState([]);
+  const [data, setData] = useState<OwnParcels | null>(null);
+  const [incoming, setIncoming] = useState<TransferRequest[]>([]);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     setError('');
     try {
-      const [mine, requests] = await Promise.all([api.get('/parcels/mine'), api.get('/transfer-requests', { status: 'pending' })]);
+      const [mine, requests] = await Promise.all([
+        api.get<OwnParcels>('/parcels/mine'),
+        api.get<TransferRequest[]>('/transfer-requests', { status: 'pending' }),
+      ]);
       setData(mine);
       // transfers an owner wants to make to this citizen (officer-free)
       setIncoming(requests.filter((r) => r.incoming));
@@ -29,7 +33,7 @@ export default function MyParcels() {
         router.replace({ pathname: '/login', params: { returnTo: '/mine' } });
         return;
       }
-      setError(t(err.message));
+      setError(t(errorMessage(err)));
     }
   }, [logout, t]);
 
@@ -62,7 +66,7 @@ export default function MyParcels() {
       {data && data.parcels.length === 0 && !data.message && (
         <Empty icon="map" title={t('No parcels are registered to your national ID yet.')} />
       )}
-      {data?.parcels.length > 0 && (
+      {data && data.parcels.length > 0 && (
         <List>
           {data.parcels.map((p) => (
             <ListItem

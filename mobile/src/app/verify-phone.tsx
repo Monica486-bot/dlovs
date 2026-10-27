@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { api } from '../api/client';
+import { api, errorMessage } from '../api/client';
 import { Banner, Button, Field, Muted, Screen } from '../components/ui';
 import { useT } from '../i18n';
+import type { CodeSent } from '../types';
 
 // FR01: confirm the phone number with the 6-digit SMS code before logging in.
 export default function VerifyPhone() {
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<{ phone?: string; devCode?: string; returnTo?: string }>();
   const { t } = useT();
   const [phone, setPhone] = useState(params.phone || '');
   const [code, setCode] = useState('');
@@ -22,7 +23,7 @@ export default function VerifyPhone() {
       await api.post('/auth/verify-phone', { phone_number: phone.trim(), code: code.trim() });
       router.replace({ pathname: '/login', params: { phone: phone.trim(), verified: '1', returnTo: params.returnTo || '' } });
     } catch (err) {
-      setError(t(err.message));
+      setError(t(errorMessage(err)));
     } finally {
       setLoading(false);
     }
@@ -32,11 +33,11 @@ export default function VerifyPhone() {
     setError('');
     setInfo('');
     try {
-      const data = await api.post('/auth/resend-code', { phone_number: phone.trim() });
+      const data = await api.post<CodeSent>('/auth/resend-code', { phone_number: phone.trim() });
       setDevCode(data.dev_code || '');
       setInfo(t('A new code has been sent.'));
     } catch (err) {
-      setError(t(err.message));
+      setError(t(errorMessage(err)));
     }
   }
 

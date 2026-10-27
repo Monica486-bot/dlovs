@@ -3,13 +3,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { safeReturnTo } from '../utils/navigation';
 import { Banner, Button, Field, Muted, Screen } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
-import { ApiError } from '../api/client';
+import { ApiError, errorMessage } from '../api/client';
 import { useT } from '../i18n';
 
 export default function Login() {
   const { login } = useAuth();
   const { t } = useT();
-  const { returnTo, phone: phoneParam, verified, reset } = useLocalSearchParams();
+  const { returnTo, phone: phoneParam, verified, reset } = useLocalSearchParams<{ returnTo?: string; phone?: string; verified?: string; reset?: string }>();
   const [phone, setPhone] = useState(phoneParam || '');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,7 +28,7 @@ export default function Login() {
         router.push({ pathname: '/verify-phone', params: { phone: phone.trim(), returnTo: returnTo || '' } });
         return;
       }
-      setError(t(err.message));
+      setError(t(errorMessage(err)));
     } finally {
       setLoading(false);
     }

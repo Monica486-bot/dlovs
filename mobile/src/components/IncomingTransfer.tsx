@@ -1,31 +1,37 @@
 import { useState } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
-import { api } from '../api/client';
+import { api, errorMessage } from '../api/client';
 import { useT } from '../i18n';
 import { Banner, Button, Card, Field, Muted } from './ui';
+import type { AcceptCodeSent, TransferRequest } from '../types';
+
+interface IncomingTransferProps {
+  request: TransferRequest;
+  onDone: () => void;
+}
 
 // A transfer an owner asked to make to this citizen. The buyer accepts with a
 // code sent to their phone (no officer needed) or declines.
-export default function IncomingTransfer({ request, onDone }) {
+export default function IncomingTransfer({ request, onDone }: IncomingTransferProps) {
   const { t } = useT();
-  const [sent, setSent] = useState(null);
+  const [sent, setSent] = useState<AcceptCodeSent | null>(null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  async function run(action) {
+  async function run(action: () => Promise<void>) {
     setBusy(true);
     setError('');
     try {
       await action();
     } catch (err) {
-      setError(t(err.message));
+      setError(t(errorMessage(err)));
     } finally {
       setBusy(false);
     }
   }
-  const askCode = () => run(async () => setSent(await api.post(`/transfer-requests/${request.request_id}/accept-code`)));
+  const askCode = () => run(async () => setSent(await api.post<AcceptCodeSent>(`/transfer-requests/${request.request_id}/accept-code`)));
   const accept = () => run(async () => {
     await api.post(`/transfer-requests/${request.request_id}/accept`, { code: code.trim() });
     onDone();

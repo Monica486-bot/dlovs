@@ -1,14 +1,24 @@
 import { Children, cloneElement, isValidElement } from 'react';
+import type { ComponentProps, ReactElement, ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import type { StyleProp, TextInputProps, TextStyle, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useT } from '../i18n';
 import { colors, radius, shadow } from '../theme';
 
+export type IconName = ComponentProps<typeof Ionicons>['name'];
+
+interface ScreenProps {
+  children?: ReactNode;
+  scroll?: boolean;
+  padded?: boolean;
+}
+
 // FR19: Arabic lays the screen out right-to-left. `direction` flips rows and
 // start/end for everything inside the screen.
-export function Screen({ children, scroll = true, padded = true }) {
+export function Screen({ children, scroll = true, padded = true }: ScreenProps) {
   const { rtl } = useT();
-  const direction = { direction: rtl ? 'rtl' : 'ltr' };
+  const direction: ViewStyle = { direction: rtl ? 'rtl' : 'ltr' };
   const content = [styles.screen, !padded && styles.unpadded];
   if (!scroll) return <View style={[...content, direction, styles.fill]}>{children}</View>;
   return (
@@ -18,15 +28,32 @@ export function Screen({ children, scroll = true, padded = true }) {
   );
 }
 
+interface IconProps {
+  name: IconName;
+  size?: number;
+  color?: string;
+  style?: StyleProp<TextStyle>;
+}
+
 // An Ionicons name; arrows and chevrons point the other way in Arabic
-export function Icon({ name, size = 20, color = colors.navy, style }) {
+export function Icon({ name, size = 20, color = colors.navy, style }: IconProps) {
   const { rtl } = useT();
   const flips = rtl && /(chevron|arrow)-(forward|back)/.test(name);
   return <Ionicons name={name} size={size} color={color} style={[flips && styles.flip, style]} />;
 }
 
+interface ButtonProps {
+  title: string;
+  onPress?: () => void;
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  icon?: IconName;
+  disabled?: boolean;
+  loading?: boolean;
+  accessibilityHint?: string;
+}
+
 // variant: primary | secondary | danger | ghost
-export function Button({ title, onPress, variant = 'primary', icon, disabled, loading, accessibilityHint }) {
+export function Button({ title, onPress, variant = 'primary', icon, disabled, loading, accessibilityHint }: ButtonProps) {
   const textColor = variant === 'primary' || variant === 'danger' ? colors.white : variant === 'ghost' ? colors.navy : colors.navy;
   return (
     <Pressable
@@ -54,19 +81,33 @@ export function Button({ title, onPress, variant = 'primary', icon, disabled, lo
   );
 }
 
-export function Card({ children, style, padded = true }) {
+interface CardProps {
+  children?: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  padded?: boolean;
+}
+
+export function Card({ children, style, padded = true }: CardProps) {
   return <View style={[styles.card, padded && styles.cardPadded, style]}>{children}</View>;
 }
 
-const TONES = {
+type Tone = 'danger' | 'warning' | 'success' | 'info';
+
+const TONES: Record<Tone, { bg: string; fg: string; icon: IconName }> = {
   danger: { bg: colors.dangerPale, fg: colors.danger, icon: 'alert-circle' },
   warning: { bg: colors.warningPale, fg: colors.warning, icon: 'warning' },
   success: { bg: colors.successPale, fg: colors.success, icon: 'checkmark-circle' },
   info: { bg: colors.navyPale, fg: colors.navy, icon: 'information-circle' },
 };
 
+interface BannerProps {
+  tone?: Tone;
+  title?: string | null;
+  children?: ReactNode;
+}
+
 // tone: 'danger' | 'warning' | 'success' | 'info'
-export function Banner({ tone = 'info', title, children }) {
+export function Banner({ tone = 'info', title, children }: BannerProps) {
   const t = TONES[tone];
   return (
     <View style={[styles.banner, { backgroundColor: t.bg }]} accessibilityRole="alert">
@@ -79,7 +120,12 @@ export function Banner({ tone = 'info', title, children }) {
   );
 }
 
-export function Field({ label, style, hint, ...inputProps }) {
+interface FieldProps extends TextInputProps {
+  label?: string;
+  hint?: string;
+}
+
+export function Field({ label, style, hint, ...inputProps }: FieldProps) {
   const { rtl } = useT();
   return (
     <View style={styles.field}>
@@ -95,8 +141,14 @@ export function Field({ label, style, hint, ...inputProps }) {
   );
 }
 
+interface RowProps {
+  label: string;
+  value?: string | number | null;
+  icon?: IconName;
+}
+
 // A label/value pair, optionally with an icon
-export function Row({ label, value, icon }) {
+export function Row({ label, value, icon }: RowProps) {
   const { rtl } = useT();
   return (
     <View style={styles.row}>
@@ -110,8 +162,22 @@ export function Row({ label, value, icon }) {
 }
 
 // A tappable list row: icon, title, subtitle, something on the end, chevron
+interface ListItemProps {
+  icon?: IconName;
+  iconColor?: string;
+  iconBg?: string;
+  title: string;
+  subtitle?: string | null;
+  right?: ReactNode;
+  onPress?: () => void;
+  // set by List on its first row
+  first?: boolean;
+  accessibilityLabel?: string;
+  fullTitle?: boolean;
+}
+
 // fullTitle: show the whole title (e.g. a notification) instead of two lines
-export function ListItem({ icon, iconColor = colors.navy, iconBg = colors.navyPale, title, subtitle, right, onPress, first, accessibilityLabel, fullTitle }) {
+export function ListItem({ icon, iconColor = colors.navy, iconBg = colors.navyPale, title, subtitle, right, onPress, first, accessibilityLabel, fullTitle }: ListItemProps) {
   const body = (
     <View style={[styles.item, !first && styles.itemDivider]}>
       {icon ? (
@@ -135,10 +201,15 @@ export function ListItem({ icon, iconColor = colors.navy, iconBg = colors.navyPa
   );
 }
 
+interface ListProps {
+  children?: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}
+
 // A card holding ListItems
-export function List({ children, style }) {
+export function List({ children, style }: ListProps) {
   // the first row has no divider above it
-  const items = Children.toArray(children).filter(isValidElement);
+  const items = Children.toArray(children).filter((child): child is ReactElement<ListItemProps> => isValidElement(child));
   return (
     <Card padded={false} style={[styles.list, style]}>
       {items.map((child, i) => (i === 0 ? cloneElement(child, { first: true }) : child))}
@@ -146,7 +217,12 @@ export function List({ children, style }) {
   );
 }
 
-export function SectionTitle({ children, action }) {
+interface SectionTitleProps {
+  children?: ReactNode;
+  action?: ReactNode;
+}
+
+export function SectionTitle({ children, action }: SectionTitleProps) {
   return (
     <View style={styles.sectionRow}>
       <Text style={styles.sectionTitle} accessibilityRole="header">{children}</Text>
@@ -155,12 +231,23 @@ export function SectionTitle({ children, action }) {
   );
 }
 
-export function Muted({ children, style }) {
+interface MutedProps {
+  children?: ReactNode;
+  style?: StyleProp<TextStyle>;
+}
+
+export function Muted({ children, style }: MutedProps) {
   return <Text style={[styles.muted, style]}>{children}</Text>;
 }
 
+interface EmptyProps {
+  icon: IconName;
+  title?: string;
+  children?: ReactNode;
+}
+
 // A centred message for empty lists
-export function Empty({ icon, title, children }) {
+export function Empty({ icon, title, children }: EmptyProps) {
   return (
     <View style={styles.empty}>
       <View style={styles.emptyIcon}><Icon name={icon} size={28} color={colors.navy} /></View>
@@ -170,8 +257,21 @@ export function Empty({ icon, title, children }) {
   );
 }
 
+export interface ChipOption<K extends string | number> {
+  key: K;
+  label: string;
+  icon?: IconName;
+}
+
+interface ChipsProps<K extends string | number> {
+  options: ChipOption<K>[];
+  value: K;
+  onChange: (key: K) => void;
+  label?: string;
+}
+
 // A row of selectable chips (search mode, filters, document type…)
-export function Chips({ options, value, onChange, label }) {
+export function Chips<K extends string | number>({ options, value, onChange, label }: ChipsProps<K>) {
   return (
     <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={label}>
       {options.map((o) => {

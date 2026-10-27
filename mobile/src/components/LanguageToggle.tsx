@@ -3,7 +3,11 @@ import { useT } from '../i18n';
 import { colors } from '../theme';
 
 // FR19: switch language from any screen's header
-export default function LanguageToggle({ color = colors.white }) {
+interface LanguageToggleProps {
+  color?: string;
+}
+
+export default function LanguageToggle({ color = colors.white }: LanguageToggleProps) {
   const { lang, setLang } = useT();
   return (
     <Pressable

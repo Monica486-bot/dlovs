@@ -2,13 +2,15 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
-import { api, ApiError } from '../../api/client';
+import type { DocumentPickerAsset } from 'expo-document-picker';
+import { api, ApiError, errorMessage } from '../../api/client';
 import { Banner, Button, Card, Chips, Field, Muted, Row, Screen, SectionTitle } from '../../components/ui';
 import StatusPill from '../../components/StatusPill';
 import { useAuth } from '../../context/AuthContext';
 import { useT } from '../../i18n';
 import { formatBytes, formatDate } from '../../utils/format';
 import { colors } from '../../theme';
+import type { OwnParcel, OwnParcels, ParcelDocument, TransferRequest as TransferRequestRow } from '../../types';
 
 const MAX_BYTES = 5 * 1024 * 1024; // FR10 / NFR10
 const FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -21,25 +23,25 @@ const EMPTY_REQUEST = { names: ['', '', '', ''], buyer_national_id: '', buyer_co
 // encrypted, visible to others only once a land officer verifies it) and the
 // "Initiate Transfer Request" use case.
 export default function MyParcel() {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { user, ready, logout } = useAuth();
   const { t } = useT();
-  const [parcel, setParcel] = useState(undefined); // undefined = loading, null = not yours
-  const [documents, setDocuments] = useState([]);
-  const [types, setTypes] = useState([]);
-  const [requests, setRequests] = useState([]);
-  const [reasons, setReasons] = useState([]);
+  const [parcel, setParcel] = useState<OwnParcel | null | undefined>(undefined); // undefined = loading, null = not yours
+  const [documents, setDocuments] = useState<ParcelDocument[]>([]);
+  const [types, setTypes] = useState<string[]>([]);
+  const [requests, setRequests] = useState<TransferRequestRow[]>([]);
+  const [reasons, setReasons] = useState<string[]>([]);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     setError('');
     try {
       const [mine, docs, docTypes, myRequests, transferReasons] = await Promise.all([
-        api.get('/parcels/mine'),
-        api.get(`/parcels/${id}/documents`).catch(() => []),
-        api.get('/documents/types'),
-        api.get('/transfer-requests', { status: 'all' }),
-        api.get('/parcels/transfer-reasons'),
+        api.get<OwnParcels>('/parcels/mine'),
+        api.get<ParcelDocument[]>(`/parcels/${id}/documents`).catch((): ParcelDocument[] => []),
+        api.get<string[]>('/documents/types'),
+        api.get<TransferRequestRow[]>('/transfer-requests', { status: 'all' }),
+        api.get<string[]>('/parcels/transfer-reasons'),
       ]);
       setParcel(mine.parcels.find((p) => String(p.parcel_id) === String(id)) || null);
       setDocuments(docs);
@@ -52,7 +54,7 @@ export default function MyParcel() {
         router.replace({ pathname: '/login', params: { returnTo: `/my-parcel/${id}` } });
         return;
       }
-      setError(t(err.message));
+      setError(t(errorMessage(err)));
     }
   }, [id, logout, t]);
 
@@ -138,10 +140,16 @@ export default function MyParcel() {
   );
 }
 
-function UploadDocument({ parcelId, types, onUploaded }) {
+interface UploadDocumentProps {
+  parcelId: number;
+  types: string[];
+  onUploaded: () => void;
+}
+
+function UploadDocument({ parcelId, types, onUploaded }: UploadDocumentProps) {
   const { t } = useT();
   const [type, setType] = useState('Allocation Letter');
-  const [file, setFile] = useState(null);
+  const [file, setFile] = useState<DocumentPickerAsset | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
@@ -152,7 +160,7 @@ function UploadDocument({ parcelId, types, onUploaded }) {
     const result = await DocumentPicker.getDocumentAsync({ type: FILE_TYPES, copyToCacheDirectory: true });
     if (result.canceled) return;
     const asset = result.assets[0];
-    if (asset.size > MAX_BYTES) {
+    if ((asset.size ?? 0) > MAX_BYTES) {
       setFile(null);
       setError(t('The file is larger than 5 MB. Scan or photograph it at a lower quality and try again.'));
       return;
@@ -161,6 +169,7 @@ function UploadDocument({ parcelId, types, onUploaded }) {
   }
 
   async function upload() {
+    if (!file) return; // the Upload button is disabled until a file is chosen
     setLoading(true);
     setError('');
     try {
@@ -174,7 +183,7 @@ function UploadDocument({ parcelId, types, onUploaded }) {
       setDone(true);
       onUploaded();
     } catch (err) {
-      setError(t(err.message));
+      setError(t(errorMessage(err)));
     } finally {
       setLoading(false);
     }
@@ -193,13 +202,20 @@ function UploadDocument({ parcelId, types, onUploaded }) {
   );
 }
 
-function TransferRequest({ parcel, reasons, pending, onSent }) {
+interface TransferRequestProps {
+  parcel: OwnParcel;
+  reasons: string[];
+  pending?: TransferRequestRow;
+  onSent: () => void;
+}
+
+function TransferRequest({ parcel, reasons, pending, onSent }: TransferRequestProps) {
   const { t } = useT();
   const [form, setForm] = useState(EMPTY_REQUEST);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
-  const set = (key) => (value) => setForm({ ...form, [key]: value });
+  const set = (key: 'buyer_national_id' | 'buyer_contact' | 'notes' | 'reason_details') => (value: string) => setForm({ ...form, [key]: value });
 
   if (sent && pending) {
     return (
@@ -239,7 +255,7 @@ function TransferRequest({ parcel, reasons, pending, onSent }) {
       setSent(true);
       onSent();
     } catch (err) {
-      setError(t(err.message));
+      setError(t(errorMessage(err)));
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { router } from 'expo-router';
-import { api, NetworkError } from '../../api/client';
+import type { KeyboardTypeOptions } from 'react-native';
+import { api, errorMessage, NetworkError } from '../../api/client';
 import { Banner, Button, Card, Chips, Empty, Field, List, ListItem, Muted, Screen } from '../../components/ui';
 import StatusPill from '../../components/StatusPill';
 import ReportPlotButton from '../../components/ReportPlotButton';
@@ -9,11 +10,21 @@ import { useT } from '../../i18n';
 import { getDeviceLocation } from '../../utils/location';
 import { formatDate } from '../../utils/format';
 import { colors } from '../../theme';
+import type { IconName } from '../../components/ui';
+import type { SearchResult } from '../../types';
+
+interface SearchMode {
+  key: string;
+  label: string;
+  icon: IconName;
+  placeholder?: string;
+  keyboard?: KeyboardTypeOptions;
+}
 
 // Verification pathways 2–3 (FR06): parcel ID, and owner name / neighbourhood /
 // GPS location. (Pathway 1, the QR code, is Scan. Pathway 4, national ID, is
 // for land officers only, since a national ID is private.)
-const MODES = [
+const MODES: SearchMode[] = [
   { key: 'any', label: 'Any', icon: 'search', placeholder: 'Parcel ID, owner name, or area' },
   { key: 'parcel_id', label: 'Parcel ID', icon: 'pricetag', placeholder: 'e.g. 12', keyboard: 'number-pad' },
   { key: 'owner_name', label: 'Owner', icon: 'person', placeholder: 'e.g. Akoi Deng' },
@@ -26,7 +37,9 @@ const RADII = [50, 100, 200, 500];
 const NO_FILTERS = { status: '', documents: '', from: '', to: '' };
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-function applyFilters(results, filters) {
+type Filters = typeof NO_FILTERS;
+
+function applyFilters(results: SearchResult[], filters: Filters): SearchResult[] {
   return results.filter((p) => {
     if (filters.status && p.status !== filters.status) return false;
     const registered = String(p.registered_date).slice(0, 10);
@@ -44,13 +57,15 @@ export default function Search() {
   const [mode, setMode] = useState('any');
   const [query, setQuery] = useState('');
   const [radius, setRadius] = useState(200);
-  const [results, setResults] = useState(null);
+  const [results, setResults] = useState<SearchResult[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState(NO_FILTERS);
 
-  const current = MODES.find((m) => m.key === mode);
+  // mode is always one of MODES, and every mode but 'near' (which has no
+  // query field) has a placeholder
+  const current = MODES.find((m) => m.key === mode)!;
   const near = mode === 'near';
 
   async function search() {
@@ -65,16 +80,16 @@ export default function Search() {
           setError(t('Could not get your location. Allow location access and try again outdoors.'));
           return;
         }
-        setResults(await api.get('/parcels/search', { by: 'near', lat: position.lat, lng: position.lng, radius }));
+        setResults(await api.get<SearchResult[]>('/parcels/search', { by: 'near', lat: position.lat, lng: position.lng, radius }));
       } else {
-        setResults(await api.get('/parcels/search', { query: query.trim(), by: mode }));
+        setResults(await api.get<SearchResult[]>('/parcels/search', { query: query.trim(), by: mode }));
       }
     } catch (err) {
       setResults(null);
       setError(
         err instanceof NetworkError
           ? t('Could not reach the DLOVS server. Records you viewed before are under Saved.')
-          : err.message
+          : errorMessage(err)
       );
     } finally {
       setLoading(false);
@@ -83,7 +98,7 @@ export default function Search() {
 
   const shown = results ? applyFilters(results, filters) : null;
   const filtersOn = Object.values(filters).some(Boolean);
-  const setFilter = (key) => (value) => setFilters({ ...filters, [key]: value });
+  const setFilter = (key: keyof Filters) => (value: string) => setFilters({ ...filters, [key]: value });
 
   return (
     <Screen>
@@ -111,7 +126,7 @@ export default function Search() {
             label={mode === 'any' ? t('Search the register') : t('Search by {what}', { what: t(current.label) })}
             value={query}
             onChangeText={setQuery}
-            placeholder={t(current.placeholder)}
+            placeholder={t(current.placeholder!)}
             keyboardType={current.keyboard || 'default'}
             autoCapitalize="words"
             returnKeyType="search"
@@ -173,8 +188,8 @@ export default function Search() {
           <ReportPlotButton />
         </>
       )}
-      {results && results.length > 0 && shown.length === 0 && <Muted>{t('No results match these filters.')}</Muted>}
-      {shown && shown.length > 0 && filtersOn && <Muted>{t('Showing {n} of {total} results', { n: shown.length, total: results.length })}</Muted>}
+      {results && results.length > 0 && shown!.length === 0 && <Muted>{t('No results match these filters.')}</Muted>}
+      {shown && shown.length > 0 && filtersOn && <Muted>{t('Showing {n} of {total} results', { n: shown.length, total: results!.length })}</Muted>}
 
       {!results && !error && !loading && (
         <Empty icon="document-text" title={t('Check any plot in Juba')}>

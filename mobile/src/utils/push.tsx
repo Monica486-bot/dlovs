@@ -1,18 +1,21 @@
 import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
+import type { NotificationResponse } from 'expo-notifications';
 
 // FR15: Expo Go has no push module, so it's only loaded in the installed app
 // 'storeClient' is Expo Go (and expo-dev-client builds); the APK is 'standalone'
 const inExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-let Notifications = null;
+type NotificationsModule = typeof import('expo-notifications');
+let Notifications: NotificationsModule | null = null;
 
 // expo-notifications, or null where push isn't available
-function notifications() {
+function notifications(): NotificationsModule | null {
   if (Platform.OS === 'web' || inExpoGo) return null;
   if (!Notifications) {
-    Notifications = require('expo-notifications');
-    Notifications.setNotificationHandler({
+    const N = require('expo-notifications') as NotificationsModule;
+    Notifications = N;
+    N.setNotificationHandler({
       handleNotification: async () => ({
         shouldShowBanner: true,
         shouldShowList: true,
@@ -24,7 +27,7 @@ function notifications() {
   return Notifications;
 }
 
-export async function getPushToken() {
+export async function getPushToken(): Promise<string | null> {
   const N = notifications();
   if (!N || !Device.isDevice) return null;
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
@@ -48,10 +51,10 @@ export async function getPushToken() {
 
 // Calls open(link) when the user taps a push notification, including the one
 // that launched the app. Returns an unsubscribe function.
-export function onNotificationTap(open) {
+export function onNotificationTap(open: (link: unknown) => void): () => void {
   const N = notifications();
   if (!N) return () => {};
-  const handle = (response) => open(response?.notification?.request?.content?.data?.link);
+  const handle = (response: NotificationResponse | null) => open(response?.notification?.request?.content?.data?.link);
   N.getLastNotificationResponseAsync()
     .then((response) => { if (response) handle(response); })
     .catch(() => {});
@@ -60,7 +63,7 @@ export function onNotificationTap(open) {
 }
 
 // The API's notification links are web-app paths; map them to app screens.
-export function screenForLink(link) {
+export function screenForLink(link: unknown): string {
   if (typeof link !== 'string') return '/notifications';
   let match = link.match(/^\/my\/parcels\/(\d+)/);
   if (match) return `/my-parcel/${match[1]}`;

@@ -2,33 +2,34 @@
 // device so a verification can still be shown without a connection. It is always
 // labelled as cached, with the time it was last verified online.
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { CachedRecord, ParcelVerification } from '../types';
 
 const KEY = 'dlovs_parcel_cache_v1';
 const MAX_RECORDS = 50;
 
-async function readAll() {
+async function readAll(): Promise<CachedRecord[]> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : [];
+    return raw ? (JSON.parse(raw) as CachedRecord[]) : [];
   } catch (err) {
     return [];
   }
 }
 
 // Most recently viewed first.
-export async function listCachedRecords() {
+export async function listCachedRecords(): Promise<CachedRecord[]> {
   return readAll();
 }
 
-export async function getCachedRecord(parcelId) {
+export async function getCachedRecord(parcelId: string | number): Promise<CachedRecord | null> {
   const all = await readAll();
   return all.find((entry) => String(entry.parcelId) === String(parcelId)) || null;
 }
 
-export async function cacheRecord(parcelId, record) {
+export async function cacheRecord(parcelId: string | number, record: ParcelVerification): Promise<void> {
   const all = await readAll();
   const rest = all.filter((entry) => String(entry.parcelId) !== String(parcelId));
-  const next = [{ parcelId: String(parcelId), cachedAt: new Date().toISOString(), record }, ...rest].slice(0, MAX_RECORDS);
+  const next: CachedRecord[] = [{ parcelId: String(parcelId), cachedAt: new Date().toISOString(), record }, ...rest].slice(0, MAX_RECORDS);
   try {
     await AsyncStorage.setItem(KEY, JSON.stringify(next));
   } catch (err) {

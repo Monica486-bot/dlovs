@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { api, ApiError, NetworkError } from '../../api/client';
+import { api, ApiError, errorMessage, NetworkError } from '../../api/client';
 import { Banner, Button, Card, List, ListItem, Muted, Row, Screen, SectionTitle } from '../../components/ui';
 import StatusPill from '../../components/StatusPill';
 import ReportPlotButton from '../../components/ReportPlotButton';
@@ -9,26 +9,32 @@ import { useAuth } from '../../context/AuthContext';
 import { useT } from '../../i18n';
 import { cacheRecord, getCachedRecord } from '../../utils/cache';
 import { getDeviceLocation, GPS_THRESHOLD_METRES, haversineMetres } from '../../utils/location';
+import type { DeviceLocation } from '../../utils/location';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { colors } from '../../theme';
+import type { ParcelVerification, VerifiedParcel } from '../../types';
+
+type LoadState = 'loading' | 'live' | 'cached' | 'not_found' | 'invalid_qr' | 'error';
+
+type LocationState = { status: 'checking' } | { status: 'unavailable' } | ({ status: 'ok' } & DeviceLocation);
 
 // Sequence Diagram (Figure 5) steps 4–12, plus the offline fallback (FR16).
 export default function ParcelRecord() {
-  const { id, s: signature } = useLocalSearchParams();
+  const { id, s: signature } = useLocalSearchParams<{ id: string; s?: string }>();
   const { user } = useAuth();
   const { t, tn } = useT();
 
   // state: loading | live | cached | not_found | invalid_qr | error
-  const [state, setState] = useState('loading');
-  const [record, setRecord] = useState(null);
-  const [cachedAt, setCachedAt] = useState(null);
+  const [state, setState] = useState<LoadState>('loading');
+  const [record, setRecord] = useState<ParcelVerification | null>(null);
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [message, setMessage] = useState('');
-  const [location, setLocation] = useState({ status: 'checking' });
+  const [location, setLocation] = useState<LocationState>({ status: 'checking' });
 
   const load = useCallback(async () => {
     setState('loading');
     try {
-      const data = await api.get(`/parcels/${id}/verify`, { signature });
+      const data = await api.get<ParcelVerification>(`/parcels/${id}/verify`, { signature });
       setRecord(data);
       setCachedAt(null);
       setState('live');
@@ -49,7 +55,7 @@ export default function ParcelRecord() {
       } else if (err instanceof ApiError && err.code === 'QR_INVALID') {
         setState('invalid_qr');
       } else {
-        setMessage(err.message);
+        setMessage(errorMessage(err));
         setState('error');
       }
     }
@@ -114,7 +120,7 @@ export default function ParcelRecord() {
     );
   }
 
-  const { parcel, ownership_history: history, disputes, documents, qr_check: qrCheck, qr_issued_at: qrIssuedAt } = record;
+  const { parcel, ownership_history: history, disputes, documents, qr_check: qrCheck, qr_issued_at: qrIssuedAt } = record!; // set whenever state is live or cached
   const openDisputes = disputes.filter((d) => d.status !== 'resolved');
   const verifiedDocs = documents.filter((d) => d.verification_status === 'verified').length;
   const disputeTypes = [...new Set(openDisputes.map((d) => t(d.dispute_type === 'boundary' ? 'boundary' : 'ownership')))].join(t(' and '));
@@ -271,7 +277,12 @@ export default function ParcelRecord() {
 
 // FR04: the badge only appears when the phone's own GPS accuracy is within
 // 10 m AND it is within 10 m of the registered point.
-function LocationCheck({ location, parcel }) {
+interface LocationCheckProps {
+  location: LocationState;
+  parcel: VerifiedParcel;
+}
+
+function LocationCheck({ location, parcel }: LocationCheckProps) {
   const { t } = useT();
   if (location.status === 'checking') {
     return <Muted>{t('Checking your location…')}</Muted>;
@@ -281,6 +292,14 @@ function LocationCheck({ location, parcel }) {
   }
   const distance = haversineMetres(location.lat, location.lng, Number(parcel.gps_lat), Number(parcel.gps_lng));
   const rounded = Math.round(distance);
+  // unknown accuracy can't prove the 10 m threshold, so no badge
+  if (location.accuracy === null) {
+    return (
+      <Banner tone="warning" title={t('Location accuracy is low - verify parcel boundaries manually.')}>
+        {t("Your phone didn't report how accurate its position is ({distance} m from the registered point). Move to open sky and try again.", { distance: rounded })}
+      </Banner>
+    );
+  }
   if (location.accuracy > GPS_THRESHOLD_METRES) {
     return (
       <Banner tone="warning" title={t('Location accuracy is low - verify parcel boundaries manually.')}>
@@ -303,7 +322,7 @@ function LocationCheck({ location, parcel }) {
 }
 
 // the record card's top stripe shows its status at a glance
-const STRIPE = { active: colors.success, disputed: colors.warning, deactivated: colors.danger };
+const STRIPE: Record<string, string> = { active: colors.success, disputed: colors.warning, deactivated: colors.danger };
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingTop: 80 },

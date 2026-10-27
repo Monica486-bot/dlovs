@@ -9,20 +9,22 @@ import LanguageToggle from '../../components/LanguageToggle';
 import { useAuth } from '../../context/AuthContext';
 import { useT } from '../../i18n';
 import { colors, radius, shadow } from '../../theme';
+import type { IconName } from '../../components/ui';
+import type { NotificationList, OwnParcels } from '../../types';
 
 export default function Home() {
   const { user, ready } = useAuth();
   const { t, tn, rtl } = useT();
   const insets = useSafeAreaInsets();
   const [unread, setUnread] = useState(0);
-  const [mine, setMine] = useState(null);
+  const [mine, setMine] = useState<OwnParcels | null>(null);
   const citizen = user?.role === 'citizen';
 
   useFocusEffect(
     useCallback(() => {
       if (!ready || !user) return;
-      api.get('/notifications').then((data) => setUnread(data.unread)).catch(() => {});
-      if (user.role === 'citizen') api.get('/parcels/mine').then(setMine).catch(() => {});
+      api.get<NotificationList>('/notifications').then((data) => setUnread(data.unread)).catch(() => {});
+      if (user.role === 'citizen') api.get<OwnParcels>('/parcels/mine').then(setMine).catch(() => {});
     }, [ready, user])
   );
 
@@ -74,7 +76,7 @@ export default function Home() {
         {!ready ? null : citizen ? (
           <>
             <SectionTitle
-              action={mine?.parcels?.length > 2 ? <Text style={styles.link} onPress={() => router.push('/mine')}>{t('See all')}</Text> : null}
+              action={(mine?.parcels?.length ?? 0) > 2 ? <Text style={styles.link} onPress={() => router.push('/mine')}>{t('See all')}</Text> : null}
             >
               {t('My land')}
             </SectionTitle>
@@ -108,7 +110,14 @@ export default function Home() {
   );
 }
 
-function Tile({ icon, title, subtitle, onPress }) {
+interface TileProps {
+  icon: IconName;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+}
+
+function Tile({ icon, title, subtitle, onPress }: TileProps) {
   return (
     <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.tile, pressed && styles.pressed]}>
       <View style={styles.tileIcon}><Icon name={icon} size={22} color={colors.navy} /></View>

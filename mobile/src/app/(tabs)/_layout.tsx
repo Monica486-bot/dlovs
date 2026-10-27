@@ -10,7 +10,7 @@ const TABS = [
   ['search', 'Search', 'search'],
   ['recent', 'Saved', 'bookmark'],
   ['account', 'Account', 'person-circle'],
-];
+] as const;
 
 export default function TabsLayout() {
   const { t, rtl } = useT();
@@ -40,7 +40,7 @@ export default function TabsLayout() {
             // the home screen draws its own navy header
             headerShown: name !== 'index',
             tabBarIcon: ({ color, focused, size }) => (
-              <Ionicons name={focused ? icon : `${icon}-outline`} size={size} color={color} />
+              <Ionicons name={focused ? icon : (`${icon}-outline` as const)} size={size} color={color} />
             ),
           }}
         />

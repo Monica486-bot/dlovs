@@ -7,19 +7,20 @@ import StatusPill from '../../components/StatusPill';
 import { useT } from '../../i18n';
 import { formatDate } from '../../utils/format';
 import { colors } from '../../theme';
+import type { OwnerPortfolio as Portfolio } from '../../types';
 
 // FR09: every parcel registered to one owner, so a buyer can check what a
 // seller claims to own, and notice a seller with many plots or many recent
 // sales. The API leaves out the owner's national ID and phone number.
 export default function OwnerPortfolio() {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useT();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<Portfolio | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    api.get(`/owners/${id}`)
+    api.get<Portfolio>(`/owners/${id}`)
       .then((d) => { if (!cancelled) setData(d); })
       .catch((err) => { if (!cancelled) setError(t(err.message)); });
     return () => { cancelled = true; };

@@ -5,11 +5,12 @@ import StatusPill from '../../components/StatusPill';
 import { listCachedRecords } from '../../utils/cache';
 import { formatDateTime } from '../../utils/format';
 import { useT } from '../../i18n';
+import type { CachedRecord } from '../../types';
 
 // FR16: the last 50 records viewed on this phone, available without a connection.
 export default function Saved() {
   const { t } = useT();
-  const [entries, setEntries] = useState(null);
+  const [entries, setEntries] = useState<CachedRecord[] | null>(null);
 
   useFocusEffect(
     useCallback(() => {

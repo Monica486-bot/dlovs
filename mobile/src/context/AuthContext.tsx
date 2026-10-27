@@ -5,26 +5,19 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, setAuthToken } from '../api/client';
 import { getPushToken } from '../utils/push';
+import type { RegisteredUser, User } from '../types';
 
 const TOKEN_KEY = 'dlovs_token';
 const USER_KEY = 'dlovs_user';
 
-export interface DlovsUser {
-  user_id: number;
-  full_name: string;
-  role: 'citizen' | 'land_officer' | 'administrator';
-  phone_number: string;
-  national_id: string | null;
-  national_id_verified: boolean;
-}
 
 interface AuthContextValue {
-  user: DlovsUser | null;
+  user: User | null;
   ready: boolean;
-  login: (phone_number: string, password: string) => Promise<DlovsUser>;
-  register: (args: { full_name: string; phone_number: string; password: string; national_id?: string }) => Promise<unknown>;
+  login: (phone_number: string, password: string) => Promise<User>;
+  register: (args: { full_name: string; phone_number: string; password: string; national_id?: string }) => Promise<RegisteredUser>;
   logout: () => Promise<void>;
-  refreshUser: () => Promise<DlovsUser>;
+  refreshUser: () => Promise<User>;
 }
 
 const storage = Platform.OS === 'web'
@@ -42,7 +35,7 @@ const storage = Platform.OS === 'web'
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<DlovsUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
   const pushToken = useRef<string | null>(null);
 
@@ -57,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const saveUser = useCallback(async (next: DlovsUser) => {
+  const saveUser = useCallback(async (next: User) => {
     setUser(next);
     await storage.set(USER_KEY, JSON.stringify(next));
   }, []);
@@ -68,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const [token, storedUser] = await Promise.all([storage.get(TOKEN_KEY), storage.get(USER_KEY)]);
         if (token && storedUser) {
           setAuthToken(token);
-          setUser(JSON.parse(storedUser) as DlovsUser);
+          setUser(JSON.parse(storedUser) as User);
           enablePush();
         }
       } catch {
@@ -79,8 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, [enablePush]);
 
-  const login = useCallback(async (phone_number: string, password: string): Promise<DlovsUser> => {
-    const data = await api.post<{ token: string; user: DlovsUser }>('/auth/login', { phone_number, password });
+  const login = useCallback(async (phone_number: string, password: string): Promise<User> => {
+    const data = await api.post<{ token: string; user: User }>('/auth/login', { phone_number, password });
     setAuthToken(data.token);
     await storage.set(TOKEN_KEY, data.token);
     await saveUser(data.user);
@@ -90,12 +83,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     ({ full_name, phone_number, password, national_id }: { full_name: string; phone_number: string; password: string; national_id?: string }) =>
-      api.post('/auth/register', { full_name, phone_number, password, national_id, platform: 'mobile' }),
+      api.post<RegisteredUser>('/auth/register', { full_name, phone_number, password, national_id, platform: 'mobile' }),
     []
   );
 
-  const refreshUser = useCallback(async (): Promise<DlovsUser> => {
-    const fresh = await api.get<DlovsUser>('/auth/me');
+  const refreshUser = useCallback(async (): Promise<User> => {
+    const fresh = await api.get<User>('/auth/me');
     await saveUser(fresh);
     return fresh;
   }, [saveUser]);

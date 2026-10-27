@@ -1,13 +1,13 @@
 import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { api } from '../../api/client';
+import { api, errorMessage } from '../../api/client';
 import { Banner, Button, Card, Chips, Empty, Field, List, ListItem, Muted, Screen, SectionTitle } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { useT } from '../../i18n';
 import { colors } from '../../theme';
 
-const ROLE_LABELS = { citizen: 'Citizen', land_officer: 'Land Officer', administrator: 'Administrator' };
+const ROLE_LABELS: Record<string, string> = { citizen: 'Citizen', land_officer: 'Land Officer', administrator: 'Administrator' };
 
 // The citizen's profile: the national ID that links the account to land
 // (set once; an officer confirms it in person), and the app language (FR19).
@@ -53,7 +53,7 @@ export default function Account() {
       await refreshUser();
       setSaved(true);
     } catch (err) {
-      setError(t(err.message));
+      setError(t(errorMessage(err)));
     } finally {
       setLoading(false);
     }

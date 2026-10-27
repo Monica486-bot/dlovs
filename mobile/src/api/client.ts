@@ -20,6 +20,12 @@ export class ApiError extends Error {
 
 export class NetworkError extends Error {}
 
+// The message of something caught in a catch block, which TypeScript types as
+// unknown. Everything the app throws is an Error.
+export function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 interface RequestOptions {
   body?: unknown;
   params?: Record<string, string | number | boolean | null | undefined>;
