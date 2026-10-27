@@ -1,22 +1,28 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 import { useT } from '../i18n';
+import type { NeighbourhoodList } from '../types';
 
 const OTHER = '__other__';
-let cached = null; // the list rarely changes; fetch it once per visit
+let cached: NeighbourhoodList | null = null; // the list rarely changes; fetch it once per visit
+
+interface NeighbourhoodSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+}
 
 // Juba neighbourhoods as a dropdown, so the same area is always spelled the
 // same way (a typed "Muniki" would never be found by a search for Munuki).
 // "Other" allows an area that isn't on the list yet.
-export default function NeighbourhoodSelect({ value, onChange }) {
+export default function NeighbourhoodSelect({ value, onChange }: NeighbourhoodSelectProps) {
   const { t } = useT();
-  const [list, setList] = useState(cached?.neighbourhoods || []);
+  const [list, setList] = useState<string[]>(cached?.neighbourhoods || []);
   const [city, setCity] = useState(cached?.city || 'Juba');
   const [other, setOther] = useState(false);
 
   useEffect(() => {
     if (cached) return;
-    api.get('/parcels/neighbourhoods')
+    api.get<NeighbourhoodList>('/parcels/neighbourhoods')
       .then(({ data }) => { cached = data; setList(data.neighbourhoods); setCity(data.city); })
       .catch(() => setOther(true)); // offline: fall back to typing it
   }, []);

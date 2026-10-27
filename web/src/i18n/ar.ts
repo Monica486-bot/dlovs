@@ -877,11 +877,9 @@ export default {
   "Accept: send me a code": "قبول: أرسل لي رمزًا",
   "Decline": "رفض",
   "A code was sent to {phone}.": "أُرسل رمز إلى {phone}.",
-  "Code": "الرمز",
   "Accept the transfer": "قبول النقل",
   "Waiting for the buyer to accept in DLOVS": "بانتظار قبول المشتري في DLOVS",
   "✓ Transfer request sent to the buyer. They accept it in DLOVS with a code sent to their phone; no visit to the land office is needed.": "✓ أُرسل طلب النقل إلى المشتري. يقبله في DLOVS برمز يُرسل إلى هاتفه، ولا حاجة لزيارة مكتب الأراضي.",
-  "Buyer": "المشتري",
   "Has a confirmed account and can accept in DLOVS without an officer. Process it here only if they come to the office.": "لديه حساب مؤكد ويمكنه القبول في DLOVS دون موظف. عالج الطلب هنا فقط إذا حضر إلى المكتب.",
   "Only land officers can search by national ID": "البحث بالرقم الوطني متاح لموظفي الأراضي فقط",
 };

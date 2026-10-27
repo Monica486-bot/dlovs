@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
 
-const ROLE_LABELS = { land_officer: 'Land Officer', administrator: 'Administrator', citizen: 'Citizen' };
+const ROLE_LABELS: Record<string, string> = { land_officer: 'Land Officer', administrator: 'Administrator', citizen: 'Citizen' };
 
 // "Name · Role" with an initials avatar, as in the Figma header. Opens My Account.
 export default function UserChip() {

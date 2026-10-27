@@ -23,15 +23,30 @@ api.interceptors.response.use(
   }
 );
 
-export function errorMessage(err: { response?: { data?: { error?: string } } }, fallback: string): string {
-  return err.response?.data?.error || fallback;
+// The body of an API error response, e.g. { error: 'Parcel not found', code: 'QR_INVALID' }
+export interface ApiErrorBody {
+  error?: string;
+  code?: string;
+}
+
+interface ApiError {
+  response?: { status: number; data?: ApiErrorBody };
+}
+
+// The HTTP response of a failed request (undefined for a network error).
+export function errorResponse(err: unknown): ApiError['response'] {
+  return (err as ApiError).response;
+}
+
+export function errorMessage(err: unknown, fallback: string): string {
+  return errorResponse(err)?.data?.error || fallback;
 }
 
 export async function openDocument(documentId: number): Promise<void> {
   const tab = window.open('', '_blank');
   try {
-    const { data, headers } = await api.get(`/documents/${documentId}/file`, { responseType: 'blob' });
-    const url = URL.createObjectURL(new Blob([data as BlobPart], { type: headers['content-type'] as string }));
+    const { data, headers } = await api.get<Blob>(`/documents/${documentId}/file`, { responseType: 'blob' });
+    const url = URL.createObjectURL(new Blob([data], { type: headers['content-type'] as string }));
     if (tab) tab.location.href = url;
     else window.location.href = url;
     setTimeout(() => URL.revokeObjectURL(url), 60000);

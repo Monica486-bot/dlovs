@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import type { ChangeEvent, SubmitEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api, { errorMessage } from '../../api/client';
 import { useT } from '../../i18n';
 import FourNames from '../../components/FourNames';
 import { EMPTY_NAMES, joinNames } from '../../utils/names';
+import type { RegisteredUser } from '../../types';
 
 // FR01: citizens register with a phone number and password (no email), then
 // confirm the number with an SMS code.
@@ -13,9 +15,12 @@ export default function Register() {
   const [form, setForm] = useState({ names: EMPTY_NAMES, phone_number: '', national_id: '', password: '', confirm: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const field = (name) => ({ value: form[name], onChange: (e) => setForm({ ...form, [name]: e.target.value }) });
+  const field = (name: Exclude<keyof typeof form, 'names'>) => ({
+    value: form[name],
+    onChange: (e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, [name]: e.target.value }),
+  });
 
-  async function submit(e) {
+  async function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
     if (form.password !== form.confirm) {
@@ -24,7 +29,7 @@ export default function Register() {
     }
     setSaving(true);
     try {
-      const { data } = await api.post('/auth/register', {
+      const { data } = await api.post<RegisteredUser>('/auth/register', {
         full_name: joinNames(form.names),
         phone_number: form.phone_number.trim(),
         national_id: form.national_id.trim() || undefined,

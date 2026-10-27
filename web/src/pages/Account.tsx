@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ChangeEvent, SubmitEvent } from 'react';
 import api, { errorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
@@ -12,9 +13,9 @@ export default function Account() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
-  const field = (name) => ({ value: form[name], onChange: (e) => setForm({ ...form, [name]: e.target.value }) });
+  const field = (name: keyof typeof form) => ({ value: form[name], onChange: (e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, [name]: e.target.value }) });
 
-  async function submit(e) {
+  async function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
     setSuccess('');
@@ -34,7 +35,7 @@ export default function Account() {
     }
   }
 
-  const roleName = { citizen: 'citizen', land_officer: 'land officer', administrator: 'administrator' }[user?.role];
+  const roleName = user && { citizen: 'citizen', land_officer: 'land officer', administrator: 'administrator' }[user.role];
 
   return (
     <div>
@@ -43,7 +44,7 @@ export default function Account() {
         <dl className="facts">
           <dt>{t('Name')}</dt><dd>{user?.full_name}</dd>
           <dt>{t('Phone Number')}</dt><dd dir="ltr">{user?.phone_number || '-'}</dd>
-          <dt>{t('Role')}</dt><dd>{t(roleName)}</dd>
+          <dt>{t('Role')}</dt><dd>{roleName && t(roleName)}</dd>
           {user?.role === 'citizen' && (
             <>
               <dt>{t('National ID')}</dt>

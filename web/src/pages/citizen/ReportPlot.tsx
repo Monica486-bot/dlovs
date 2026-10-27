@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ChangeEvent, SubmitEvent } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errorMessage } from '../../api/client';
 import { useT } from '../../i18n';
@@ -13,9 +14,12 @@ export default function ReportPlot() {
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
   const [saving, setSaving] = useState(false);
-  const field = (name) => ({ value: form[name], onChange: (e) => setForm({ ...form, [name]: e.target.value }) });
+  const field = (name: keyof typeof EMPTY) => ({
+    value: form[name],
+    onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, [name]: e.target.value }),
+  });
 
-  async function submit(e) {
+  async function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
     setSaving(true);

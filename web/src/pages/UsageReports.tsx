@@ -2,16 +2,21 @@ import { useCallback, useEffect, useState } from 'react';
 import api, { errorMessage } from '../api/client';
 import { useT } from '../i18n';
 import { localDate } from '../utils/format';
+import type { UsageReport, UsageTotals } from '../types';
 
 // FR21: system usage reports for administrators, with CSV export.
 // Report days are the user's own (local) days.
 const today = () => localDate(new Date());
-const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return localDate(d); };
+const daysAgo = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return localDate(d); };
 // exact start / end of those local days, sent to the server as timestamps
-const startOfDay = (ymd) => new Date(`${ymd}T00:00:00`).toISOString();
-const endOfDay = (ymd) => new Date(`${ymd}T23:59:59.999`).toISOString();
+const startOfDay = (ymd: string) => new Date(`${ymd}T00:00:00`).toISOString();
+const endOfDay = (ymd: string) => new Date(`${ymd}T23:59:59.999`).toISOString();
 
-const TOTALS = [
+// a report row, and the [key, heading] columns shown for it
+type Row = Record<string, string | number | null>;
+type Column = [string, string];
+
+const TOTALS: [keyof UsageTotals, string][] = [
   ['parcels_registered', 'Parcels registered'],
   ['transfers', 'Transfers'],
   ['parcel_edits', 'Parcel edits'],
@@ -26,19 +31,24 @@ const TOTALS = [
   ['citizen_signups', 'New citizen accounts'],
 ];
 
-function toCsv(rows, columns) {
-  const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+function toCsv(rows: Row[], columns: Column[]) {
+  const escape = (v: string | number | null) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   return [columns.map(([, label]) => escape(label)).join(','), ...rows.map((r) => columns.map(([key]) => escape(r[key])).join(','))].join('\r\n');
 }
 
-function download(name, csv) {
+function download(name: string, csv: string) {
   const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
   const a = Object.assign(document.createElement('a'), { href: url, download: name });
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function Table({ rows, columns }) {
+interface TableProps {
+  rows: Row[];
+  columns: Column[];
+}
+
+function Table({ rows, columns }: TableProps) {
   return (
     <div className="table-scroll">
       <table>
@@ -52,35 +62,36 @@ function Table({ rows, columns }) {
 export default function UsageReports() {
   const { t } = useT();
   const [range, setRange] = useState({ from: daysAgo(89), to: today() });
-  const [report, setReport] = useState(null);
+  const [report, setReport] = useState<UsageReport | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
-    api.get('/admin/reports', { params: { from: startOfDay(range.from), to: endOfDay(range.to) } })
+    api.get<UsageReport>('/admin/reports', { params: { from: startOfDay(range.from), to: endOfDay(range.to) } })
       .then(({ data }) => { setReport(data); setError(''); })
       .catch((err) => setError(errorMessage(err, t('Failed to build report'))));
   }, [range, t]);
 
   useEffect(() => { load(); }, [load]);
 
-  const officerColumns = [
+  const officerColumns: Column[] = [
     ['full_name', t('Name')], ['registered', t('Registered')], ['edited', t('Edited')], ['transfers', t('Transfers')],
     ['disputes_resolved', t('Disputes resolved')], ['documents_reviewed', t('Documents reviewed')], ['total_actions', t('Total actions')],
   ];
-  const monthColumns = [
+  const monthColumns: Column[] = [
     ['month', t('Month')], ['parcels_registered', t('Registered')], ['transfers', t('Transfers')],
     ['disputes_resolved', t('Disputes resolved')], ['verifications', t('Ownership checks')],
   ];
-  const areaColumns = [['neighbourhood', t('Neighbourhood')], ['parcels', t('Parcels')], ['disputed', t('Disputed')], ['deactivated', t('Deactivated')]];
+  const areaColumns: Column[] = [['neighbourhood', t('Neighbourhood')], ['parcels', t('Parcels')], ['disputed', t('Disputed')], ['deactivated', t('Deactivated')]];
 
+  // the Download button is only shown once a report has loaded
   function exportAll() {
-    const totals = TOTALS.map(([key, label]) => ({ metric: t(label), value: report.totals[key] ?? '' }));
+    const totals = TOTALS.map(([key, label]) => ({ metric: t(label), value: report!.totals[key] ?? '' }));
     const parts = [
       `${t('DLOVS usage report')},${range.from},${range.to}`,
       '', toCsv(totals, [['metric', t('Metric')], ['value', t('Value')]]),
-      '', toCsv(report.monthly, monthColumns),
-      '', toCsv(report.officers, officerColumns),
-      '', toCsv(report.neighbourhoods, areaColumns),
+      '', toCsv(report!.monthly, monthColumns),
+      '', toCsv(report!.officers, officerColumns),
+      '', toCsv(report!.neighbourhoods, areaColumns),
     ];
     download(`dlovs-report-${range.from}-to-${range.to}.csv`, parts.join('\r\n'));
   }

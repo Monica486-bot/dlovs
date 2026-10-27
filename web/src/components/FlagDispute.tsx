@@ -1,17 +1,24 @@
 import { useState } from 'react';
+import type { SubmitEvent } from 'react';
 import api, { errorMessage } from '../api/client';
 import { useT } from '../i18n';
+import type { Dispute } from '../types';
 
 // FR12: any registered citizen can flag an ownership or boundary dispute.
-export default function FlagDispute({ parcelId, onFlagged }) {
+interface FlagDisputeProps {
+  parcelId: number | string;
+  onFlagged?: (message: string) => void;
+}
+
+export default function FlagDispute({ parcelId, onFlagged }: FlagDisputeProps) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState('ownership');
+  const [type, setType] = useState<Dispute['dispute_type']>('ownership');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  async function submit(e) {
+  async function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
     setSaving(true);

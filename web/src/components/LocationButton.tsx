@@ -3,10 +3,26 @@ import { useT } from '../i18n';
 
 const THRESHOLD_METRES = 10;
 
+export interface DeviceLocation {
+  lat: number;
+  lng: number;
+  accuracy: number;
+}
+
+type LocateState =
+  | { status: 'idle' }
+  | { status: 'locating' }
+  | { status: 'done'; accuracy: number }
+  | { status: 'error'; message: string };
+
+interface LocationButtonProps {
+  onLocate: (location: DeviceLocation) => void;
+}
+
 // FR04: fills GPS fields from the device and warns above 10 m accuracy.
-export default function LocationButton({ onLocate }) {
+export default function LocationButton({ onLocate }: LocationButtonProps) {
   const { t } = useT();
-  const [state, setState] = useState({ status: 'idle' });
+  const [state, setState] = useState<LocateState>({ status: 'idle' });
 
   function locate() {
     if (!navigator.geolocation) {

@@ -3,13 +3,19 @@ import { useT } from '../i18n';
 import { formatDate } from '../utils/format';
 import { reasonLabel } from '../utils/transferReasons';
 import StatusBadge from './StatusBadge';
+import type { DisputeSummary, DocumentSummary, OwnershipHistoryEntry, Parcel } from '../types';
 
 // Sections shared by the public, citizen, and staff parcel pages.
 
 // default history notes written by the server (translated; officers' own notes aren't)
 const SERVER_NOTES = ['Initial registration', 'Ownership transfer processed'];
 
-export function RecordWarnings({ parcel, disputes }) {
+interface RecordWarningsProps {
+  parcel: Pick<Parcel, 'status'>;
+  disputes: Pick<DisputeSummary, 'status'>[];
+}
+
+export function RecordWarnings({ parcel, disputes }: RecordWarningsProps) {
   const { t } = useT();
   const open = disputes.filter((d) => d.status !== 'resolved');
   return (
@@ -27,7 +33,13 @@ export function RecordWarnings({ parcel, disputes }) {
   );
 }
 
-export function OwnerFacts({ parcel, documents, ownerLink }) {
+interface OwnerFactsProps {
+  parcel: Parcel;
+  documents: DocumentSummary[];
+  ownerLink?: string;
+}
+
+export function OwnerFacts({ parcel, documents, ownerLink }: OwnerFactsProps) {
   const { t } = useT();
   const verified = documents.filter((d) => d.verification_status === 'verified').length;
   return (
@@ -47,7 +59,11 @@ export function OwnerFacts({ parcel, documents, ownerLink }) {
   );
 }
 
-export function HistoryTable({ history }) {
+interface HistoryTableProps {
+  history: OwnershipHistoryEntry[];
+}
+
+export function HistoryTable({ history }: HistoryTableProps) {
   const { t } = useT();
   return (
     <div className="card">
@@ -62,7 +78,7 @@ export function HistoryTable({ history }) {
                 <td>{h.previous_owner_name || '-'}</td>
                 <td>{h.new_owner_name}</td>
                 <td>{reasonLabel(t, h.transfer_reason, h.transfer_reason_details)}</td>
-                <td>{SERVER_NOTES.includes(h.notes) ? t(h.notes) : h.notes}</td>
+                <td>{h.notes && SERVER_NOTES.includes(h.notes) ? t(h.notes) : h.notes}</td>
               </tr>
             ))}
           </tbody>
@@ -72,7 +88,11 @@ export function HistoryTable({ history }) {
   );
 }
 
-export function DisputesTable({ disputes }) {
+interface DisputesTableProps {
+  disputes: DisputeSummary[];
+}
+
+export function DisputesTable({ disputes }: DisputesTableProps) {
   const { t } = useT();
   return (
     <div className="card">

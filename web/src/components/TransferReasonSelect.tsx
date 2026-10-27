@@ -2,17 +2,24 @@ import { useEffect, useState } from 'react';
 import api from '../api/client';
 import { useT } from '../i18n';
 
-let cached = null; // the list is fixed; fetch it once per visit
+let cached: string[] | null = null; // the list is fixed; fetch it once per visit
+
+interface TransferReasonSelectProps {
+  reason: string;
+  details: string;
+  onChange: (reason: string, details: string) => void;
+  disabled?: boolean;
+}
 
 // FR11: why the officer is transferring the parcel. "Other" asks for a short
 // description. Both go into the ownership history.
-export default function TransferReasonSelect({ reason, details, onChange, disabled }) {
+export default function TransferReasonSelect({ reason, details, onChange, disabled }: TransferReasonSelectProps) {
   const { t } = useT();
-  const [reasons, setReasons] = useState(cached || []);
+  const [reasons, setReasons] = useState<string[]>(cached || []);
 
   useEffect(() => {
     if (cached) return;
-    api.get('/parcels/transfer-reasons').then(({ data }) => { cached = data; setReasons(data); }).catch(() => {});
+    api.get<string[]>('/parcels/transfer-reasons').then(({ data }) => { cached = data; setReasons(data); }).catch(() => {});
   }, []);
 
   return (

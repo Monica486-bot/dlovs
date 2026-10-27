@@ -4,19 +4,20 @@ import api, { errorMessage } from '../../api/client';
 import { useT } from '../../i18n';
 import { formatDate } from '../../utils/format';
 import StatusBadge from '../../components/StatusBadge';
+import type { IdParams, OwnerPortfolioData } from '../../types';
 
 // FR09 for everyone: all parcels registered to an owner, so a buyer can check
 // that what a seller claims matches the register, and notice a seller with
 // many plots or many recent sales. National ID and phone are staff-only.
 export default function PublicOwner() {
-  const { id } = useParams();
+  const { id } = useParams<'id'>() as IdParams;
   const { t } = useT();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<OwnerPortfolioData | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    api.get(`/owners/${id}`)
+    api.get<OwnerPortfolioData>(`/owners/${id}`)
       .then(({ data: d }) => { if (!cancelled) setData(d); })
       .catch((err) => { if (!cancelled) setError(errorMessage(err, t('Failed to load owner'))); });
     return () => { cancelled = true; };

@@ -5,18 +5,19 @@ import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
 import { formatDateTime } from '../utils/format';
 import { ACTION_LABELS, actionLabel } from '../utils/audit';
+import type { AuditLogEntry } from '../types';
 
 // FR14: officer audit trail. The database refuses to change or delete entries.
 export default function AuditLog() {
   const { user } = useAuth();
   const { t } = useT();
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [error, setError] = useState('');
   const [action, setAction] = useState('');
   const [hideViews, setHideViews] = useState(true);
 
   useEffect(() => {
-    api.get('/audit-logs').then((res) => setLogs(res.data)).catch((err) => setError(errorMessage(err, t('Failed to load logs'))));
+    api.get<AuditLogEntry[]>('/audit-logs').then((res) => setLogs(res.data)).catch((err) => setError(errorMessage(err, t('Failed to load logs'))));
   }, [t]);
 
   const shown = logs.filter((l) => (action ? l.action_type === action : !(hideViews && l.action_type === 'VERIFY_PARCEL')));

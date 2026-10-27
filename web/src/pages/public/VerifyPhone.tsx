@@ -1,23 +1,26 @@
 import { useState } from 'react';
+import type { SubmitEvent } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import type { Location } from 'react-router-dom';
 import api, { errorMessage } from '../../api/client';
 import { useT } from '../../i18n';
 import DevCode from '../../components/DevCode';
+import type { ResendCodeResponse } from '../../types';
 
 // FR01: confirm the phone number with the 6-digit SMS code.
 export default function VerifyPhone() {
   const { t } = useT();
   const [params] = useSearchParams();
-  const location = useLocation();
+  const location = useLocation() as Location<{ devCode?: string } | null>;
   const navigate = useNavigate();
   const [phone, setPhone] = useState(params.get('phone') || '');
   const [code, setCode] = useState('');
-  const [devCode, setDevCode] = useState(location.state?.devCode);
+  const [devCode, setDevCode] = useState<string | undefined>(location.state?.devCode);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [saving, setSaving] = useState(false);
 
-  async function submit(e) {
+  async function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
     setSaving(true);
@@ -35,7 +38,7 @@ export default function VerifyPhone() {
     setError('');
     setInfo('');
     try {
-      const { data } = await api.post('/auth/resend-code', { phone_number: phone.trim() });
+      const { data } = await api.post<ResendCodeResponse>('/auth/resend-code', { phone_number: phone.trim() });
       setDevCode(data.dev_code);
       setInfo(t('A new code has been sent.'));
     } catch (err) {

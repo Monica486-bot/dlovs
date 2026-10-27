@@ -1,20 +1,28 @@
 import { useEffect, useState } from 'react';
+import type { SubmitEvent } from 'react';
 import api, { errorMessage, openDocument } from '../api/client';
 import { useT } from '../i18n';
+import type { ParcelDocument } from '../types';
 import { formatBytes, formatDate } from '../utils/format';
 import StatusBadge from './StatusBadge';
 
 // FR10 document list. Each document can be opened; officers allowed to review
 // it (FR14 separation of duties is decided by the server and shown here as
 // review_block) get Verify / Reject.
-export function DocumentTable({ documents, onChanged, showParcel = false }) {
+interface DocumentTableProps {
+  documents: ParcelDocument[];
+  onChanged?: (message: string) => void;
+  showParcel?: boolean;
+}
+
+export function DocumentTable({ documents, onChanged, showParcel = false }: DocumentTableProps) {
   const { t } = useT();
-  const [rejecting, setRejecting] = useState(null);
+  const [rejecting, setRejecting] = useState<number | null>(null);
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(null);
+  const [busy, setBusy] = useState<number | null>(null);
 
-  async function view(id) {
+  async function view(id: number) {
     setError('');
     try {
       await openDocument(id);
@@ -23,7 +31,7 @@ export function DocumentTable({ documents, onChanged, showParcel = false }) {
     }
   }
 
-  async function review(doc, decision) {
+  async function review(doc: ParcelDocument, decision: 'verified' | 'rejected') {
     setError('');
     setBusy(doc.document_id);
     try {
@@ -106,22 +114,30 @@ export function DocumentTable({ documents, onChanged, showParcel = false }) {
 }
 
 // Upload form: PDF, JPG or PNG up to 5 MB (checked here and again on the server).
-export function UploadDocument({ parcelId, onUploaded, onBehalf = false }) {
+interface UploadDocumentProps {
+  parcelId: number;
+  onUploaded?: (message: string) => void;
+  onBehalf?: boolean;
+}
+
+export function UploadDocument({ parcelId, onUploaded }: UploadDocumentProps) {
   const { t } = useT();
-  const [types, setTypes] = useState([]);
+  const [types, setTypes] = useState<string[]>([]);
   const [type, setType] = useState('');
-  const [file, setFile] = useState(null);
+  const [file, setFile] = useState<File | null>(null);
   const [inputKey, setInputKey] = useState(0);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get('/documents/types').then(({ data }) => setTypes(data)).catch(() => {});
+    api.get<string[]>('/documents/types').then(({ data }) => setTypes(data)).catch(() => {});
   }, []);
 
-  async function submit(e) {
+  async function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
+    // the submit button is disabled until a file is chosen
+    if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
       setError(t('The file is larger than 5 MB'));
       return;
@@ -155,7 +171,7 @@ export function UploadDocument({ parcelId, onUploaded, onBehalf = false }) {
         </label>
         <label>
           {t('File')}
-          <input key={inputKey} type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" onChange={(e) => setFile(e.target.files[0] || null)} required />
+          <input key={inputKey} type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" onChange={(e) => setFile(e.target.files?.[0] || null)} required />
           <span className="muted">{t('PDF, JPG or PNG · up to 5 MB')}</span>
         </label>
       </div>

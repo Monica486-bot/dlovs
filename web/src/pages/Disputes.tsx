@@ -1,24 +1,26 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { SubmitEvent } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
 import { formatDate } from '../utils/format';
 import StatusBadge from '../components/StatusBadge';
+import type { Dispute } from '../types';
 
 export default function Disputes() {
   const { user } = useAuth();
   const { t } = useT();
-  const [disputes, setDisputes] = useState([]);
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
-  const [resolving, setResolving] = useState(null);
+  const [resolving, setResolving] = useState<Dispute | null>(null);
   const [notes, setNotes] = useState('');
   const [success, setSuccess] = useState('');
 
   const load = useCallback(async () => {
     try {
-      const { data } = await api.get('/disputes');
+      const { data } = await api.get<Dispute[]>('/disputes');
       setDisputes(data);
     } catch (err) {
       setError(errorMessage(err, t('Failed to load disputes')));
@@ -29,12 +31,12 @@ export default function Disputes() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function resolve(e) {
+  async function resolve(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
     try {
-      await api.put(`/disputes/${resolving.dispute_id}/resolve`, { resolution_notes: notes.trim() });
-      setSuccess(t('Dispute on parcel #{id} resolved.', { id: resolving.parcel_id }));
+      await api.put(`/disputes/${resolving!.dispute_id}/resolve`, { resolution_notes: notes.trim() });
+      setSuccess(t('Dispute on parcel #{id} resolved.', { id: resolving!.parcel_id }));
       setResolving(null);
       setNotes('');
       load();

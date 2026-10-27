@@ -5,16 +5,17 @@ import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
 import { formatRelative } from '../utils/format';
 import StatusBadge from '../components/StatusBadge';
+import type { DashboardStats } from '../types';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { t, tn } = useT();
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    api.get('/parcels/stats')
+    api.get<DashboardStats>('/parcels/stats')
       .then(({ data }) => { if (!cancelled) setStats(data); })
       .catch((err) => { if (!cancelled) setError(errorMessage(err, t('Failed to load dashboard'))); });
     return () => { cancelled = true; };
@@ -75,7 +76,14 @@ export default function Dashboard() {
   );
 }
 
-function Stat({ label, value, to, tone }) {
+interface StatProps {
+  label: string;
+  value?: number;
+  to?: string;
+  tone?: 'warning' | 'danger' | 'success';
+}
+
+function Stat({ label, value, to, tone }: StatProps) {
   const body = (
     <>
       <span className="stat-value">{value ?? '…'}</span>

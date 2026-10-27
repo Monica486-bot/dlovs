@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { ChangeEvent, SubmitEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import api, { errorMessage } from '../api/client';
 import { useT } from '../i18n';
@@ -8,21 +9,28 @@ import DocumentTypeSelect from '../components/DocumentTypeSelect';
 import TransferReasonSelect from '../components/TransferReasonSelect';
 import { reasonLabel } from '../utils/transferReasons';
 import { EMPTY_NAMES, joinNames, splitNames } from '../utils/names';
+import type {
+  IdParams, Parcel, PendingTransfer, ResendTransferCodeResponse, StartTransferResponse, TransferCompleted, TransferConsent,
+  TransferRequest, VerifyResult,
+} from '../types';
+
+// a transfer waiting for consent: from the server, or the one just started here
+type ShownPending = Pick<PendingTransfer, 'transfer_id' | 'status' | 'new_owner_name' | 'can_confirm' | 'can_cancel'> & Partial<PendingTransfer>;
 
 const EMPTY = { names: EMPTY_NAMES, national_id: '', contact_number: '', document_type: '', notes: '', consent_document: '', reason: '', reason_details: '' };
 
 // FR11: officer transfer. Ownership changes only with the owner's consent:
 // their request, an SMS code, or a second officer's approval.
 export default function TransferParcel() {
-  const { id } = useParams();
+  const { id } = useParams<'id'>() as IdParams;
   const [params] = useSearchParams();
   const requestId = params.get('request');
   const navigate = useNavigate();
   const { t } = useT();
-  const [parcel, setParcel] = useState(null);
-  const [request, setRequest] = useState(null);
-  const [consent, setConsent] = useState(null); // { method, owner_phones, pending }
-  const [pending, setPending] = useState(null); // a transfer waiting for consent
+  const [parcel, setParcel] = useState<Parcel | null>(null);
+  const [request, setRequest] = useState<TransferRequest | null>(null);
+  const [consent, setConsent] = useState<TransferConsent | null>(null); // { method, owner_phones, pending }
+  const [pending, setPending] = useState<ShownPending | null>(null); // a transfer waiting for consent
   const [devCode, setDevCode] = useState('');
   const [code, setCode] = useState('');
   const [form, setForm] = useState(EMPTY);
@@ -34,9 +42,9 @@ export default function TransferParcel() {
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      api.get(`/parcels/${id}/verify`),
-      api.get(`/parcels/${id}/transfer-consent`),
-      requestId ? api.get(`/transfer-requests/${requestId}`) : Promise.resolve(null),
+      api.get<VerifyResult>(`/parcels/${id}/verify`),
+      api.get<TransferConsent>(`/parcels/${id}/transfer-consent`),
+      requestId ? api.get<TransferRequest>(`/transfer-requests/${requestId}`) : Promise.resolve(null),
     ])
       .then(([rec, cons, req]) => {
         if (cancelled) return;
@@ -61,12 +69,15 @@ export default function TransferParcel() {
     return () => { cancelled = true; };
   }, [id, requestId, t]);
 
-  const field = (name) => ({ value: form[name], onChange: (e) => setForm({ ...form, [name]: e.target.value }) });
+  const field = (name: Exclude<keyof typeof EMPTY, 'names'>) => ({
+    value: form[name],
+    onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, [name]: e.target.value }),
+  });
 
   // FR11: the transfer issued a new QR code. Show it ready to print, since
   // the old marker now reads as replaced. replace: Back doesn't return to a
   // form for a transfer that's already done.
-  function finished(data) {
+  function finished(data: TransferCompleted) {
     navigate(`/parcels/${id}`, {
       replace: true,
       state: { flash: t('✓ Ownership transferred to {name}.', { name: data.new_owner_name }), qrDataUrl: data.qr_data_url, newQr: true },
@@ -80,17 +91,17 @@ export default function TransferParcel() {
       const { notes, names, consent_document: consentDocument, reason, reason_details: reasonDetails, ...details } = form;
       // expected_owner_id: refuse if someone else transferred the parcel after
       // this page was opened, instead of selling the same plot twice
-      const { data, status } = await api.post(`/parcels/${id}/transfer`, {
+      const { data, status } = await api.post<StartTransferResponse>(`/parcels/${id}/transfer`, {
         new_owner: { ...details, full_name: joinNames(names) },
         notes,
         reason,
         reason_details: reasonDetails,
-        expected_owner_id: parcel.current_owner_id,
+        expected_owner_id: parcel!.current_owner_id,
         transfer_request_id: request?.request_id,
         consent_document: request ? undefined : consentDocument,
       });
       if (status === 200) {
-        finished(data);
+        finished(data as TransferCompleted);
       } else if (data.status === 'awaiting_owner') {
         setPending({ transfer_id: data.transfer_id, status: 'awaiting_owner', new_owner_name: joinNames(names), can_confirm: true, can_cancel: true });
         setDevCode(data.dev_code || '');
@@ -111,12 +122,12 @@ export default function TransferParcel() {
     }
   }
 
-  async function confirmCode(e) {
+  async function confirmCode(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
     setError('');
     try {
-      const { data } = await api.post(`/pending-transfers/${pending.transfer_id}/confirm`, { code: code.trim() });
+      const { data } = await api.post<TransferCompleted>(`/pending-transfers/${pending!.transfer_id}/confirm`, { code: code.trim() });
       finished(data);
     } catch (err) {
       setError(errorMessage(err, t('Transfer failed')));
@@ -128,7 +139,7 @@ export default function TransferParcel() {
   async function resend() {
     setError('');
     try {
-      const { data } = await api.post(`/pending-transfers/${pending.transfer_id}/resend`);
+      const { data } = await api.post<ResendTransferCodeResponse>(`/pending-transfers/${pending!.transfer_id}/resend`);
       setDevCode(data.dev_code || '');
       setCode('');
       setInfo(t('A new code was sent by SMS to the owner ({phones}).', { phones: data.sent_to.join(', ') }));
@@ -141,7 +152,7 @@ export default function TransferParcel() {
     if (!window.confirm(t('Cancel this transfer? Ownership stays as it is.'))) return;
     setError('');
     try {
-      await api.put(`/pending-transfers/${pending.transfer_id}/cancel`);
+      await api.put(`/pending-transfers/${pending!.transfer_id}/cancel`);
       setPending(null);
       setDevCode('');
       setInfo(t('Transfer cancelled.'));
@@ -220,7 +231,7 @@ export default function TransferParcel() {
             </form>
           )}
           {pending.status === 'awaiting_owner' && !pending.can_confirm && (
-            <p className="muted">{t("Started by {name}, who must enter the owner's code.", { name: pending.started_by_name })}</p>
+            <p className="muted">{t("Started by {name}, who must enter the owner's code.", { name: pending.started_by_name! })}</p>
           )}
           {pending.status === 'awaiting_approval' && (
             <div className="notice info">

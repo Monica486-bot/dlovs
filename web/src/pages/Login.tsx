@@ -1,11 +1,12 @@
 import { useState } from 'react';
+import type { SubmitEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { homePath, useAuth } from '../context/AuthContext';
-import { errorMessage } from '../api/client';
+import { errorMessage, errorResponse } from '../api/client';
 import { useT } from '../i18n';
 
 // Only follow in-app paths after login
-const safeNext = (next) => (next && next.startsWith('/') && !next.startsWith('//') ? next : null);
+const safeNext = (next: string | null) => (next && next.startsWith('/') && !next.startsWith('//') ? next : null);
 
 export default function Login() {
   const { t } = useT();
@@ -17,7 +18,7 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  async function handleSubmit(e) {
+  async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -25,7 +26,7 @@ export default function Login() {
       const user = await login(phone_number.trim(), password);
       navigate(safeNext(params.get('next')) || homePath(user), { replace: true });
     } catch (err) {
-      if (err.response?.data?.code === 'PHONE_NOT_VERIFIED') {
+      if (errorResponse(err)?.data?.code === 'PHONE_NOT_VERIFIED') {
         navigate(`/verify-phone?phone=${encodeURIComponent(phone_number.trim())}`);
         return;
       }

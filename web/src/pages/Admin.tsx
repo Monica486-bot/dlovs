@@ -1,29 +1,33 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { ChangeEvent, SubmitEvent } from 'react';
 import api, { errorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
 import { formatDate } from '../utils/format';
 import StatusBadge from '../components/StatusBadge';
+import type { Role, User } from '../types';
 
-const ROLES = ['citizen', 'land_officer', 'administrator'];
-const EMPTY_FORM = { full_name: '', phone_number: '', password: '', role: 'land_officer', national_id: '' };
+const ROLES: Role[] = ['citizen', 'land_officer', 'administrator'];
+const EMPTY_FORM: { full_name: string; phone_number: string; password: string; role: Role; national_id: string } = {
+  full_name: '', phone_number: '', password: '', role: 'land_officer', national_id: '',
+};
 
 // FR21 administrator dashboard: accounts, roles, password resets (FR20 for
 // staff), deactivating fraudulent parcels. Every action is audit-logged.
 export default function Admin() {
   const { user: me } = useAuth();
   const { t } = useT();
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [parcelId, setParcelId] = useState('');
-  const [resetting, setResetting] = useState(null);
+  const [resetting, setResetting] = useState<User | null>(null);
   const [tempPassword, setTempPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   const loadUsers = useCallback(async () => {
     try {
-      const { data } = await api.get('/admin/users');
+      const { data } = await api.get<User[]>('/admin/users');
       setUsers(data);
     } catch (err) {
       setError(errorMessage(err, t('Failed to load users')));
@@ -32,7 +36,7 @@ export default function Admin() {
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
 
-  async function run(action, message) {
+  async function run(action: () => Promise<unknown>, message: string) {
     setError('');
     setSuccess('');
     try {
@@ -44,9 +48,9 @@ export default function Admin() {
     }
   }
 
-  const roleName = (r) => t({ citizen: 'Citizen', land_officer: 'Land Officer', administrator: 'Administrator' }[r]);
+  const roleName = (r: Role) => t({ citizen: 'Citizen', land_officer: 'Land Officer', administrator: 'Administrator' }[r]);
 
-  function createUser(e) {
+  function createUser(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     run(async () => {
       await api.post('/admin/users', form);
@@ -54,20 +58,21 @@ export default function Admin() {
     }, t('Created {role} account for {name}', { role: roleName(form.role), name: form.full_name }));
   }
 
-  function changeRole(u, role) {
+  function changeRole(u: User, role: Role) {
     if (!window.confirm(t("Change {name}'s role to {role}?", { name: u.full_name, role: roleName(role) }))) return;
     run(() => api.put(`/admin/users/${u.user_id}/role`, { role }), t('Role updated'));
   }
 
-  function toggleActive(u) {
+  function toggleActive(u: User) {
     const question = u.is_active ? t('Deactivate {name}?', { name: u.full_name }) : t('Reactivate {name}?', { name: u.full_name });
     if (!window.confirm(question)) return;
     run(() => api.put(`/admin/users/${u.user_id}/${u.is_active ? 'deactivate' : 'reactivate'}`), u.is_active ? t('User deactivated') : t('User reactivated'));
   }
 
-  function resetPassword(e) {
+  function resetPassword(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    const target = resetting;
+    // the form is only shown while resetting someone's password
+    const target = resetting!;
     run(async () => {
       await api.put(`/admin/users/${target.user_id}/password`, { new_password: tempPassword });
       setResetting(null);
@@ -75,7 +80,7 @@ export default function Admin() {
     }, t('Password reset for {name}.', { name: target.full_name }));
   }
 
-  function deactivateParcel(e) {
+  function deactivateParcel(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!window.confirm(t('Deactivate parcel #{id} as fraudulent?', { id: parcelId }))) return;
     run(async () => {
@@ -84,7 +89,10 @@ export default function Admin() {
     }, t('Parcel #{id} deactivated', { id: parcelId }));
   }
 
-  const field = (name) => ({ value: form[name], onChange: (e) => setForm({ ...form, [name]: e.target.value }) });
+  const field = (name: keyof typeof EMPTY_FORM) => ({
+    value: form[name],
+    onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [name]: e.target.value }),
+  });
 
   return (
     <div>
@@ -124,7 +132,7 @@ export default function Admin() {
                   <tr key={u.user_id}>
                     <td>{u.full_name}</td>
                     <td>
-                      <select value={u.role} disabled={isMe} onChange={(e) => changeRole(u, e.target.value)} aria-label={t('Role')} style={{ marginTop: 0, minWidth: 140 }}>
+                      <select value={u.role} disabled={isMe} onChange={(e) => changeRole(u, e.target.value as Role)} aria-label={t('Role')} style={{ marginTop: 0, minWidth: 140 }}>
                         {ROLES.map((r) => <option key={r} value={r}>{roleName(r)}</option>)}
                       </select>
                     </td>

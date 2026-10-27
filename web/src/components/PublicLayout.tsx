@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
@@ -6,7 +7,11 @@ import NotificationBell from './NotificationBell';
 import UserChip from './UserChip';
 
 // Public and citizen pages: the same white header, no sidebar.
-export default function PublicLayout({ children }) {
+interface PublicLayoutProps {
+  children: ReactNode;
+}
+
+export default function PublicLayout({ children }: PublicLayoutProps) {
   const { user, isStaff, logout } = useAuth();
   const { t } = useT();
   const navigate = useNavigate();

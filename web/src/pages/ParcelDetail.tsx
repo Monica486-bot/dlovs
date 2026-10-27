@@ -1,21 +1,25 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
+import type { Location } from 'react-router-dom';
 import api, { errorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
 import StatusBadge from '../components/StatusBadge';
 import { DocumentTable, UploadDocument } from '../components/Documents';
 import { DisputesTable, HistoryTable, OwnerFacts, RecordWarnings } from '../components/ParcelRecord';
+import type {
+  IdParams, ParcelDocument, ParcelFlashState, ParcelQr, PendingTransferListItem, TransferRequestListItem, VerifyResult,
+} from '../types';
 
 export default function ParcelDetail() {
-  const { id } = useParams();
+  const { id } = useParams<'id'>() as IdParams;
   const { user } = useAuth();
   const { t } = useT();
-  const location = useLocation();
-  const [record, setRecord] = useState(null);
-  const [documents, setDocuments] = useState([]);
-  const [pendingRequest, setPendingRequest] = useState(null);
-  const [pendingTransfer, setPendingTransfer] = useState(null);
+  const location = useLocation() as Location<ParcelFlashState | null>;
+  const [record, setRecord] = useState<VerifyResult | null>(null);
+  const [documents, setDocuments] = useState<ParcelDocument[]>([]);
+  const [pendingRequest, setPendingRequest] = useState<TransferRequestListItem | null>(null);
+  const [pendingTransfer, setPendingTransfer] = useState<PendingTransferListItem | null>(null);
   const [qr, setQr] = useState(location.state?.qrDataUrl || null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(location.state?.flash || '');
@@ -31,10 +35,10 @@ export default function ParcelDetail() {
   const load = useCallback(async () => {
     try {
       const [rec, docs, reqs, transfers] = await Promise.all([
-        api.get(`/parcels/${id}/verify`),
-        api.get(`/parcels/${id}/documents`),
-        api.get('/transfer-requests', { params: { status: 'pending' } }),
-        api.get('/pending-transfers'),
+        api.get<VerifyResult>(`/parcels/${id}/verify`),
+        api.get<ParcelDocument[]>(`/parcels/${id}/documents`),
+        api.get<TransferRequestListItem[]>('/transfer-requests', { params: { status: 'pending' } }),
+        api.get<PendingTransferListItem[]>('/pending-transfers'),
       ]);
       setRecord(rec.data);
       setDocuments(docs.data);
@@ -49,14 +53,14 @@ export default function ParcelDetail() {
 
   async function showQr() {
     try {
-      const { data } = await api.get(`/parcels/${id}/qr`);
+      const { data } = await api.get<ParcelQr>(`/parcels/${id}/qr`);
       setQr(data.qr_data_url);
     } catch (err) {
       setError(errorMessage(err, t('Failed to load QR code')));
     }
   }
 
-  const done = (msg) => { setNotice(msg); setUploading(false); load(); };
+  const done = (msg: string) => { setNotice(msg); setUploading(false); load(); };
 
   if (error) return <div><h2>{t('Parcel #{id}', { id })}</h2><div className="error-text">{error}</div></div>;
   if (!record) return <div><h2>{t('Parcel #{id}', { id })}</h2><p className="muted">{t('Loading…')}</p></div>;

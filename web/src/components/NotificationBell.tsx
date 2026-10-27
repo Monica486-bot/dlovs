@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import api from '../api/client';
 import { useT } from '../i18n';
+import type { NotificationsResponse } from '../types';
 
 // FR15: unread count, refreshed every minute and whenever the page changes.
 export default function NotificationBell() {
@@ -12,7 +13,7 @@ export default function NotificationBell() {
   useEffect(() => {
     let cancelled = false;
     const load = () =>
-      api.get('/notifications')
+      api.get<NotificationsResponse>('/notifications')
         .then(({ data }) => { if (!cancelled) setUnread(data.unread); })
         .catch(() => {});
     load();

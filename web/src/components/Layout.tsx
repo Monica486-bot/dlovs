@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
@@ -6,7 +7,11 @@ import NotificationBell from './NotificationBell';
 import UserChip from './UserChip';
 
 // Staff (land officer / administrator) layout: white header, navy sidebar.
-export default function Layout({ children }) {
+interface LayoutProps {
+  children: ReactNode;
+}
+
+export default function Layout({ children }: LayoutProps) {
   const { user, logout } = useAuth();
   const { t } = useT();
   const navigate = useNavigate();
@@ -20,7 +25,7 @@ export default function Layout({ children }) {
   }
 
   // parcel and owner pages are reached from Parcel Records, so keep it highlighted there
-  const recordsActive = ({ isActive }) =>
+  const recordsActive = ({ isActive }: { isActive: boolean }) =>
     isActive || /^\/(parcels\/\d|owners\/)/.test(location.pathname) ? 'active' : undefined;
 
   return (

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ChangeEvent, SubmitEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { errorMessage } from '../api/client';
 import { useT } from '../i18n';
@@ -7,6 +8,7 @@ import NeighbourhoodSelect from '../components/NeighbourhoodSelect';
 import DocumentTypeSelect from '../components/DocumentTypeSelect';
 import FourNames from '../components/FourNames';
 import { EMPTY_NAMES, joinNames } from '../utils/names';
+import type { CreatedParcel } from '../types';
 
 const initialForm = {
   gps_lat: '', gps_lng: '', neighbourhood: '', area_sqm: '',
@@ -21,14 +23,14 @@ export default function RegisterParcel() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const field = (name) => ({ value: form[name], onChange: (e) => setForm({ ...form, [name]: e.target.value }) });
+  const field = (name: Exclude<keyof typeof initialForm, 'owner_names'>) => ({ value: form[name], onChange: (e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, [name]: e.target.value }) });
 
-  async function handleSubmit(e) {
+  async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const { data } = await api.post('/parcels', {
+      const { data } = await api.post<CreatedParcel>('/parcels', {
         gps_lat: parseFloat(form.gps_lat),
         gps_lng: parseFloat(form.gps_lng),
         neighbourhood: form.neighbourhood,

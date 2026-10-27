@@ -1,29 +1,31 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errorMessage } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useT } from '../../i18n';
 import { formatDate } from '../../utils/format';
 import StatusBadge from '../../components/StatusBadge';
+import type { MyParcelsResponse } from '../../types';
 
 // FR09 (citizen side): parcels registered to the citizen's national ID.
 export default function MyParcels() {
   const { t, tn } = useT();
   const { user, updateUser } = useAuth();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<MyParcelsResponse | null>(null);
   const [error, setError] = useState('');
   const [nationalId, setNationalId] = useState('');
   const [confirming, setConfirming] = useState(false);
 
   const load = useCallback(() => {
-    api.get('/parcels/mine')
+    api.get<MyParcelsResponse>('/parcels/mine')
       .then(({ data: d }) => { setData(d); setError(''); })
       .catch((err) => setError(errorMessage(err, t('Failed to load your parcels'))));
   }, [t]);
 
   useEffect(() => { load(); }, [load]);
 
-  async function saveNationalId(e) {
+  async function saveNationalId(e: MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
     setError('');
     try {
@@ -66,7 +68,7 @@ export default function MyParcels() {
 
       {data?.id_status === 'pending' && (
         <div className="notice info">
-          <span><strong>{t('ID check pending')}</strong> · {t('Show your ID card ({id}) at the land office to see your parcels here.', { id: user?.national_id })}</span>
+          <span><strong>{t('ID check pending')}</strong> · {t('Show your ID card ({id}) at the land office to see your parcels here.', { id: user?.national_id! })}</span>
         </div>
       )}
 

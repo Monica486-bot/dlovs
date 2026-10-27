@@ -4,20 +4,21 @@ import api, { errorMessage } from '../api/client';
 import { useT } from '../i18n';
 import { formatDate } from '../utils/format';
 import StatusBadge from '../components/StatusBadge';
+import type { IdParams, OwnerPortfolioData, ParcelQr } from '../types';
 
 // FR09: every parcel registered to one owner (matched by national ID), with
 // printable QR codes, plus parcels they have transferred away. A seller with
 // many plots (or many recent sales) is worth a closer look.
 export default function OwnerPortfolio() {
-  const { id } = useParams();
+  const { id } = useParams<'id'>() as IdParams;
   const { t } = useT();
-  const [data, setData] = useState(null);
-  const [qrs, setQrs] = useState({});
+  const [data, setData] = useState<OwnerPortfolioData | null>(null);
+  const [qrs, setQrs] = useState<Record<number, string | null>>({});
   const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    api.get(`/owners/${id}`)
+    api.get<OwnerPortfolioData>(`/owners/${id}`)
       .then(({ data: d }) => { if (!cancelled) setData(d); })
       .catch((err) => { if (!cancelled) setError(errorMessage(err, t('Failed to load owner'))); });
     return () => { cancelled = true; };
@@ -25,7 +26,7 @@ export default function OwnerPortfolio() {
 
   async function loadQrs() {
     const entries = await Promise.all(
-      data.parcels.map((p) => api.get(`/parcels/${p.parcel_id}/qr`).then(({ data: q }) => [p.parcel_id, q.qr_data_url]).catch(() => [p.parcel_id, null]))
+      data!.parcels.map((p) => api.get<ParcelQr>(`/parcels/${p.parcel_id}/qr`).then(({ data: q }): [number, string | null] => [p.parcel_id, q.qr_data_url]).catch((): [number, null] => [p.parcel_id, null]))
     );
     setQrs(Object.fromEntries(entries));
   }
@@ -60,7 +61,7 @@ export default function OwnerPortfolio() {
           <div className={showQr ? 'qr-grid' : 'table-scroll'}>
             {showQr ? parcels.map((p) => (
               <div className="qr-tile" key={p.parcel_id}>
-                {qrs[p.parcel_id] && <img src={qrs[p.parcel_id]} alt={t('QR code for parcel {id}', { id: p.parcel_id })} />}
+                {qrs[p.parcel_id] && <img src={qrs[p.parcel_id]!} alt={t('QR code for parcel {id}', { id: p.parcel_id })} />}
                 <div>{t('DLOVS Parcel #{id}', { id: p.parcel_id })} · {p.neighbourhood}</div>
               </div>
             )) : (

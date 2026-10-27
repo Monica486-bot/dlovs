@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { SubmitEvent } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -6,6 +7,7 @@ import { useT } from '../i18n';
 import { reasonLabel } from '../utils/transferReasons';
 import { formatDate } from '../utils/format';
 import StatusBadge from '../components/StatusBadge';
+import type { TransferRequestListItem } from '../types';
 
 // Owners' requests to transfer a parcel. Processing opens the normal transfer
 // screen pre-filled with the buyer; nothing changes until that is confirmed.
@@ -13,21 +15,21 @@ export default function TransferRequests() {
   const { t } = useT();
   const { user } = useAuth();
   const [status, setStatus] = useState('pending');
-  const [requests, setRequests] = useState(null);
-  const [rejecting, setRejecting] = useState(null);
+  const [requests, setRequests] = useState<TransferRequestListItem[] | null>(null);
+  const [rejecting, setRejecting] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
   const load = useCallback(() => {
-    api.get('/transfer-requests', { params: { status } })
+    api.get<TransferRequestListItem[]>('/transfer-requests', { params: { status } })
       .then(({ data }) => { setRequests(data); setError(''); })
       .catch((err) => setError(errorMessage(err, t('Failed to load transfer requests'))));
   }, [status, t]);
 
   useEffect(() => { load(); }, [load]);
 
-  async function reject(e) {
+  async function reject(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
     try {

@@ -1,30 +1,31 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import api, { errorMessage } from '../../api/client';
+import api, { errorMessage, errorResponse } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useT } from '../../i18n';
 import { formatDate } from '../../utils/format';
 import FlagDispute from '../../components/FlagDispute';
 import StatusBadge from '../../components/StatusBadge';
 import { DisputesTable, HistoryTable, OwnerFacts, RecordWarnings } from '../../components/ParcelRecord';
+import type { IdParams, VerifyResult } from '../../types';
 
 // FR02 / FR07: the public ownership record; FR05 QR check via ?s=.
 export default function PublicParcel() {
-  const { id } = useParams();
+  const { id } = useParams<'id'>() as IdParams;
   const [searchParams] = useSearchParams();
   const signature = searchParams.get('s') || undefined;
   const { t } = useT();
   const { user, isStaff } = useAuth();
-  const [record, setRecord] = useState(null);
+  const [record, setRecord] = useState<VerifyResult | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
   const load = useCallback(() => {
-    api.get(`/parcels/${id}/verify`, { params: { signature } })
+    api.get<VerifyResult>(`/parcels/${id}/verify`, { params: { signature } })
       .then(({ data }) => { setRecord(data); setError(''); })
       .catch((err) => {
-        if (err.response?.status === 404) setError('not_found');
-        else if (err.response?.data?.code === 'QR_INVALID') setError('invalid_qr');
+        if (errorResponse(err)?.status === 404) setError('not_found');
+        else if (errorResponse(err)?.data?.code === 'QR_INVALID') setError('invalid_qr');
         else setError(errorMessage(err, t('Failed to load parcel')));
       });
   }, [id, signature, t]);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import api, { errorMessage } from '../api/client';
 import { useT } from '../i18n';
 import { DocumentTable } from '../components/Documents';
+import type { ParcelDocument } from '../types';
 
 // FR10 review queue. FR14: documents the officer may not review (they
 // registered the parcel or uploaded the document) say why instead of showing
@@ -11,12 +12,12 @@ const TABS = ['pending', 'verified', 'rejected'];
 export default function Documents() {
   const { t, tn } = useT();
   const [tab, setTab] = useState('pending');
-  const [documents, setDocuments] = useState(null);
+  const [documents, setDocuments] = useState<ParcelDocument[] | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
   const load = useCallback(() => {
-    api.get('/documents', { params: { status: tab } })
+    api.get<ParcelDocument[]>('/documents', { params: { status: tab } })
       .then(({ data }) => { setDocuments(data); setError(''); })
       .catch((err) => setError(errorMessage(err, t('Failed to load documents'))));
   }, [tab, t]);

@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import type { SubmitEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api, { errorMessage } from '../../api/client';
 import { useT } from '../../i18n';
 import DevCode from '../../components/DevCode';
+import type { ForgotPasswordResponse } from '../../types';
 
 // FR20: citizens reset a forgotten password with an SMS code. Land officers
 // and administrators are told to ask an administrator.
@@ -13,17 +15,17 @@ export default function ForgotPassword() {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
-  const [devCode, setDevCode] = useState(null);
+  const [devCode, setDevCode] = useState<string | null | undefined>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  async function requestCode(e) {
+  async function requestCode(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
     setSaving(true);
     try {
-      const { data } = await api.post('/auth/forgot-password', { phone_number: phone.trim() });
+      const { data } = await api.post<ForgotPasswordResponse>('/auth/forgot-password', { phone_number: phone.trim() });
       if (data.staff) {
         setStep('staff');
       } else {
@@ -38,7 +40,7 @@ export default function ForgotPassword() {
     }
   }
 
-  async function reset(e) {
+  async function reset(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
     setSaving(true);

@@ -5,25 +5,26 @@ import { useT } from '../i18n';
 import { formatDateTime } from '../utils/format';
 import StatusBadge from '../components/StatusBadge';
 import { reasonLabel } from '../utils/transferReasons';
+import type { PendingTransferListItem } from '../types';
 
 // FR11 / FR14: a second officer approves transfers with written consent.
 export default function TransferApprovals() {
   const { t } = useT();
-  const [items, setItems] = useState(null);
+  const [items, setItems] = useState<PendingTransferListItem[] | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [rejecting, setRejecting] = useState(null);
+  const [rejecting, setRejecting] = useState<number | null>(null);
   const [reason, setReason] = useState('');
 
   const load = useCallback(() => {
-    api.get('/pending-transfers')
+    api.get<PendingTransferListItem[]>('/pending-transfers')
       .then(({ data }) => setItems(data))
       .catch((err) => setError(errorMessage(err, t('Failed to load transfers'))));
   }, [t]);
 
   useEffect(() => { load(); }, [load]);
 
-  async function act(promise, message) {
+  async function act(promise: Promise<unknown>, message: string) {
     setError('');
     setNotice('');
     try {
@@ -37,7 +38,7 @@ export default function TransferApprovals() {
     }
   }
 
-  function approve(p) {
+  function approve(p: PendingTransferListItem) {
     if (!window.confirm(t('Approve the transfer of parcel #{id} from {from} to {to}? Ownership changes immediately.', { id: p.parcel_id, from: p.owner_name, to: p.new_owner_name }))) return;
     act(api.put(`/pending-transfers/${p.transfer_id}/approve`), t('✓ Ownership transferred to {name}.', { name: p.new_owner_name }));
   }

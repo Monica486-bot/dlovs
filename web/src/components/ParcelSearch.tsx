@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { SubmitEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api, { errorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -6,6 +7,7 @@ import { useT } from '../i18n';
 import { formatDate, localDate } from '../utils/format';
 import LocationButton from './LocationButton';
 import StatusBadge from './StatusBadge';
+import type { ParcelSearchResult } from '../types';
 
 // FR06 verification pathways and FR17 filters, shared by the public Verify
 // page and the staff Search page. The search lives in the URL, so Back from a
@@ -22,12 +24,17 @@ const MODES = {
 const STAFF_ONLY = ['national_id'];
 const RADII = [50, 100, 200, 500, 1000];
 
-export default function ParcelSearch({ recordPath }) {
+interface ParcelSearchProps {
+  recordPath: (parcelId: number) => string;
+}
+
+export default function ParcelSearch({ recordPath }: ParcelSearchProps) {
   const { t } = useT();
   const { user, isStaff } = useAuth();
   const [params, setParams] = useSearchParams();
   const modes = Object.entries(MODES).filter(([key]) => isStaff || !STAFF_ONLY.includes(key));
-  const urlBy = modes.some(([key]) => key === params.get('by')) ? params.get('by') : 'any';
+  const byParam = params.get('by');
+  const urlBy = byParam !== null && modes.some(([key]) => key === byParam) ? byParam : 'any';
   const urlQuery = params.get('q') || '';
   const urlLat = params.get('lat') || '';
   const urlLng = params.get('lng') || '';
@@ -37,7 +44,7 @@ export default function ParcelSearch({ recordPath }) {
   const [query, setQuery] = useState(urlQuery);
   const [point, setPoint] = useState({ lat: urlLat, lng: urlLng, radius: urlRadius });
   const [filters, setFilters] = useState({ status: '', from: '', to: '', documents: '' });
-  const [results, setResults] = useState(null);
+  const [results, setResults] = useState<ParcelSearchResult[] | null>(null);
   const [error, setError] = useState('');
 
   const hasSearch = urlBy === 'near' ? Boolean(urlLat && urlLng) : Boolean(urlQuery);
@@ -47,13 +54,13 @@ export default function ParcelSearch({ recordPath }) {
     const request = urlBy === 'near'
       ? { by: 'near', lat: urlLat, lng: urlLng, radius: urlRadius }
       : { by: urlBy, query: urlQuery };
-    api.get('/parcels/search', { params: request })
+    api.get<ParcelSearchResult[]>('/parcels/search', { params: request })
       .then(({ data }) => { if (!cancelled) { setResults(data); setError(''); } })
       .catch((err) => { if (!cancelled) { setResults(null); setError(errorMessage(err, t('Search failed'))); } });
     return () => { cancelled = true; };
   }, [urlBy, urlQuery, urlLat, urlLng, urlRadius, hasSearch, t]);
 
-  function submit(e) {
+  function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     if (by === 'near') setParams({ by, lat: point.lat.trim(), lng: point.lng.trim(), radius: point.radius });
     else setParams({ by, q: query.trim() });
@@ -168,7 +175,7 @@ export default function ParcelSearch({ recordPath }) {
                     <td>{p.owner_name}</td>
                     <td>{p.neighbourhood}</td>
                     <td>{formatDate(p.registered_date)}</td>
-                    {isNear && <td>{t('{m} m', { m: p.distance_m })}</td>}
+                    {isNear && <td>{t('{m} m', { m: p.distance_m! })}</td>}
                     <td><StatusBadge status={p.status} /></td>
                     <td><Link className="view-link" to={recordPath(p.parcel_id)}>{t('View →')}</Link></td>
                   </tr>

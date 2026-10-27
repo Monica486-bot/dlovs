@@ -1,35 +1,37 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { SubmitEvent } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
 import { formatDate } from '../utils/format';
 import StatusBadge from '../components/StatusBadge';
+import type { UnregisteredReport } from '../types';
 
 // FR13: citizens' reports of plots that aren't in DLOVS.
 export default function PlotReports() {
   const { t } = useT();
   const { user } = useAuth();
   const [status, setStatus] = useState('open');
-  const [reports, setReports] = useState(null);
-  const [closing, setClosing] = useState(null);
-  const [form, setForm] = useState({ status: 'registered', parcel_id: '', response_notes: '' });
+  const [reports, setReports] = useState<UnregisteredReport[] | null>(null);
+  const [closing, setClosing] = useState<UnregisteredReport | null>(null);
+  const [form, setForm] = useState<{ status: 'registered' | 'dismissed'; parcel_id: string; response_notes: string }>({ status: 'registered', parcel_id: '', response_notes: '' });
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
   const load = useCallback(() => {
-    api.get('/unregistered-reports', { params: { status } })
+    api.get<UnregisteredReport[]>('/unregistered-reports', { params: { status } })
       .then(({ data }) => { setReports(data); setError(''); })
       .catch((err) => setError(errorMessage(err, t('Failed to load reports'))));
   }, [status, t]);
 
   useEffect(() => { load(); }, [load]);
 
-  async function close(e) {
+  async function close(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
     try {
-      await api.put(`/unregistered-reports/${closing.report_id}`, {
+      await api.put(`/unregistered-reports/${closing!.report_id}`, {
         status: form.status,
         response_notes: form.response_notes.trim(),
         parcel_id: form.status === 'registered' && form.parcel_id ? Number(form.parcel_id) : undefined,
@@ -77,7 +79,7 @@ export default function PlotReports() {
           </p>
           {r.status !== 'open' && (
             <p className="small" style={{ marginBottom: 0 }}>
-              {t('{who} on {date}:', { who: r.handled_by_name, date: formatDate(r.handled_at) })} {r.response_notes}
+              {t('{who} on {date}:', { who: r.handled_by_name!, date: formatDate(r.handled_at) })} {r.response_notes}
               {r.parcel_id && <> · <Link to={`/parcels/${r.parcel_id}`}>{t('Parcel #{id}', { id: r.parcel_id })}</Link></>}
             </p>
           )}

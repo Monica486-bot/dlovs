@@ -1,16 +1,9 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import api from '../api/client';
+import type { SessionUser } from '../types';
 
-export interface DlovsUser {
-  user_id: number;
-  full_name: string;
-  role: 'citizen' | 'land_officer' | 'administrator';
-  platform: string;
-  phone_number: string;
-  national_id: string | null;
-  national_id_verified: boolean;
-}
+export type DlovsUser = SessionUser;
 
 interface AuthContextValue {
   user: DlovsUser | null;
@@ -37,20 +30,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!localStorage.getItem('dlovs_token')) return;
-    api.get('/auth/me')
+    api.get<DlovsUser>('/auth/me')
       .then(({ data }) => {
         localStorage.setItem('dlovs_user', JSON.stringify(data));
-        setUser(data as DlovsUser);
+        setUser(data);
       })
       .catch(() => {});
   }, []);
 
   async function login(phone_number: string, password: string): Promise<DlovsUser> {
-    const { data } = await api.post('/auth/login', { phone_number, password });
-    localStorage.setItem('dlovs_token', (data as { token: string }).token);
-    localStorage.setItem('dlovs_user', JSON.stringify((data as { user: DlovsUser }).user));
-    setUser((data as { user: DlovsUser }).user);
-    return (data as { user: DlovsUser }).user;
+    const { data } = await api.post<{ token: string; user: DlovsUser }>('/auth/login', { phone_number, password });
+    localStorage.setItem('dlovs_token', data.token);
+    localStorage.setItem('dlovs_user', JSON.stringify(data.user));
+    setUser(data.user);
+    return data.user;
   }
 
   function logout(): void {

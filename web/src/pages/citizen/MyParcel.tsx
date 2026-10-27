@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { ChangeEvent, SubmitEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import api, { errorMessage } from '../../api/client';
+import api, { errorMessage, errorResponse } from '../../api/client';
 import { useT } from '../../i18n';
 import FourNames from '../../components/FourNames';
 import TransferReasonSelect from '../../components/TransferReasonSelect';
@@ -11,36 +12,37 @@ import StatusBadge from '../../components/StatusBadge';
 import FlagDispute from '../../components/FlagDispute';
 import { DocumentTable, UploadDocument } from '../../components/Documents';
 import { DisputesTable, HistoryTable, OwnerFacts, RecordWarnings } from '../../components/ParcelRecord';
+import type { CreatedTransferRequest, IdParams, ParcelDocument, TransferRequestListItem, VerifyResult } from '../../types';
 
 // The owner's view of one parcel: documents (FR10), transfer request, disputes.
 export default function MyParcel() {
-  const { id } = useParams();
+  const { id } = useParams<'id'>() as IdParams;
   const { t } = useT();
-  const [record, setRecord] = useState(null);
-  const [documents, setDocuments] = useState([]);
-  const [requests, setRequests] = useState([]);
+  const [record, setRecord] = useState<VerifyResult | null>(null);
+  const [documents, setDocuments] = useState<ParcelDocument[]>([]);
+  const [requests, setRequests] = useState<TransferRequestListItem[]>([]);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
   const load = useCallback(async () => {
     try {
       const [rec, docs, reqs] = await Promise.all([
-        api.get(`/parcels/${id}/verify`),
-        api.get(`/parcels/${id}/documents`),
-        api.get('/transfer-requests', { params: { status: 'all' } }),
+        api.get<VerifyResult>(`/parcels/${id}/verify`),
+        api.get<ParcelDocument[]>(`/parcels/${id}/documents`),
+        api.get<TransferRequestListItem[]>('/transfer-requests', { params: { status: 'all' } }),
       ]);
       setRecord(rec.data);
       setDocuments(docs.data);
       setRequests(reqs.data.filter((r) => r.parcel_id === Number(id)));
       setError('');
     } catch (err) {
-      setError(err.response?.status === 403 ? 'not_owner' : errorMessage(err, t('Failed to load parcel')));
+      setError(errorResponse(err)?.status === 403 ? 'not_owner' : errorMessage(err, t('Failed to load parcel')));
     }
   }, [id, t]);
 
   useEffect(() => { load(); }, [load]);
 
-  const done = (msg) => { setNotice(msg); load(); window.scrollTo(0, 0); };
+  const done = (msg: string) => { setNotice(msg); load(); window.scrollTo(0, 0); };
 
   if (error === 'not_owner') {
     return (
@@ -106,21 +108,29 @@ export default function MyParcel() {
 }
 
 // Use case "Initiate Transfer Request"
-function TransferRequestForm({ parcelId, onSent }) {
+interface TransferRequestFormProps {
+  parcelId: number;
+  onSent: (message: string) => void;
+}
+
+function TransferRequestForm({ parcelId, onSent }: TransferRequestFormProps) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ buyer_names: EMPTY_NAMES, buyer_national_id: '', buyer_contact: '', notes: '', reason: '', reason_details: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const field = (name) => ({ value: form[name], onChange: (e) => setForm({ ...form, [name]: e.target.value }) });
+  const field = (name: Exclude<keyof typeof form, 'buyer_names'>) => ({
+    value: form[name],
+    onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, [name]: e.target.value }),
+  });
 
-  async function submit(e) {
+  async function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
     setSaving(true);
     try {
       const { buyer_names, ...rest } = form;
-      const { data } = await api.post(`/parcels/${parcelId}/transfer-requests`, { ...rest, buyer_full_name: joinNames(buyer_names) });
+      const { data } = await api.post<CreatedTransferRequest>(`/parcels/${parcelId}/transfer-requests`, { ...rest, buyer_full_name: joinNames(buyer_names) });
       setOpen(false);
       onSent(data.buyer_can_accept
         ? t('✓ Transfer request sent to the buyer. They accept it in DLOVS with a code sent to their phone; no visit to the land office is needed.')

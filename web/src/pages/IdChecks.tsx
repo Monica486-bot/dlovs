@@ -2,27 +2,28 @@ import { useCallback, useEffect, useState } from 'react';
 import api, { errorMessage } from '../api/client';
 import { useT } from '../i18n';
 import { formatDate } from '../utils/format';
+import type { IdCheck } from '../types';
 
 // A citizen's national ID links their account to land only after an officer
 // has seen the ID card in person. Without this check, anyone could type a
 // real owner's ID number and see (or try to sell) their land.
 export default function IdChecks() {
   const { t, tn } = useT();
-  const [checks, setChecks] = useState(null);
-  const [rejecting, setRejecting] = useState(null);
+  const [checks, setChecks] = useState<IdCheck[] | null>(null);
+  const [rejecting, setRejecting] = useState<number | null>(null);
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
   const load = useCallback(() => {
-    api.get('/id-checks')
+    api.get<IdCheck[]>('/id-checks')
       .then(({ data }) => { setChecks(data); setError(''); })
       .catch((err) => setError(errorMessage(err, t('Failed to load ID checks'))));
   }, [t]);
 
   useEffect(() => { load(); }, [load]);
 
-  async function decide(c, decision) {
+  async function decide(c: IdCheck, decision: 'verified' | 'rejected') {
     if (decision === 'verified' && !window.confirm(t('Have you seen {name}\'s national ID card in person, and does it show {id}?', { name: c.full_name, id: c.national_id }))) return;
     setError('');
     try {
@@ -46,7 +47,7 @@ export default function IdChecks() {
       {notice && <div className="notice success">{notice}</div>}
       {checks?.length === 0 && <div className="card"><p className="muted" style={{ margin: 0 }}>{t('No ID checks waiting.')}</p></div>}
 
-      {checks?.length > 0 && (
+      {checks && checks.length > 0 && (
         <div className="card">
           <div className="table-scroll">
             <table>

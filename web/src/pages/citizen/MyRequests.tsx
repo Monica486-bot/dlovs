@@ -1,27 +1,34 @@
 import { useEffect, useState } from 'react';
+import type { SubmitEvent } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errorMessage } from '../../api/client';
 import { useT } from '../../i18n';
 import { formatDate } from '../../utils/format';
 import StatusBadge from '../../components/StatusBadge';
+import type { AcceptCodeSent, TransferRequestListItem, UnregisteredReport } from '../../types';
 
 // A transfer the owner asked to make to this citizen: the buyer accepts with
 // an SMS code (no officer needed) or declines.
-function IncomingTransfer({ request, onDone }) {
+interface IncomingTransferProps {
+  request: TransferRequestListItem;
+  onDone: () => void;
+}
+
+function IncomingTransfer({ request, onDone }: IncomingTransferProps) {
   const { t } = useT();
-  const [sent, setSent] = useState(null);
+  const [sent, setSent] = useState<AcceptCodeSent | null>(null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  async function run(action) {
+  async function run(action: () => Promise<unknown>) {
     setBusy(true);
     setError('');
     try { await action(); } catch (err) { setError(errorMessage(err, t('Something went wrong'))); }
     setBusy(false);
   }
-  const askCode = () => run(async () => setSent((await api.post(`/transfer-requests/${request.request_id}/accept-code`)).data));
-  const accept = (e) => {
+  const askCode = () => run(async () => setSent((await api.post<AcceptCodeSent>(`/transfer-requests/${request.request_id}/accept-code`)).data));
+  const accept = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     run(async () => { await api.post(`/transfer-requests/${request.request_id}/accept`, { code: code.trim() }); onDone(); });
   };
@@ -34,7 +41,7 @@ function IncomingTransfer({ request, onDone }) {
     <div className="card">
       <h3>{t('{owner} wants to transfer parcel #{id} to you', { owner: request.requested_by_name, id: request.parcel_id })}</h3>
       <p>
-        {request.neighbourhood} · {t(request.transfer_reason)}{request.transfer_reason_details ? ` (${request.transfer_reason_details})` : ''}
+        {request.neighbourhood} · {request.transfer_reason && t(request.transfer_reason)}{request.transfer_reason_details ? ` (${request.transfer_reason_details})` : ''}
         {' · '}<Link to={`/verify/${request.parcel_id}`}>{t('Check the parcel record')}</Link>
       </p>
       <p className="muted">{t('Only accept after you have checked the plot and agreed the terms with the owner. Accepting registers the parcel to you straight away.')}</p>
@@ -62,13 +69,16 @@ function IncomingTransfer({ request, onDone }) {
 // What happened to the citizen's transfer requests and unregistered-plot reports.
 export default function MyRequests() {
   const { t } = useT();
-  const [transfers, setTransfers] = useState(null);
-  const [reports, setReports] = useState(null);
+  const [transfers, setTransfers] = useState<TransferRequestListItem[] | null>(null);
+  const [reports, setReports] = useState<UnregisteredReport[] | null>(null);
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
-    Promise.all([api.get('/transfer-requests', { params: { status: 'all' } }), api.get('/unregistered-reports')])
+    Promise.all([
+      api.get<TransferRequestListItem[]>('/transfer-requests', { params: { status: 'all' } }),
+      api.get<UnregisteredReport[]>('/unregistered-reports'),
+    ])
       .then(([tr, rp]) => { setTransfers(tr.data); setReports(rp.data); })
       .catch((err) => setError(errorMessage(err, t('Failed to load your requests'))));
   }, [t, reload]);
@@ -87,7 +97,7 @@ export default function MyRequests() {
       <div className="card">
         <h3>{t('Transfer requests')}</h3>
         {mine?.length === 0 && <p className="muted">{t('You have not requested any transfers.')}</p>}
-        {mine?.length > 0 && (
+        {mine && mine.length > 0 && (
           <div className="table-scroll">
             <table>
               <thead><tr><th>{t('Date')}</th><th>{t('Parcel')}</th><th>{t('New Owner')}</th><th>{t('Status')}</th><th>{t('Response')}</th></tr></thead>
@@ -114,7 +124,7 @@ export default function MyRequests() {
       <div className="card">
         <h3>{t('Plot reports')}</h3>
         {reports?.length === 0 && <p className="muted">{t('You have not reported any plots.')} <Link to="/my/report">{t('Report a plot')}</Link></p>}
-        {reports?.length > 0 && (
+        {reports && reports.length > 0 && (
           <div className="table-scroll">
             <table>
               <thead><tr><th>{t('Date')}</th><th>{t('Neighbourhood')}</th><th>{t('Status')}</th><th>{t('Response')}</th></tr></thead>
