@@ -27,6 +27,23 @@ describe('FR06 verification pathways', () => {
     expect(near.body.find((p: { parcel_id: unknown }) => p.parcel_id === parcel.parcel_id).distance_m).toBe(0);
   });
 
+  test('GPS search keeps parcels inside the radius and drops those outside, at any bearing', async () => {
+    const parcel = await createParcel(officer.token);
+    const metresPerDegree = 111320;
+    const near = async (dNorth: number, dEast: number, radius: number) => {
+      const lat = 4.8594 + dNorth / metresPerDegree;
+      const lng = 31.5713 + dEast / (metresPerDegree * Math.cos((4.8594 * Math.PI) / 180));
+      const res = await request(app).get('/api/parcels/search').query({ by: 'near', lat, lng, radius }).expect(200);
+      return res.body.find((p: { parcel_id: unknown }) => p.parcel_id === parcel.parcel_id);
+    };
+    // 100 m due north: outside 50 m, inside 150 m
+    expect(await near(100, 0, 50)).toBeUndefined();
+    expect((await near(100, 0, 150)).distance_m).toBeCloseTo(100, -1);
+    // diagonal, close to the corner of the lat/lng box: still found when within the radius
+    expect((await near(34, 34, 50)).distance_m).toBeLessThanOrEqual(50);
+    expect(await near(40, 40, 50)).toBeUndefined();
+  });
+
   test("guests and citizens can't find someone's land by their national ID", async () => {
     const nationalId = uniqueNationalId();
     await createParcel(officer.token, { nationalId });

@@ -25,6 +25,16 @@ const DISTANCE_SQL = `(2 * 6371000 * asin(sqrt(
   cos(radians($1)) * cos(radians(p.gps_lat::float8)) * power(sin(radians(p.gps_lng::float8 - $2) / 2), 2)
 )))`;
 
+const METRES_PER_DEGREE_LAT = 111320;
+
+// Smallest lat/lng rectangle containing every point within radiusMetres.
+// Slightly larger than the circle, so the Haversine check still decides.
+function boundingBox(lat: number, lng: number, radiusMetres: number) {
+  const dLat = radiusMetres / METRES_PER_DEGREE_LAT;
+  const dLng = radiusMetres / (METRES_PER_DEGREE_LAT * Math.max(Math.cos((lat * Math.PI) / 180), 0.01));
+  return { minLat: lat - dLat, maxLat: lat + dLat, minLng: lng - dLng, maxLng: lng + dLng };
+}
+
 const SEARCH_COLUMNS = `
   p.parcel_id, p.neighbourhood, p.city, p.status, p.registered_date, o.owner_id, o.full_name AS owner_name,
   (SELECT COUNT(*)::int FROM document d WHERE d.parcel_id = p.parcel_id AND d.verification_status = 'verified') AS verified_documents,
@@ -122,14 +132,25 @@ export async function searchParcel(req: Request, res: Response) {
       if (!Number.isFinite(radius) || radius <= 0 || radius > 5000) {
         return res.status(400).json({ error: 'radius must be between 1 and 5000 metres' });
       }
+      // A lat/lng box around the circle uses idx_parcel_gps to skip distant
+      // parcels, so the exact Haversine distance only runs on nearby ones;
+      // document counts are added only for the closest 50.
+      const box = boundingBox(lat, lng, radius);
       const result = await pool.query(
-        `SELECT * FROM (
-           SELECT ${SEARCH_COLUMNS}, ROUND(${DISTANCE_SQL})::int AS distance_m
-           FROM parcel p JOIN owner o ON o.owner_id = p.current_owner_id
-         ) found
-         WHERE distance_m <= $3
-         ORDER BY distance_m LIMIT 50`,
-        [lat, lng, radius]
+        `SELECT ${SEARCH_COLUMNS}, near.distance_m
+         FROM (
+           SELECT parcel_id, distance_m FROM (
+             SELECT p.parcel_id, ROUND(${DISTANCE_SQL})::int AS distance_m
+             FROM parcel p JOIN owner o ON o.owner_id = p.current_owner_id
+             WHERE p.gps_lat BETWEEN $4 AND $5 AND p.gps_lng BETWEEN $6 AND $7
+           ) measured
+           WHERE distance_m <= $3
+           ORDER BY distance_m LIMIT 50
+         ) near
+         JOIN parcel p ON p.parcel_id = near.parcel_id
+         JOIN owner o ON o.owner_id = p.current_owner_id
+         ORDER BY near.distance_m`,
+        [lat, lng, radius, box.minLat, box.maxLat, box.minLng, box.maxLng]
       );
       return res.json(result.rows);
     }

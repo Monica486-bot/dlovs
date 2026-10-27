@@ -115,6 +115,8 @@ CREATE TABLE audit_log (
 );
 
 CREATE INDEX idx_parcel_qr ON parcel(unique_qr_code);
+-- "near me" search: bounding-box prefilter before the Haversine distance (FR06, NFR05)
+CREATE INDEX idx_parcel_gps ON parcel(gps_lat, gps_lng);
 CREATE INDEX idx_dispute_parcel ON dispute(parcel_id);
 CREATE INDEX idx_audit_parcel ON audit_log(parcel_id);
 -- search indexes for the owner-name and national-ID verification pathways (FR06, NFR05)
