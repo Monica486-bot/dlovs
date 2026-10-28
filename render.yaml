@@ -24,8 +24,11 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
-      - key: QR_SIGNING_SECRET
-        generateValue: true
+      # Ed25519 key that signs QR codes: run `npm run qr-keys` in backend/ and
+      # paste the QR_SIGNING_PRIVATE_KEY line here. Keep a copy: a new key
+      # invalidates every printed marker.
+      - key: QR_SIGNING_PRIVATE_KEY
+        sync: false
       # 64 hex characters. Generate locally (see backend/.env.example) and keep a copy:
       # losing it makes every stored document unreadable
       - key: DOCUMENT_ENCRYPTION_KEY

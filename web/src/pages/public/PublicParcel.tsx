@@ -9,11 +9,12 @@ import StatusBadge from '../../components/StatusBadge';
 import { DisputesTable, HistoryTable, OwnerFacts, RecordWarnings } from '../../components/ParcelRecord';
 import type { IdParams, VerifyResult } from '../../types';
 
-// FR02 / FR07: the public ownership record; FR05 QR check via ?s=.
+// FR02 / FR07: the public ownership record; FR05 QR check via ?v=&s=.
 export default function PublicParcel() {
   const { id } = useParams<'id'>() as IdParams;
   const [searchParams] = useSearchParams();
   const signature = searchParams.get('s') || undefined;
+  const version = searchParams.get('v') || undefined;
   const { t } = useT();
   const { user, isStaff } = useAuth();
   const [record, setRecord] = useState<VerifyResult | null>(null);
@@ -21,14 +22,14 @@ export default function PublicParcel() {
   const [notice, setNotice] = useState('');
 
   const load = useCallback(() => {
-    api.get<VerifyResult>(`/parcels/${id}/verify`, { params: { signature } })
+    api.get<VerifyResult>(`/parcels/${id}/verify`, { params: { signature, version } })
       .then(({ data }) => { setRecord(data); setError(''); })
       .catch((err) => {
         if (errorResponse(err)?.status === 404) setError('not_found');
         else if (errorResponse(err)?.data?.code === 'QR_INVALID') setError('invalid_qr');
         else setError(errorMessage(err, t('Failed to load parcel')));
       });
-  }, [id, signature, t]);
+  }, [id, signature, version, t]);
 
   useEffect(() => { load(); }, [load]);
 

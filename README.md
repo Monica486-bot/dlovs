@@ -64,6 +64,9 @@ is written to an audit log that the database itself refuses to alter.
 - **A national ID belongs to one person.** Registering or transferring land to an ID that is already registered under
   a different name is refused (the officer is told whose ID it is; a citizen is not), instead of quietly giving the
   land to the existing holder of that ID.
+- **QR codes can't be forged, even offline.** The server signs each code with an **Ed25519 private key** that only it
+  holds. The mobile app carries the matching **public key**, which can check a signature but never create one, so the
+  phone spots a forged code on the spot with no internet. Online, the API checks the code again.
 - **Every transfer issues a new QR code.** The signature covers a version number, so the previous owner's marker still
   reads as a genuine DLOVS code but is flagged *replaced*, the warning sign of someone reselling land they've sold.
 - Documents are **encrypted at rest** (AES-256-GCM) before they're stored, and checked by content: a renamed file isn't accepted as a PDF.
@@ -86,7 +89,7 @@ is written to an audit log that the database itself refuses to alter.
   one account can't freeze sales across the register (a flag blocks transfers until an officer resolves it).
 - Login and SMS-code endpoints are rate-limited; codes are hashed, expire after 10 minutes, and lock after 5 wrong tries.
 - Security headers (helmet), CORS allow-list, bcrypt passwords, JWT sessions.
-- **No secrets in the code.** `JWT_SECRET`, `QR_SIGNING_SECRET`, `DOCUMENT_ENCRYPTION_KEY`, API keys and the demo
+- **No secrets in the code.** `JWT_SECRET`, `QR_SIGNING_PRIVATE_KEY`, `DOCUMENT_ENCRYPTION_KEY`, API keys and the demo
   password come only from environment variables; the server refuses to start without them, and in production
   rejects placeholder or short values.
 
@@ -98,7 +101,7 @@ Every planned feature is implemented. These are the places where the build diffe
 |---|---|---|
 | SMS one-time codes via **Africa's Talking** (FR01, Table 6) | **Twilio** | Africa's Talking's default Sender ID only delivers to Airtel Kenya numbers. Reaching South Sudanese (+211) numbers needs a dedicated Sender ID, applied for and approved per country, which the 12-week timeline couldn't absorb. Twilio delivers to +211 without one. All SMS goes through one function ([`backend/utils/sms.ts`](backend/utils/sms.ts)), so a regional provider can replace it later without touching the rest of the code. |
 | Any user can search by **national ID** (FR06) | National ID search is for land officers and administrators only | A national ID is private. A public search would let anyone who knows a person's ID number list all of their land. The public still has the other three pathways (QR code, parcel ID, owner name / area / GPS). |
-| The mobile app **checks the QR signature on the phone** (NFR03, Figure 5 step 4) | The app sends the scanned signature to the API, which checks it | Checking on the phone would mean shipping the signing secret inside the APK, where anyone could extract it and sign forged codes. A forged code is still refused before any record is shown. |
+| QR codes signed with "crypto signing" and **checked by the phone** (NFR03, Table 6, Figure 5 step 4) | **Ed25519 public-key signatures.** The server signs with a private key; the app checks with the public key on the phone, offline too, and the API checks again online | A shared-secret signature (such as HMAC) would have to ship its secret inside the APK, where anyone could extract it and sign forged codes. With a key pair, the app only holds a public key, which can check codes but not create them, so the phone check from the proposal is kept without that risk. |
 | The public owner portfolio shows **each parcel's QR code** (FR09) | The public sees the parcels and a link to each record; QR codes are shown to staff | Printing markers stays an officer task, so every marker on the ground was issued by a land officer and appears in the audit log. |
 | **Land officers** process every transfer (FR11) | Officers still process transfers, but now need proof of the owner's consent; and a buyer whose national ID was confirmed in person can accept the owner's request directly with an SMS code | The proposal let one officer move land on their own word, which is the corruption risk the audit trail (FR14) exists for. Now a transfer needs the owner's own request, an SMS code from the owner's phone, or written consent approved by a second officer. When both owner and buyer are identity-checked, their two confirmations are stronger proof than an officer's signature, so no officer is needed; the transfer is still written to the audit log. |
 | **Leaflet / react-native-maps** for maps (Table 6) | Text-only records: coordinates, neighbourhood, and the phone's distance from the plot | Map tiles are the heaviest part of a page on 2G/3G (FR18), and the verification decision doesn't need a map: the GPS check (FR04) compares the phone's position with the registered point directly. |
@@ -187,7 +190,8 @@ account can open.
 ```bash
 cd backend
 npm install
-cp .env.example .env        # set DATABASE_URL, JWT_SECRET, QR_SIGNING_SECRET (see the file for the others)
+cp .env.example .env        # set DATABASE_URL and JWT_SECRET (see the file for the others)
+npm run qr-keys             # prints a QR signing key pair: put QR_SIGNING_PRIVATE_KEY in .env
 
 createdb dlovs_db
 psql -d dlovs_db -f db/schema.sql
@@ -412,7 +416,8 @@ erDiagram
 | POST | `/api/auth/reset-password` | Logged in | Change your own password (needs the current one) |
 | GET | `/api/parcels/search?by=&query=` | Anyone | `by`: `any`, `parcel_id`, `owner_name`, `neighbourhood`, `national_id` (exact), or `near` with `lat`, `lng`, `radius` |
 | GET | `/api/parcels/neighbourhoods` | Anyone | Juba neighbourhoods for the parcel forms' dropdown |
-| GET | `/api/parcels/:id/verify?signature=` | Anyone | Ownership record (identity fields only for staff). With a scanned QR signature, `qr_check` is `valid` or `superseded` (replaced by a transfer); a forged one returns 400 `QR_INVALID` |
+| GET | `/api/parcels/:id/verify?version=&signature=` | Anyone | Ownership record (identity fields only for staff). With a scanned QR code, `qr_check` is `valid` or `superseded` (replaced by a transfer); a forged one returns 400 `QR_INVALID` |
+| GET | `/api/parcels/qr-public-key` | Anyone | The Ed25519 public key the app uses to check QR codes offline |
 | GET | `/api/parcels/mine` | Citizen | Parcels registered to my national ID |
 | POST · PUT | `/api/parcels` · `/api/parcels/:id` | Land officer | Register (with QR) · edit location details |
 | GET | `/api/parcels/:id/transfer-consent` | Land officer | Which consent a transfer needs (owner's SMS code or a second officer), and any transfer already waiting |
@@ -526,15 +531,15 @@ const t = (text, vars) => {
 
 ### Automated tests
 
-`npm test` in `backend/` runs **55 Jest + Supertest tests** against a separate `dlovs_test` database that is rebuilt
-from `schema.sql` on every run. All 55 pass.
+`npm test` in `backend/` runs **56 Jest + Supertest tests** against a separate `dlovs_test` database that is rebuilt
+from `schema.sql` on every run. All 56 pass.
 
 | Test file | Tests | What it proves |
 |---|---|---|
 | [`auditTrail.test.ts`](backend/tests/auditTrail.test.ts) | 12 | **Evaluation metric (d):** 20 officer transactions (5 registrations, 5 document approvals, 5 transfers, 5 dispute resolutions), each with exactly one audit entry naming the officer, with a timestamp. FR10 file type, 5 MB limit and encryption at rest; FR14 separation of duties; FR12 dispute limits |
 | [`auth.test.ts`](backend/tests/auth.test.ts) | 7 | FR01 SMS sign-up (wrong, reused and locked codes); FR02 guest access; FR03 role checks; deactivated accounts refused on their next request |
 | [`portfolioAndRequests.test.ts`](backend/tests/portfolioAndRequests.test.ts) | 13 | FR06 all four pathways find the same parcel; GPS search at the edge of the radius in every direction; national ID search refused to the public; FR09 portfolio; FR13 plot reports; transfer requests; ID checks; FR15 push tokens |
-| [`qrAndTransfer.test.ts`](backend/tests/qrAndTransfer.test.ts) | 8 | FR05 signed, forged and *replaced* QR codes; FR11 transfers issue a new QR, refuse disputed parcels and simultaneous double sales; FR08 / NFR07 append-only triggers reject `UPDATE`, `DELETE` and `TRUNCATE` |
+| [`qrAndTransfer.test.ts`](backend/tests/qrAndTransfer.test.ts) | 9 | FR05 Ed25519-signed, forged and *replaced* QR codes, checked offline with only the public key; FR11 transfers issue a new QR, refuse disputed parcels and simultaneous double sales; FR08 / NFR07 append-only triggers reject `UPDATE`, `DELETE` and `TRUNCATE` |
 | [`transferConsent.test.ts`](backend/tests/transferConsent.test.ts) | 15 | Owner consent by SMS code or a second officer; transfer reasons; buyer-accepted transfers; owners told of every officer action; one person per national ID; one transfer at a time |
 
 The tests found a real bug before deployment: SMS codes were stored without a time zone and compared in JavaScript, so
@@ -591,7 +596,8 @@ Everything runs on free tiers, as budgeted in the proposal (Table 1):
 
 **Steps**
 1. **API + database (Render):** New → Blueprint → this repository. [`render.yaml`](render.yaml) creates the API and
-   PostgreSQL and generates `JWT_SECRET` and `QR_SIGNING_SECRET`; fill in `DOCUMENT_ENCRYPTION_KEY`, `CLOUDINARY_URL`,
+   PostgreSQL and generates `JWT_SECRET`; fill in `QR_SIGNING_PRIVATE_KEY` (from `npm run qr-keys`; keep a copy, as a
+   new key invalidates printed markers), `DOCUMENT_ENCRYPTION_KEY`, `CLOUDINARY_URL`,
    `CORS_ORIGINS` and `PUBLIC_WEB_URL` (both the Netlify address), and `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and
    `TWILIO_FROM_NUMBER` (leave them empty to run in demo mode). Then load the schema once with
    `psql "<External Database URL>" -f backend/db/schema.sql` and run `npm run create-admin` from the Render shell.
@@ -610,14 +616,14 @@ Everything runs on free tiers, as budgeted in the proposal (Table 1):
 - Officers aren't assigned to areas yet, so every officer is notified of every new dispute (proposal FR15 mentions
   "jurisdiction").
 - National IDs are checked by an officer looking at the ID card; DLOVS can't yet verify an ID against a national register.
-- **Offline records can't be re-checked for forgery.** Because the signature is checked by the API, a cached record
-  shows when it was last verified online but can't re-verify a QR code without a connection. Signing with a
-  public/private key pair (e.g. Ed25519) would let the phone check codes offline without holding a secret.
+- **Offline, the phone knows a code is genuine, but not always whether it's current.** A forged code is caught with no
+  internet. Whether a genuine code has since been *replaced* by a transfer is only known offline if the phone has a
+  saved copy of that parcel's record; otherwise the app asks the user to connect before relying on the owner's name.
 - **Twilio trial accounts** only send to numbers verified in the Twilio console, and add a "Sent from your Twilio
   trial account" prefix. Field testing with 40 participants needs a paid account (or demo mode, where codes are shown
   on screen).
-- Markers printed before the QR code held a verification URL contain a small JSON code instead; the mobile app still
-  reads them, but a plain phone camera won't open them. Reprint them from the parcel page.
+- **Changing `QR_SIGNING_PRIVATE_KEY` invalidates every printed marker.** `npm run resign-qr` re-signs the stored
+  codes; the markers on the ground must then be reprinted.
 - **Push notifications** need an EAS project ID and a real Android build (Expo Go no longer supports push); without
   them the app falls back to the Notifications screen and SMS.
 
