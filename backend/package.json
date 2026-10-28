@@ -7,8 +7,10 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsc && node dist/index.js",
-    "create-admin": "node scripts/createAdmin.js",
-    "seed": "node scripts/seed.js",
+    "create-admin": "tsc && node scripts/createAdmin.js",
+    "seed": "tsc && node scripts/seed.js",
+    "qr-keys": "node scripts/qr-keys.js",
+    "resign-qr": "tsc && node scripts/resign-qr.js",
     "test": "jest --runInBand"
   },
   "keywords": [],
@@ -61,12 +63,7 @@
     ],
     "testTimeout": 120000,
     "transform": {
-      "^.+\\.tsx?$": [
-        "ts-jest",
-        {
-          "compiler": "@typescript/typescript6"
-        }
-      ]
+      "^.+\\.tsx?$": "<rootDir>/tests/transform.js"
     }
   }
 }

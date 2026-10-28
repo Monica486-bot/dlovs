@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import pool from '../db/pool';
-import { generateQrDataUrl, checkSignature } from '../utils/qr';
+import { generateQrDataUrl, checkSignature, QR_PUBLIC_KEY } from '../utils/qr';
 import { askForIdCheck, alertOwner } from '../utils/notify';
 import { NEIGHBOURHOODS, CITY, canonicalNeighbourhood } from '../utils/neighbourhoods';
 import { fourPartName } from '../utils/names';
@@ -105,6 +105,12 @@ export async function createParcel(req: Request, res: Response) {
   }
 }
 
+// The key the mobile app uses to check QR codes offline. It is public: it can
+// check a signature but not make one.
+export function getQrPublicKey(_req: Request, res: Response) {
+  res.json({ algorithm: 'Ed25519', public_key: QR_PUBLIC_KEY });
+}
+
 export async function getQrCode(req: Request, res: Response) {
   const { id } = req.params;
   try {
@@ -179,7 +185,7 @@ export async function searchParcel(req: Request, res: Response) {
 
 export async function verifyParcel(req: Request, res: Response) {
   const id = String(req.params.id);
-  const { signature, device_lat, device_lng } = req.query as Record<string, string | undefined>;
+  const { signature, version, device_lat, device_lng } = req.query as Record<string, string | undefined>;
   try {
     const parcelResult = await pool.query(
       `SELECT p.*, o.full_name AS owner_name, o.national_id, o.document_reference
@@ -188,7 +194,7 @@ export async function verifyParcel(req: Request, res: Response) {
     );
     if (parcelResult.rows.length === 0) return res.status(404).json({ error: 'Parcel not found' });
     const parcel = parcelResult.rows[0];
-    const qr_check = signature ? checkSignature(id, parcel.qr_version, signature) : null;
+    const qr_check = signature ? checkSignature(id, parcel.qr_version, signature, version) : null;
     if (qr_check === 'invalid') {
       return res.status(400).json({ error: 'Invalid QR signature: this code may be tampered with', code: 'QR_INVALID' });
     }

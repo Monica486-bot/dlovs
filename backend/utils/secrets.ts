@@ -14,5 +14,5 @@ export function secret(name: string): string {
 
 export function checkSecrets(): void {
   secret('JWT_SECRET');
-  secret('QR_SIGNING_SECRET');
+  secret('QR_SIGNING_PRIVATE_KEY');
 }

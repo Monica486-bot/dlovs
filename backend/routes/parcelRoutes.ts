@@ -16,6 +16,7 @@ router.param('id', (req: Request, res: Response, next: NextFunction, id: string)
 router.get('/mine', requireAuth, requireRole('citizen'), parcelController.viewOwnParcels);
 router.get('/stats', requireAuth, requireRole('land_officer', 'administrator'), parcelController.getStats);
 router.get('/neighbourhoods', parcelController.listNeighbourhoods);
+router.get('/qr-public-key', parcelController.getQrPublicKey);
 router.get('/transfer-reasons', parcelController.listTransferReasons);
 router.get('/search', optionalAuth, parcelController.searchParcel);
 router.get('/:id/verify', optionalAuth, parcelController.verifyParcel);
