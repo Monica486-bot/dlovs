@@ -8,33 +8,46 @@ import ReportPlotButton from '../../components/ReportPlotButton';
 import { useAuth } from '../../context/AuthContext';
 import { useT } from '../../i18n';
 import { cacheRecord, getCachedRecord } from '../../utils/cache';
+import { getQrPublicKey, isGenuineQr } from '../../utils/qr';
 import { getDeviceLocation, GPS_THRESHOLD_METRES, haversineMetres } from '../../utils/location';
 import type { DeviceLocation } from '../../utils/location';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { colors } from '../../theme';
 import type { ParcelVerification, VerifiedParcel } from '../../types';
 
-type LoadState = 'loading' | 'live' | 'cached' | 'not_found' | 'invalid_qr' | 'error';
+type LoadState = 'loading' | 'live' | 'cached' | 'offline_genuine' | 'not_found' | 'invalid_qr' | 'error';
+
+// A scanned code checked against a saved copy: 'newer' means the marker was
+// issued after the copy was saved, so the copy is out of date.
+type OfflineQrCheck = 'valid' | 'superseded' | 'newer' | null;
 
 type LocationState = { status: 'checking' } | { status: 'unavailable' } | ({ status: 'ok' } & DeviceLocation);
 
 // Sequence Diagram (Figure 5) steps 4–12, plus the offline fallback (FR16).
 export default function ParcelRecord() {
-  const { id, s: signature } = useLocalSearchParams<{ id: string; s?: string }>();
+  const { id, v: version, s: signature } = useLocalSearchParams<{ id: string; v?: string; s?: string }>();
   const { user } = useAuth();
   const { t, tn } = useT();
 
-  // state: loading | live | cached | not_found | invalid_qr | error
   const [state, setState] = useState<LoadState>('loading');
   const [record, setRecord] = useState<ParcelVerification | null>(null);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
+  const [offlineQr, setOfflineQr] = useState<OfflineQrCheck>(null);
   const [message, setMessage] = useState('');
   const [location, setLocation] = useState<LocationState>({ status: 'checking' });
 
   const load = useCallback(async () => {
     setState('loading');
+    // Step 4: check the signature on the phone, so a forged code is refused
+    // even without internet. The server checks it again below.
+    const qr = signature && version ? { parcelId: String(id), version, signature } : null;
+    const publicKey = qr ? await getQrPublicKey() : null;
+    if (qr && publicKey && !isGenuineQr(qr, publicKey)) {
+      setState('invalid_qr');
+      return;
+    }
     try {
-      const data = await api.get<ParcelVerification>(`/parcels/${id}/verify`, { signature });
+      const data = await api.get<ParcelVerification>(`/parcels/${id}/verify`, { signature, version });
       setRecord(data);
       setCachedAt(null);
       setState('live');
@@ -42,10 +55,16 @@ export default function ParcelRecord() {
     } catch (err) {
       if (err instanceof NetworkError) {
         const cached = await getCachedRecord(id);
+        const checkedOffline = Boolean(qr && publicKey);
         if (cached) {
+          const savedVersion = Number(cached.record.parcel.qr_version);
+          const scanned = Number(version);
+          setOfflineQr(!checkedOffline ? null : scanned < savedVersion ? 'superseded' : scanned > savedVersion ? 'newer' : 'valid');
           setRecord(cached.record);
           setCachedAt(cached.cachedAt);
           setState('cached');
+        } else if (checkedOffline) {
+          setState('offline_genuine');
         } else {
           setMessage(t(err.message));
           setState('error');
@@ -59,7 +78,7 @@ export default function ParcelRecord() {
         setState('error');
       }
     }
-  }, [id, signature, t]);
+  }, [id, version, signature, t]);
 
   useEffect(() => {
     load();
@@ -93,6 +112,17 @@ export default function ParcelRecord() {
           {t('This code does not match parcel #{id} and may be forged. Do not pay until a land officer has checked it.', { id })}
         </Banner>
         <Button title={t('Search the register instead')} variant="secondary" onPress={() => router.replace('/search')} />
+      </Screen>
+    );
+  }
+
+  if (state === 'offline_genuine') {
+    return (
+      <Screen>
+        <Banner tone="success" title={t('Genuine DLOVS QR code (checked offline)')}>
+          {t('This code was issued by DLOVS for parcel #{id}. You are offline, so connect to the internet to see who owns it now.', { id })}
+        </Banner>
+        <Button title={t('Try Again')} onPress={load} />
       </Screen>
     );
   }
@@ -137,7 +167,22 @@ export default function ParcelRecord() {
           {t("This marker's code matches the one issued for parcel #{id}.", { id: parcel.parcel_id })}
         </Banner>
       )}
-      {qrCheck === 'superseded' && (
+      {state === 'cached' && offlineQr === 'valid' && (
+        <Banner tone="success" title={t('Genuine DLOVS QR code (checked offline)')}>
+          {t("This marker's code was issued by DLOVS for parcel #{id} and matches your saved copy.", { id: parcel.parcel_id })}
+        </Banner>
+      )}
+      {state === 'cached' && offlineQr === 'superseded' && (
+        <Banner tone="danger" title={t('This QR code has been replaced')}>
+          {t('Your saved copy shows ownership changed after this marker was issued. Whoever shows it may no longer own the plot.')}
+        </Banner>
+      )}
+      {state === 'cached' && offlineQr === 'newer' && (
+        <Banner tone="danger" title={t('Your saved copy is out of date')}>
+          {t('This marker was issued after your saved copy, so ownership has changed since. Connect to the internet before paying.')}
+        </Banner>
+      )}
+      {state === 'live' && qrCheck === 'superseded' && (
         <Banner tone="danger" title={t('This QR code has been replaced')}>
           {t('Ownership changed on {date}. Whoever shows this old marker may no longer own the plot. The current owner is shown below.', { date: formatDate(qrIssuedAt) })}
         </Banner>

@@ -9,8 +9,8 @@ import { useT } from '../i18n';
 import { colors } from '../theme';
 
 // Sequence Diagram (Figure 5) steps 2–3: open the camera, decode the QR into
-// parcelId + signature, then hand off to the ownership record screen, which
-// sends the signature to the API for verification (step 4).
+// parcelId + version + signature, then hand off to the ownership record
+// screen, which checks the signature on the phone (step 4).
 export default function Scan() {
   const { t, rtl } = useT();
   const [permission, requestPermission] = useCameraPermissions();
@@ -40,7 +40,7 @@ export default function Scan() {
       return;
     }
     handled.current = true;
-    router.replace({ pathname: '/parcel/[id]', params: { id: parsed.parcelId, s: parsed.signature } });
+    router.replace({ pathname: '/parcel/[id]', params: { id: parsed.parcelId, v: parsed.version, s: parsed.signature } });
   }
 
   return (

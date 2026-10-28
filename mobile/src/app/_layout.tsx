@@ -5,6 +5,7 @@ import { AuthProvider } from '../context/AuthContext';
 import { LanguageProvider, useT } from '../i18n';
 import LanguageToggle from '../components/LanguageToggle';
 import { onNotificationTap, screenForLink } from '../utils/push';
+import { refreshQrPublicKey } from '../utils/qr';
 import { colors } from '../theme';
 
 // The tabs (Home, Search, Saved, Account) live in (tabs)/; everything else
@@ -13,6 +14,8 @@ function AppStack() {
   const { t } = useT();
   // FR15: tapping a push notification opens the screen it is about
   useEffect(() => onNotificationTap((link) => router.push(screenForLink(link))), []);
+  // NFR03: keep the QR public key on the phone so codes can be checked offline
+  useEffect(() => { refreshQrPublicKey(); }, []);
   const screens = [
     ['scan', 'Scan Parcel QR'],
     ['parcel/[id]', 'Ownership Record'],

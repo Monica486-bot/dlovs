@@ -307,4 +307,10 @@ export default {
   "Send a new code": "أرسل رمزًا جديدًا",
   "Waiting for the buyer to accept in DLOVS.": "بانتظار قبول المشتري في DLOVS.",
   "The buyer accepts it in DLOVS with a code sent to their phone. No visit to the land office is needed.": "يقبله المشتري في DLOVS برمز يُرسل إلى هاتفه. لا حاجة لزيارة مكتب الأراضي.",
+  "Genuine DLOVS QR code (checked offline)": "رمز QR أصلي من DLOVS (تم التحقق دون اتصال)",
+  "This code was issued by DLOVS for parcel #{id}. You are offline, so connect to the internet to see who owns it now.": "صدر هذا الرمز من DLOVS للقطعة رقم {id}. أنت غير متصل، لذا اتصل بالإنترنت لمعرفة مالكها الحالي.",
+  "This marker's code was issued by DLOVS for parcel #{id} and matches your saved copy.": "صدر رمز هذه العلامة من DLOVS للقطعة رقم {id} ويطابق نسختك المحفوظة.",
+  "Your saved copy shows ownership changed after this marker was issued. Whoever shows it may no longer own the plot.": "تُظهر نسختك المحفوظة أن الملكية تغيرت بعد إصدار هذه العلامة. من يعرضها قد لا يملك القطعة بعد الآن.",
+  "Your saved copy is out of date": "نسختك المحفوظة قديمة",
+  "This marker was issued after your saved copy, so ownership has changed since. Connect to the internet before paying.": "صدرت هذه العلامة بعد نسختك المحفوظة، لذا تغيرت الملكية منذ ذلك الحين. اتصل بالإنترنت قبل الدفع.",
 };

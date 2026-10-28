@@ -26,7 +26,7 @@ The four main screens are tabs (`src/app/(tabs)/`): **Home**, **Search**, **Save
 | Screen | Requirement |
 |---|---|
 | Home (`(tabs)/index.js`) | Scan card, search and saved tiles, the citizen's own land and notifications |
-| Scan (`scan.js`) | FR06 pathway 1: reads the QR code (a verification URL, or the older JSON codes) |
+| Scan (`scan.tsx`) | FR06 pathway 1: reads the QR code and checks its Ed25519 signature on the phone, offline too |
 | Search (`(tabs)/search.js`) | FR06 pathways 2–4: parcel ID, owner, area, national ID, *Near me* (GPS); FR17 filters; FR13 report on no results |
 | Ownership Record (`parcel/[id].js`) | FR07, FR08; QR genuine / replaced / forged; FR04 10 m location badge; FR16 offline copy |
 | Owner Portfolio (`owner/[id].js`) | FR09 |
