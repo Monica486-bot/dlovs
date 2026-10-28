@@ -1,6 +1,6 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const bcrypt = require('bcrypt');
-const pool = require('../db/pool');
+const pool = require('../dist/db/pool').default;
 
 // Demo data is for local demonstrations only, never the live database, and
 // its password comes from backend/.env rather than the code.
@@ -13,7 +13,7 @@ if (!PASSWORD || PASSWORD.length < 8) {
   console.error('Set SEED_PASSWORD in backend/.env (at least 8 characters): the password for every demo account.');
   process.exit(1);
 }
-const { buildQrPayload } = require('../utils/qr');
+const { buildQrPayload } = require('../dist/utils/qr');
 
 const USERS = [
   { key: 'admin', full_name: 'Ayen Garang', phone: '+211900000009', role: 'administrator', platform: 'web' },

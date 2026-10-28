@@ -1,6 +1,6 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const bcrypt = require('bcrypt');
-const pool = require('../db/pool');
+const pool = require('../dist/db/pool').default;
 
 // Creates the first administrator account.
 // Usage: npm run create-admin -- "Full Name" "+211900000000" "password"
