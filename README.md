@@ -599,8 +599,9 @@ Everything runs on free tiers, as budgeted in the proposal (Table 1):
    PostgreSQL and generates `JWT_SECRET`; fill in `QR_SIGNING_PRIVATE_KEY` (from `npm run qr-keys`; keep a copy, as a
    new key invalidates printed markers), `DOCUMENT_ENCRYPTION_KEY`, `CLOUDINARY_URL`,
    `CORS_ORIGINS` and `PUBLIC_WEB_URL` (both the Netlify address), and `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and
-   `TWILIO_FROM_NUMBER` (leave them empty to run in demo mode). Then load the schema once with
-   `psql "<External Database URL>" -f backend/db/schema.sql` and run `npm run create-admin` from the Render shell.
+   `TWILIO_FROM_NUMBER` (leave them empty to run in demo mode). Then, from `backend/` on your computer, point
+   `DATABASE_URL` at the External Database URL (with `?sslmode=require` added) and run `npm run load-schema` once,
+   then `npm run create-admin` (Render's free tier has no shell; `psql -f db/schema.sql` works too).
 2. **Web app (Netlify):** New site from this repository. [`netlify.toml`](netlify.toml) sets the base, build and
    publish folders. Set `VITE_API_URL=https://<render-service>.onrender.com/api`.
 3. **Mobile app:** set `EXPO_PUBLIC_API_URL` to the Render API, then `eas build -p android --profile preview` (see

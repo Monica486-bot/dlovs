@@ -9,6 +9,7 @@
     "dev": "tsc && node dist/index.js",
     "create-admin": "tsc && node scripts/createAdmin.js",
     "seed": "tsc && node scripts/seed.js",
+    "load-schema": "node scripts/load-schema.js",
     "qr-keys": "node scripts/qr-keys.js",
     "resign-qr": "tsc && node scripts/resign-qr.js",
     "test": "jest --runInBand"
