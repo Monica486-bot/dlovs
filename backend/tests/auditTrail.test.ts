@@ -1,6 +1,6 @@
-import { app, pool, request, createStaff, createCitizen, createParcel, uniqueNationalId, transferWithApproval, hasNotification } from './helpers';
+import { app, pool, request, closeDatabase, createStaff, createCitizen, createParcel, uniqueNationalId, transferWithApproval, hasNotification } from './helpers';
 
-afterAll(() => pool.end());
+afterAll(closeDatabase);
 
 const BUYERS = ['Ayen Lado Wani Lomoro', 'Chol Deng Majok Garang', 'Achol Mayen Kuol Ajak', 'Taban Peter Lomoro Wani', 'Rebecca Ayen Mading Aguer'];
 const PDF = Buffer.from('%PDF-1.4\n% DLOVS test document\n');

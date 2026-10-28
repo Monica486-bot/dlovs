@@ -3,9 +3,16 @@ import bcrypt from 'bcrypt';
 import supertest from 'supertest';
 import app from '../app';
 import pool from '../db/pool';
+import { notificationsSettled } from '../utils/notify';
 
 export { app, pool };
 export const request = supertest;
+
+// Let background notifications finish before the pool closes.
+export async function closeDatabase(): Promise<void> {
+  await notificationsSettled();
+  await pool.end();
+}
 
 const prefix = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
 let counter = 0;

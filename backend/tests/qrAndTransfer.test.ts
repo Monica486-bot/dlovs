@@ -1,8 +1,9 @@
 // FR05 signed QR codes, FR11 transfers with a new QR code, FR08 / NFR07
 // append-only ownership history.
-import { app, pool, request, createStaff, createParcel, uniqueNationalId, signatureFromCode, transferWithApproval } from './helpers';
+import crypto from 'crypto';
+import { app, pool, request, closeDatabase, createStaff, createParcel, uniqueNationalId, signatureFromCode, transferWithApproval } from './helpers';
 
-afterAll(() => pool.end());
+afterAll(closeDatabase);
 
 let officer: Awaited<ReturnType<typeof createStaff>>;
 let approver: Awaited<ReturnType<typeof createStaff>>;
@@ -18,8 +19,26 @@ function transfer(parcelId: number, body: Record<string, unknown> = {}) {
 describe('FR05 QR codes', () => {
   test('the QR code encodes the parcel verification URL with a signature', async () => {
     const parcel = await createParcel(officer.token);
-    expect(parcel.unique_qr_code).toMatch(new RegExp(`^https://dlovs\\.test/verify/${parcel.parcel_id}\\?s=[0-9a-f]{16}$`));
+    expect(parcel.unique_qr_code).toMatch(new RegExp(`^https://dlovs\\.test/verify/${parcel.parcel_id}\\?v=1&s=[A-Za-z0-9_-]{86}$`));
     expect(parcel.qr_data_url).toMatch(/^data:image\/png;base64,/);
+  });
+
+  test('a phone can check a code offline with only the public key', async () => {
+    const parcel = await createParcel(officer.token);
+    const code = new URL(parcel.unique_qr_code as string);
+    const { body } = await request(app).get('/api/parcels/qr-public-key');
+    expect(body.algorithm).toBe('Ed25519');
+    const publicKey = crypto.createPublicKey({ key: { kty: 'OKP', crv: 'Ed25519', x: body.public_key }, format: 'jwk' });
+
+    // what the app does (mobile/src/utils/qr.ts), with no server involved
+    const offlineCheck = (parcelId: unknown, version: unknown, signature: string) =>
+      crypto.verify(null, Buffer.from(`DLOVS|${parcelId}|${version}`), publicKey, Buffer.from(signature, 'base64url'));
+    const signature = code.searchParams.get('s') as string;
+    expect(offlineCheck(parcel.parcel_id, 1, signature)).toBe(true);
+    expect(offlineCheck(Number(parcel.parcel_id) + 1, 1, signature)).toBe(false);
+    expect(offlineCheck(parcel.parcel_id, 2, signature)).toBe(false);
+    const tampered = (signature[0] === 'A' ? 'B' : 'A') + signature.slice(1);
+    expect(offlineCheck(parcel.parcel_id, 1, tampered)).toBe(false);
   });
 
   test('a genuine code is accepted and a forged one is refused', async () => {
@@ -74,6 +93,13 @@ describe('FR11 land transfer', () => {
     expect(res.body.qr_check).toBe('superseded');
     expect(res.body.qr_issued_at).toBeTruthy();
     expect(res.body.parcel.owner_name).toBe('New Owner Rebecca Ayen');
+
+    // the version printed in the code gives the same answer without trying each one
+    const withVersion = await request(app).get(`/api/parcels/${parcel.parcel_id}/verify`).query({ signature: oldSignature, version: 1 });
+    expect(withVersion.body.qr_check).toBe('superseded');
+    // an old signature relabelled as the current version is refused
+    const relabelled = await request(app).get(`/api/parcels/${parcel.parcel_id}/verify`).query({ signature: oldSignature, version: 2 });
+    expect(relabelled.status).toBe(400);
   });
 
   test('owners are registered with four names, as on a national ID', async () => {

@@ -1,7 +1,7 @@
 // FR01 registration with SMS code, FR02 guest access, FR03 / NFR03 role-based access.
-import { app, pool, request, createStaff, createCitizen, createParcel } from './helpers';
+import { app, pool, request, closeDatabase, createStaff, createCitizen, createParcel } from './helpers';
 
-afterAll(() => pool.end());
+afterAll(closeDatabase);
 
 describe('FR01 phone registration', () => {
   test('an account cannot log in until the SMS code is confirmed', async () => {

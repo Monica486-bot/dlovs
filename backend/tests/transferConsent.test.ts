@@ -1,9 +1,9 @@
 // FR11 / FR14: ownership only changes with proof of the owner's consent:
 // their own transfer request, an SMS code they read to the officer, or written
 // consent checked by a second officer.
-import { app, pool, request, createStaff, createCitizen, createParcel, uniqueNationalId, hasNotification } from './helpers';
+import { app, pool, request, closeDatabase, createStaff, createCitizen, createParcel, uniqueNationalId, hasNotification } from './helpers';
 
-afterAll(() => pool.end());
+afterAll(closeDatabase);
 
 let officer: Awaited<ReturnType<typeof createStaff>>;
 let second: Awaited<ReturnType<typeof createStaff>>;

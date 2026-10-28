@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import os from 'os';
 import path from 'path';
 import { testDatabaseUrl, assertTestDatabase } from './testDatabase';
@@ -9,7 +10,8 @@ process.env.DATABASE_URL = url;
 process.env.NODE_ENV = 'test';
 process.env.DOTENV_CONFIG_QUIET = 'true';
 process.env.JWT_SECRET = 'test-jwt-secret';
-process.env.QR_SIGNING_SECRET = 'test-qr-secret';
+process.env.QR_SIGNING_PRIVATE_KEY = crypto.generateKeyPairSync('ed25519').privateKey
+  .export({ format: 'der', type: 'pkcs8' }).toString('base64');
 process.env.PUBLIC_WEB_URL = 'https://dlovs.test';
 // never send real SMS from the tests
 process.env.TWILIO_ACCOUNT_SID = '';

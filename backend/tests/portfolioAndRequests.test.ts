@@ -1,8 +1,8 @@
 // FR06 verification pathways, FR09 owner portfolio, FR13 unregistered
 // parcels, the citizen transfer request, and FR15 push tokens.
-import { app, pool, request, createStaff, createCitizen, createParcel, uniqueNationalId, hasNotification } from './helpers';
+import { app, pool, request, closeDatabase, createStaff, createCitizen, createParcel, uniqueNationalId, hasNotification } from './helpers';
 
-afterAll(() => pool.end());
+afterAll(closeDatabase);
 
 let officer: Awaited<ReturnType<typeof createStaff>>;
 beforeAll(async () => {
