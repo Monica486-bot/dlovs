@@ -199,7 +199,6 @@ export default function ParcelRecord() {
       )}
 
       <Card padded={false} style={styles.recordCard}>
-        <View style={[styles.stripe, { backgroundColor: STRIPE[parcel.status] || colors.navy }]} />
         <View style={styles.recordBody}>
           <View style={styles.headerRow}>
             <Text style={styles.parcelId}>{t('Parcel #{id}', { id: parcel.parcel_id })}</Text>
@@ -208,12 +207,11 @@ export default function ParcelRecord() {
           <Text style={styles.ownerLabel}>{t('Registered owner')}</Text>
           <Text style={styles.ownerName} selectable>{parcel.owner_name}</Text>
           <View style={styles.facts}>
-            <Row icon="business-outline" label={t('Neighbourhood')} value={parcel.neighbourhood} />
-            <Row icon="calendar-outline" label={t('Registered')} value={formatDate(parcel.registered_date)} />
-            {parcel.area_sqm ? <Row icon="resize-outline" label={t('Area')} value={t('{n} m²', { n: Number(parcel.area_sqm) })} /> : null}
-            <Row icon="location-outline" label={t('GPS')} value={`${Number(parcel.gps_lat).toFixed(5)}, ${Number(parcel.gps_lng).toFixed(5)}`} />
+            <Row label={t('Neighbourhood')} value={parcel.neighbourhood} />
+            <Row label={t('Registered')} value={formatDate(parcel.registered_date)} />
+            {parcel.area_sqm ? <Row label={t('Area')} value={t('{n} m²', { n: Number(parcel.area_sqm) })} /> : null}
+            <Row label={t('GPS')} value={`${Number(parcel.gps_lat).toFixed(5)}, ${Number(parcel.gps_lng).toFixed(5)}`} />
             <Row
-              icon="document-text-outline"
               label={t('Documents verified')}
               value={documents.length === 0 ? t('None uploaded') : t('{n} of {total}', { n: verifiedDocs, total: documents.length })}
             />
@@ -235,12 +233,8 @@ export default function ParcelRecord() {
         {history.length === 0 ? (
           <Muted>{t('No history recorded.')}</Muted>
         ) : (
-          [...history].reverse().map((h, i, all) => (
+          history.map((h) => (
             <View key={h.history_id} style={styles.step}>
-              <View style={styles.rail}>
-                <View style={[styles.dot, i === 0 && styles.dotCurrent]} />
-                {i < all.length - 1 ? <View style={styles.line} /> : null}
-              </View>
               <View style={styles.stepText}>
                 <Text style={styles.stepTitle}>
                   {h.previous_owner_name
@@ -366,24 +360,16 @@ function LocationCheck({ location, parcel }: LocationCheckProps) {
   );
 }
 
-// the record card's top stripe shows its status at a glance
-const STRIPE: Record<string, string> = { active: colors.success, disputed: colors.warning, deactivated: colors.danger };
-
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingTop: 80 },
   recordCard: { overflow: 'hidden' },
-  stripe: { height: 5 },
   recordBody: { padding: 18, gap: 6 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   parcelId: { fontSize: 14, fontWeight: '700', color: colors.muted },
   ownerLabel: { fontSize: 13, color: colors.muted, marginTop: 6 },
   ownerName: { fontSize: 24, fontWeight: '800', color: colors.navy, lineHeight: 30 },
   facts: { gap: 8, marginTop: 8 },
-  step: { flexDirection: 'row', gap: 12 },
-  rail: { alignItems: 'center', width: 14 },
-  dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.border, marginTop: 4 },
-  dotCurrent: { backgroundColor: colors.navy },
-  line: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 2 },
-  stepText: { flex: 1, gap: 2, paddingBottom: 14 },
+  step: { paddingVertical: 6 },
+  stepText: { gap: 2 },
   stepTitle: { fontSize: 15, fontWeight: '600', color: colors.text },
 });

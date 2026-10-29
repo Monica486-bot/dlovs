@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import type { StyleProp, TextInputProps, TextStyle, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useT } from '../i18n';
-import { colors, radius, shadow } from '../theme';
+import { colors, radius } from '../theme';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -52,8 +52,9 @@ interface ButtonProps {
   accessibilityHint?: string;
 }
 
-// variant: primary | secondary | danger | ghost
-export function Button({ title, onPress, variant = 'primary', icon, disabled, loading, accessibilityHint }: ButtonProps) {
+// variant: primary | secondary | danger | ghost. Text only: `icon` is accepted
+// but not drawn, to keep screens uncluttered.
+export function Button({ title, onPress, variant = 'primary', disabled, loading, accessibilityHint }: ButtonProps) {
   const textColor = variant === 'primary' || variant === 'danger' ? colors.white : variant === 'ghost' ? colors.navy : colors.navy;
   return (
     <Pressable
@@ -72,10 +73,7 @@ export function Button({ title, onPress, variant = 'primary', icon, disabled, lo
       {loading ? (
         <ActivityIndicator color={textColor} />
       ) : (
-        <View style={styles.buttonInner}>
-          {icon ? <Icon name={icon} size={20} color={textColor} /> : null}
-          <Text style={[styles.buttonText, { color: textColor }]}>{title}</Text>
-        </View>
+        <Text style={[styles.buttonText, { color: textColor }]}>{title}</Text>
       )}
     </Pressable>
   );
@@ -93,11 +91,11 @@ export function Card({ children, style, padded = true }: CardProps) {
 
 type Tone = 'danger' | 'warning' | 'success' | 'info';
 
-const TONES: Record<Tone, { bg: string; fg: string; icon: IconName }> = {
-  danger: { bg: colors.dangerPale, fg: colors.danger, icon: 'alert-circle' },
-  warning: { bg: colors.warningPale, fg: colors.warning, icon: 'warning' },
-  success: { bg: colors.successPale, fg: colors.success, icon: 'checkmark-circle' },
-  info: { bg: colors.navyPale, fg: colors.navy, icon: 'information-circle' },
+const TONES: Record<Tone, { bg: string; fg: string }> = {
+  danger: { bg: colors.dangerPale, fg: colors.danger },
+  warning: { bg: colors.warningPale, fg: colors.warning },
+  success: { bg: colors.successPale, fg: colors.success },
+  info: { bg: colors.navyPale, fg: colors.navy },
 };
 
 interface BannerProps {
@@ -110,8 +108,7 @@ interface BannerProps {
 export function Banner({ tone = 'info', title, children }: BannerProps) {
   const t = TONES[tone];
   return (
-    <View style={[styles.banner, { backgroundColor: t.bg }]} accessibilityRole="alert">
-      <Icon name={t.icon} size={22} color={t.fg} style={styles.bannerIcon} />
+    <View style={[styles.banner, { backgroundColor: t.bg, borderStartColor: t.fg }]} accessibilityRole="alert">
       <View style={styles.bannerText}>
         {title ? <Text style={[styles.bannerTitle, { color: t.fg }]}>{title}</Text> : null}
         {children ? <Text style={[styles.bannerBody, { color: t.fg }]}>{children}</Text> : null}
@@ -147,15 +144,12 @@ interface RowProps {
   icon?: IconName;
 }
 
-// A label/value pair, optionally with an icon
-export function Row({ label, value, icon }: RowProps) {
+// A label/value pair (`icon` is accepted but not drawn)
+export function Row({ label, value }: RowProps) {
   const { rtl } = useT();
   return (
     <View style={styles.row}>
-      <View style={styles.rowLabelWrap}>
-        {icon ? <Icon name={icon} size={16} color={colors.faint} /> : null}
-        <Text style={styles.rowLabel}>{label}</Text>
-      </View>
+      <Text style={styles.rowLabel}>{label}</Text>
       <Text style={[styles.rowValue, { textAlign: rtl ? 'left' : 'right' }]} selectable>{value ?? '-'}</Text>
     </View>
   );
@@ -176,15 +170,11 @@ interface ListItemProps {
   fullTitle?: boolean;
 }
 
-// fullTitle: show the whole title (e.g. a notification) instead of two lines
-export function ListItem({ icon, iconColor = colors.navy, iconBg = colors.navyPale, title, subtitle, right, onPress, first, accessibilityLabel, fullTitle }: ListItemProps) {
+// fullTitle: show the whole title (e.g. a notification) instead of two lines.
+// The icon props are accepted but not drawn, to keep lists plain.
+export function ListItem({ title, subtitle, right, onPress, first, accessibilityLabel, fullTitle }: ListItemProps) {
   const body = (
     <View style={[styles.item, !first && styles.itemDivider]}>
-      {icon ? (
-        <View style={[styles.itemIcon, { backgroundColor: iconBg }]}>
-          <Icon name={icon} size={20} color={iconColor} />
-        </View>
-      ) : null}
       <View style={styles.itemText}>
         <Text style={styles.itemTitle} numberOfLines={fullTitle ? undefined : 2}>{title}</Text>
         {subtitle ? <Text style={styles.itemSubtitle} numberOfLines={2}>{subtitle}</Text> : null}
@@ -247,10 +237,9 @@ interface EmptyProps {
 }
 
 // A centred message for empty lists
-export function Empty({ icon, title, children }: EmptyProps) {
+export function Empty({ title, children }: EmptyProps) {
   return (
     <View style={styles.empty}>
-      <View style={styles.emptyIcon}><Icon name={icon} size={28} color={colors.navy} /></View>
       {title ? <Text style={styles.emptyTitle}>{title}</Text> : null}
       {children ? <Text style={styles.emptyBody}>{children}</Text> : null}
     </View>
@@ -284,7 +273,6 @@ export function Chips<K extends string | number>({ options, value, onChange, lab
             accessibilityRole="radio"
             accessibilityState={{ selected }}
           >
-            {o.icon ? <Icon name={o.icon} size={15} color={selected ? colors.white : colors.navy} /> : null}
             <Text style={[styles.chipText, selected && styles.chipTextActive]}>{o.label}</Text>
           </Pressable>
         );
@@ -301,23 +289,21 @@ const styles = StyleSheet.create({
   flip: { transform: [{ scaleX: -1 }] },
 
   button: { minHeight: 52, paddingHorizontal: 18, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  buttonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   button_primary: { backgroundColor: colors.navy },
   button_secondary: { backgroundColor: colors.white, borderWidth: 1.5, borderColor: colors.navy },
   button_danger: { backgroundColor: colors.danger },
-  button_ghost: { backgroundColor: colors.navyPale },
+  button_ghost: { backgroundColor: colors.white, borderWidth: 1.5, borderColor: colors.navy },
   buttonPressed: { opacity: 0.85 },
   buttonDim: { opacity: 0.45 },
   buttonText: { fontSize: 16, fontWeight: '700' },
 
-  card: { backgroundColor: colors.white, borderRadius: radius.lg, ...shadow },
+  card: { backgroundColor: colors.white, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },
   cardPadded: { padding: 18, gap: 10 },
 
-  banner: { flexDirection: 'row', gap: 10, borderRadius: radius.md, padding: 14, alignItems: 'flex-start' },
-  bannerIcon: { marginTop: 1 },
+  banner: { flexDirection: 'row', borderRadius: radius.md, padding: 16, borderStartWidth: 5 },
   bannerText: { flex: 1, gap: 3 },
-  bannerTitle: { fontSize: 15, fontWeight: '700' },
-  bannerBody: { fontSize: 14, lineHeight: 20 },
+  bannerTitle: { fontSize: 16, fontWeight: '700' },
+  bannerBody: { fontSize: 15, lineHeight: 21 },
 
   field: { gap: 6 },
   label: { fontSize: 14, fontWeight: '600', color: colors.text },
@@ -335,33 +321,29 @@ const styles = StyleSheet.create({
   hint: { fontSize: 13, color: colors.muted, lineHeight: 18 },
 
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingVertical: 2 },
-  rowLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rowLabel: { color: colors.muted, fontSize: 14 },
-  rowValue: { color: colors.text, fontSize: 14, fontWeight: '600', flexShrink: 1 },
+  rowLabel: { color: colors.muted, fontSize: 15 },
+  rowValue: { color: colors.text, fontSize: 15, fontWeight: '600', flexShrink: 1 },
 
   list: { overflow: 'hidden' },
   item: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: colors.white },
   itemDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   itemPressed: { opacity: 0.7 },
-  itemIcon: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   itemText: { flex: 1, gap: 2 },
   itemTitle: { fontSize: 15, fontWeight: '600', color: colors.text },
   itemSubtitle: { fontSize: 13, color: colors.muted, lineHeight: 18 },
 
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.6 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.navy },
   muted: { color: colors.muted, fontSize: 14, lineHeight: 20 },
 
   empty: { alignItems: 'center', gap: 8, paddingVertical: 28, paddingHorizontal: 20 },
-  emptyIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.navyPale, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.text, textAlign: 'center' },
   emptyBody: { fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 20 },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
     minHeight: 38,
     paddingHorizontal: 14,
     borderRadius: radius.pill,

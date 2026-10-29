@@ -85,9 +85,9 @@ export default function ForgotPassword() {
             autoComplete="sms-otp"
             textContentType="oneTimeCode"
           />
-          <Field label={t('New password (at least 6 characters)')} value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
+          <Field label={t('New password (at least 8 characters)')} value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
           <Field label={t('Confirm password')} value={confirm} onChangeText={setConfirm} secureTextEntry />
-          <Button title={t('Reset Password')} onPress={reset} loading={loading} disabled={code.length !== 6 || password.length < 6} />
+          <Button title={t('Reset Password')} onPress={reset} loading={loading} disabled={code.length !== 6 || password.length < 8} />
           <Button title={t('Send a New Code')} variant="secondary" onPress={sendCode} />
         </>
       )}

@@ -47,7 +47,7 @@ export default function Register() {
     }
   }
 
-  const incomplete = form.names.some((n) => !n.trim()) || !form.phone_number.trim() || form.password.length < 6;
+  const incomplete = form.names.some((n) => !n.trim()) || !form.phone_number.trim() || form.password.length < 8;
 
   return (
     <Screen>
@@ -80,7 +80,7 @@ export default function Register() {
         {t('Links your account to parcels registered to you. Never shown to others, and can only be set once.')}
       </Muted>
       <Field
-        label={t('Password (at least 6 characters)')}
+        label={t('Password (at least 8 characters)')}
         value={form.password}
         onChangeText={set('password')}
         secureTextEntry

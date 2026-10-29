@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { api } from '../../api/client';
-import { Banner, Card, Icon, List, ListItem, Muted, Screen, SectionTitle } from '../../components/ui';
+import { Banner, Card, List, ListItem, Muted, Screen, SectionTitle } from '../../components/ui';
 import StatusPill from '../../components/StatusPill';
 import { useT } from '../../i18n';
 import { formatDate } from '../../utils/format';
@@ -39,7 +39,9 @@ export default function OwnerPortfolio() {
   return (
     <Screen>
       <Card style={styles.header}>
-        <View style={styles.avatar}><Icon name="person" size={26} color={colors.white} /></View>
+        <View style={styles.avatar}>
+          <Text style={styles.initials}>{owner.full_name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('')}</Text>
+        </View>
         <View style={styles.headerText}>
           <Text style={styles.name} accessibilityRole="header">{owner.full_name}</Text>
           <Muted>{t('Current parcels: {now} · Transferred away: {before}', { now: parcels.length, before: previous.length })}</Muted>
@@ -89,6 +91,7 @@ export default function OwnerPortfolio() {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
+  initials: { color: colors.white, fontSize: 18, fontWeight: '700' },
   headerText: { flex: 1, gap: 4 },
   name: { fontSize: 20, fontWeight: '800', color: colors.text },
 });

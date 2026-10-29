@@ -87,6 +87,10 @@ is written to an audit log that the database itself refuses to alter.
 - Transfers lock the parcel and are refused while it's disputed, deactivated, or if someone else transferred it first.
 - **Dispute flags are limited:** one open dispute per person per parcel, and at most 3 open disputes per account, so
   one account can't freeze sales across the register (a flag blocks transfers until an officer resolves it).
+- **Password rule** (NIST SP 800-63B), checked by the server wherever a password is set
+  ([`backend/utils/passwords.ts`](backend/utils/passwords.ts)): at least 8 characters, at most 72 (bcrypt's limit),
+  not a common password (`password123`, `12345678`…) and not the account's phone number. No forced symbols or
+  digits, which NIST advises against because they lead to predictable passwords.
 - Login and SMS-code endpoints are rate-limited; codes are hashed, expire after 10 minutes, and lock after 5 wrong tries.
 - Security headers (helmet), CORS allow-list, bcrypt passwords, JWT sessions.
 - **No secrets in the code.** `JWT_SECRET`, `QR_SIGNING_PRIVATE_KEY`, `DOCUMENT_ENCRYPTION_KEY`, API keys and the demo
@@ -531,13 +535,13 @@ const t = (text, vars) => {
 
 ### Automated tests
 
-`npm test` in `backend/` runs **56 Jest + Supertest tests** against a separate `dlovs_test` database that is rebuilt
-from `schema.sql` on every run. All 56 pass.
+`npm test` in `backend/` runs **57 Jest + Supertest tests** against a separate `dlovs_test` database that is rebuilt
+from `schema.sql` on every run. All 57 pass.
 
 | Test file | Tests | What it proves |
 |---|---|---|
 | [`auditTrail.test.ts`](backend/tests/auditTrail.test.ts) | 12 | **Evaluation metric (d):** 20 officer transactions (5 registrations, 5 document approvals, 5 transfers, 5 dispute resolutions), each with exactly one audit entry naming the officer, with a timestamp. FR10 file type, 5 MB limit and encryption at rest; FR14 separation of duties; FR12 dispute limits |
-| [`auth.test.ts`](backend/tests/auth.test.ts) | 7 | FR01 SMS sign-up (wrong, reused and locked codes); FR02 guest access; FR03 role checks; deactivated accounts refused on their next request |
+| [`auth.test.ts`](backend/tests/auth.test.ts) | 8 | FR01 SMS sign-up (wrong, reused and locked codes); the password rule (short, common, phone-number passwords refused); FR02 guest access; FR03 role checks; deactivated accounts refused on their next request |
 | [`portfolioAndRequests.test.ts`](backend/tests/portfolioAndRequests.test.ts) | 13 | FR06 all four pathways find the same parcel; GPS search at the edge of the radius in every direction; national ID search refused to the public; FR09 portfolio; FR13 plot reports; transfer requests; ID checks; FR15 push tokens |
 | [`qrAndTransfer.test.ts`](backend/tests/qrAndTransfer.test.ts) | 9 | FR05 Ed25519-signed, forged and *replaced* QR codes, checked offline with only the public key; FR11 transfers issue a new QR, refuse disputed parcels and simultaneous double sales; FR08 / NFR07 append-only triggers reject `UPDATE`, `DELETE` and `TRUNCATE` |
 | [`transferConsent.test.ts`](backend/tests/transferConsent.test.ts) | 15 | Owner consent by SMS code or a second officer; transfer reasons; buyer-accepted transfers; owners told of every officer action; one person per national ID; one transfer at a time |

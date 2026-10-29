@@ -114,7 +114,7 @@ export default function Admin() {
           <form onSubmit={resetPassword} className="notice info">
             <span>{t('Set a temporary password for {name}:', { name: resetting.full_name })}</span>
             <div className="inline-form">
-              <input type="text" value={tempPassword} onChange={(e) => setTempPassword(e.target.value)} minLength={6} required aria-label={t('Temporary Password')} />
+              <input type="text" value={tempPassword} onChange={(e) => setTempPassword(e.target.value)} minLength={8} required aria-label={t('Temporary Password')} />
               <button className="btn" type="submit">{t('Reset Password')}</button>
               <button className="btn secondary" type="button" onClick={() => setResetting(null)}>{t('Cancel')}</button>
             </div>
@@ -162,7 +162,7 @@ export default function Admin() {
         <form onSubmit={createUser} className="form-grid">
           <label>{t('Full Name')}<input {...field('full_name')} required /></label>
           <label>{t('Phone Number')}<input {...field('phone_number')} required dir="ltr" /></label>
-          <label>{t('Temporary Password')}<input type="password" minLength={6} {...field('password')} required /></label>
+          <label>{t('Temporary Password')}<input type="password" minLength={8} {...field('password')} required /></label>
           <label>
             {t('Role')}
             <select {...field('role')}>

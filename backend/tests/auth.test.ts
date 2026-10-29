@@ -1,5 +1,5 @@
 // FR01 registration with SMS code, FR02 guest access, FR03 / NFR03 role-based access.
-import { app, pool, request, closeDatabase, createStaff, createCitizen, createParcel } from './helpers';
+import { app, TEST_PASSWORD, pool, request, closeDatabase, createStaff, createCitizen, createParcel } from './helpers';
 
 afterAll(closeDatabase);
 
@@ -8,12 +8,12 @@ describe('FR01 phone registration', () => {
     const phone = '+211955000001';
     const reg = await request(app)
       .post('/api/auth/register')
-      .send({ full_name: 'New Citizen Lado Wani', phone_number: phone, password: 'password123' });
+      .send({ full_name: 'New Citizen Lado Wani', phone_number: phone, password: TEST_PASSWORD });
     expect(reg.status).toBe(201);
     expect(reg.body.role).toBe('citizen');
     expect(reg.body.dev_code).toMatch(/^\d{6}$/);
 
-    const early = await request(app).post('/api/auth/login').send({ phone_number: phone, password: 'password123' });
+    const early = await request(app).post('/api/auth/login').send({ phone_number: phone, password: TEST_PASSWORD });
     expect(early.status).toBe(403);
     expect(early.body.code).toBe('PHONE_NOT_VERIFIED');
 
@@ -22,7 +22,7 @@ describe('FR01 phone registration', () => {
     expect(wrong.status).toBe(400);
 
     await request(app).post('/api/auth/verify-phone').send({ phone_number: phone, code: reg.body.dev_code }).expect(200);
-    const ok = await request(app).post('/api/auth/login').send({ phone_number: phone, password: 'password123' });
+    const ok = await request(app).post('/api/auth/login').send({ phone_number: phone, password: TEST_PASSWORD });
     expect(ok.status).toBe(200);
     expect(ok.body.token).toBeTruthy();
   });
@@ -30,7 +30,7 @@ describe('FR01 phone registration', () => {
   test('citizens sign up with their four names, as on the ID card', async () => {
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ full_name: 'Akoi Deng', phone_number: '+211955000003', password: 'password123' });
+      .send({ full_name: 'Akoi Deng', phone_number: '+211955000003', password: TEST_PASSWORD });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/four names/);
   });
@@ -38,7 +38,7 @@ describe('FR01 phone registration', () => {
   test('public sign-up can only create citizen accounts', async () => {
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ full_name: 'Sneaky Person Chol Deng', phone_number: '+211955000002', password: 'password123', role: 'administrator' });
+      .send({ full_name: 'Sneaky Person Chol Deng', phone_number: '+211955000002', password: TEST_PASSWORD, role: 'administrator' });
     expect(res.status).toBe(201);
     expect(res.body.role).toBe('citizen');
   });
@@ -46,6 +46,27 @@ describe('FR01 phone registration', () => {
   test('passwords are stored as bcrypt hashes', async () => {
     const { rows } = await pool.query(`SELECT password_hash FROM "user" WHERE phone_number = '+211955000002'`);
     expect(rows[0].password_hash).toMatch(/^\$2[aby]\$/);
+  });
+
+  test('weak passwords are refused: too short, too common, or the phone number', async () => {
+    const signUp = (phone: string, password: string) => request(app).post('/api/auth/register')
+      .send({ full_name: 'Weak Password Ayen Kuol', phone_number: phone, password });
+    const cases: [string, RegExp][] = [
+      ['short7!', /at least 8 characters/],
+      ['password123', /too common/],
+      ['12345678', /too common/],
+      ['aaaaaaaaaa', /too common/],
+      ['+211955000077', /phone number/],
+      ['0955000077', /phone number/],
+      ['x'.repeat(73), /too long/],
+    ];
+    for (const [password, reason] of cases) {
+      const res = await signUp('+211955000077', password);
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(reason);
+    }
+    // a long passphrase with no symbols is fine: no forced character rules
+    expect((await signUp('+211955000077', 'mango tree by the river')).status).toBe(201);
   });
 });
 

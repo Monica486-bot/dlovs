@@ -63,7 +63,7 @@ export default function Account() {
       <form className="card narrow" onSubmit={submit}>
         <h3>{t('Change password')}</h3>
         <label>{t('Current password')}<input type="password" {...field('current')} autoComplete="current-password" required /></label>
-        <label>{t('New password')}<input type="password" {...field('next')} minLength={6} autoComplete="new-password" required /></label>
+        <label>{t('New password (at least 8 characters)')}<input type="password" {...field('next')} minLength={8} autoComplete="new-password" required /></label>
         <label>{t('Confirm password')}<input type="password" {...field('confirm')} autoComplete="new-password" required /></label>
         {error && <div className="error-text">{error}</div>}
         {success && <div className="success-text">{success}</div>}

@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import { Request, Response } from 'express';
 import pool from '../db/pool';
 import { alertOwner } from '../utils/notify';
+import { passwordProblem } from '../utils/passwords';
 
 const ROLES = ['citizen', 'land_officer', 'administrator'];
 const NATIONAL_ID_UNIQUE = 'user_national_id_citizen_unique';
@@ -22,7 +23,8 @@ export async function createUser(req: Request, res: Response): Promise<void> {
   const { full_name, phone_number, password, role, national_id } = req.body;
   if (!full_name || !phone_number || !password || !role) { res.status(400).json({ error: 'full_name, phone_number, password, and role are required' }); return; }
   if (!ROLES.includes(role)) { res.status(400).json({ error: `role must be one of ${ROLES.join(', ')}` }); return; }
-  if (password.length < 6) { res.status(400).json({ error: 'password must be at least 6 characters' }); return; }
+  const weak = passwordProblem(password, phone_number);
+  if (weak) { res.status(400).json({ error: weak }); return; }
   try {
     const result = await pool.query(
       `INSERT INTO "user" (full_name, phone_number, password_hash, role, platform, national_id, phone_verified)
@@ -92,8 +94,11 @@ export const reactivateUser = (req: Request, res: Response) => setActive(req, re
 export async function resetUserPassword(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
   const { new_password } = req.body;
-  if (!new_password || new_password.length < 6) { res.status(400).json({ error: 'new_password must be at least 6 characters' }); return; }
   try {
+    const target = await pool.query('SELECT phone_number FROM "user" WHERE user_id = $1', [id]);
+    if (target.rows.length === 0) { res.status(404).json({ error: 'User not found' }); return; }
+    const weak = passwordProblem(new_password, target.rows[0].phone_number);
+    if (weak) { res.status(400).json({ error: weak }); return; }
     const result = await pool.query(`UPDATE "user" SET password_hash = $1 WHERE user_id = $2 RETURNING user_id, full_name`, [await bcrypt.hash(new_password, 10), id]);
     if (result.rows.length === 0) { res.status(404).json({ error: 'User not found' }); return; }
     await logAdminAction(req.user!.user_id, 'RESET_PASSWORD', `Reset the password of ${result.rows[0].full_name} (#${id})`);

@@ -79,7 +79,7 @@ export default function ForgotPassword() {
               {t('Code')}
               <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" required dir="ltr" className="code-input" />
             </label>
-            <label>{t('New password')}<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} autoComplete="new-password" required /></label>
+            <label>{t('New password (at least 8 characters)')}<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} autoComplete="new-password" required /></label>
             {error && <div className="error-text">{error}</div>}
             <button className="btn block" type="submit" disabled={saving || code.length !== 6}>{t('Reset Password')}</button>
           </form>

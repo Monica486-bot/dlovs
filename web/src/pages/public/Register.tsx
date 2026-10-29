@@ -59,7 +59,7 @@ export default function Register() {
           <input {...field('national_id')} />
         </label>
         <div className="field-row">
-          <label>{t('Password')}<input type="password" {...field('password')} minLength={6} autoComplete="new-password" required /></label>
+          <label>{t('Password (at least 8 characters)')}<input type="password" {...field('password')} minLength={8} autoComplete="new-password" required /></label>
           <label>{t('Confirm password')}<input type="password" {...field('confirm')} autoComplete="new-password" required /></label>
         </div>
         {error && <div className="error-text">{error}</div>}

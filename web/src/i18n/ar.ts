@@ -198,7 +198,7 @@ export default {
   'National ID (optional)': 'الرقم الوطني (اختياري)',
   'Links your account to parcels registered under this ID. It is never shown to other users, and can only be set once.':
     'يربط حسابك بالقطع المسجلة بهذا الرقم. لا يظهر أبداً للمستخدمين الآخرين، ولا يمكن إدخاله إلا مرة واحدة.',
-  'Password (at least 6 characters)': 'كلمة المرور (6 أحرف على الأقل)',
+  'Password (at least 8 characters)': 'كلمة المرور (8 أحرف على الأقل)',
   'Confirm password': 'تأكيد كلمة المرور',
   'Passwords do not match': 'كلمتا المرور غير متطابقتين',
   'Registration failed': 'فشل التسجيل',
@@ -224,7 +224,7 @@ export default {
     'إذا كان لهذا الرقم حساب مواطن، فقد أُرسل رمز إعادة التعيين برسالة نصية.',
   'Land officer and administrator passwords are reset by a DLOVS administrator. Contact your administrator for a temporary password.':
     'يعيد مدير DLOVS تعيين كلمات مرور موظفي الأراضي والمديرين. تواصل مع المدير للحصول على كلمة مرور مؤقتة.',
-  'New password (at least 6 characters)': 'كلمة المرور الجديدة (6 أحرف على الأقل)',
+  'New password (at least 8 characters)': 'كلمة المرور الجديدة (8 أحرف على الأقل)',
   'Reset Password': 'إعادة تعيين كلمة المرور',
   'Could not send a reset code': 'تعذّر إرسال رمز إعادة التعيين',
   'Password reset failed': 'فشلت إعادة تعيين كلمة المرور',

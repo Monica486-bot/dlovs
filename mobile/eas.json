@@ -4,6 +4,10 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://dlovs-api.onrender.com/api",
+        "EXPO_PUBLIC_QR_PUBLIC_KEY": "qdeaJa0VaqS1NCt3qrMinmdQBLXsgU7BojCKgYO2DLM"
       }
     }
   }

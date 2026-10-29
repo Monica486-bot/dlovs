@@ -9,7 +9,8 @@ if (process.env.NODE_ENV === 'production') {
   process.exit(1);
 }
 const PASSWORD = process.env.SEED_PASSWORD;
-if (!PASSWORD || PASSWORD.length < 8) {
+const { passwordProblem } = require('../dist/utils/passwords');
+if (passwordProblem(PASSWORD)) {
   console.error('Set SEED_PASSWORD in backend/.env (at least 8 characters): the password for every demo account.');
   process.exit(1);
 }

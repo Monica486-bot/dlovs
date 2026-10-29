@@ -1,6 +1,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const bcrypt = require('bcrypt');
 const pool = require('../dist/db/pool').default;
+const { passwordProblem } = require('../dist/utils/passwords');
 
 // Creates the first administrator account.
 // Usage: npm run create-admin -- "Full Name" "+211900000000" "password"
@@ -10,8 +11,9 @@ async function main() {
     console.error('Usage: npm run create-admin -- "Full Name" "+211900000000" "password"');
     process.exit(1);
   }
-  if (password.length < 6) {
-    console.error('Password must be at least 6 characters');
+  const weak = passwordProblem(password, phoneNumber);
+  if (weak) {
+    console.error(weak);
     process.exit(1);
   }
   const passwordHash = await bcrypt.hash(password, 10);

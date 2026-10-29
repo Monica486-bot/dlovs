@@ -8,6 +8,9 @@ import { notificationsSettled } from '../utils/notify';
 export { app, pool };
 export const request = supertest;
 
+// passes the password rule (utils/passwords.ts)
+export const TEST_PASSWORD = 'Juba-land-register-2026';
+
 // Let background notifications finish before the pool closes.
 export async function closeDatabase(): Promise<void> {
   await notificationsSettled();
@@ -41,24 +44,24 @@ async function login(phone: string, password: string): Promise<Session> {
 
 export async function createStaff(role: string, name = `Test ${role}`): Promise<Session> {
   const phone = uniquePhone();
-  const hash = await bcrypt.hash('password123', 4);
+  const hash = await bcrypt.hash(TEST_PASSWORD, 4);
   await pool.query(
     `INSERT INTO "user" (full_name, phone_number, password_hash, role, platform, phone_verified)
      VALUES ($1, $2, $3, $4, 'web', true)`,
     [name, phone, hash, role]
   );
-  return login(phone, 'password123');
+  return login(phone, TEST_PASSWORD);
 }
 
 export async function createCitizen({ nationalId = uniqueNationalId(), verifiedBy }: { nationalId?: string; verifiedBy?: string } = {}): Promise<Session> {
   const phone = uniquePhone();
   const reg = await supertest(app)
     .post('/api/auth/register')
-    .send({ full_name: 'Test Citizen Deng Majok', phone_number: phone, password: 'password123', national_id: nationalId });
+    .send({ full_name: 'Test Citizen Deng Majok', phone_number: phone, password: TEST_PASSWORD, national_id: nationalId });
   if (reg.status !== 201) throw new Error(`register failed: ${reg.status} ${JSON.stringify(reg.body)}`);
   const confirm = await supertest(app).post('/api/auth/verify-phone').send({ phone_number: phone, code: reg.body.dev_code });
   if (confirm.status !== 200) throw new Error(`verify-phone failed: ${confirm.status} ${JSON.stringify(confirm.body)}`);
-  const session = await login(phone, 'password123');
+  const session = await login(phone, TEST_PASSWORD);
   if (verifiedBy) {
     const check = await supertest(app)
       .put(`/api/id-checks/${session.user.user_id}`)
