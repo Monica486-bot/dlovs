@@ -576,6 +576,14 @@ the closest 50 (see *Code highlights*), bringing 500 m down to 8 ms with identic
 Still to measure in the field: response times over real 2G/3G networks in Juba, and the first request after Render's
 free tier has put the API to sleep (this can take tens of seconds, so wake the API before each testing session).
 
+### Compatibility and live performance
+
+Tested on the deployed system in Chrome 156 and Edge 156 (Windows 11), with Lighthouse emulating a low-end phone on
+slow 4G, at four screen sizes, and with live API timings from Nairobi. Accessibility scores 98–100 and best
+practices 100; a page is about 200 KB in total; a live record arrives in about 0.4 s and is under 1 KB. Testing found
+a render-blocking font, which now loads without blocking the first paint. Full results, screenshots and the
+real-device table: [docs/testing/compatibility.md](docs/testing/compatibility.md).
+
 ### Manual testing
 
 Also run during development against a fresh copy of the database:
