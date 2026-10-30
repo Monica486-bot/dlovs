@@ -54,15 +54,30 @@ free tier the **first** request after 15 idle minutes takes up to about a minute
 
 | Device | OS / browser | What was tested | Result |
 |---|---|---|---|
-| _Android phone model_ | _Android version_, DLOVS APK | Install; scan genuine, fake and non-DLOVS QR codes; offline scan; search; Arabic | |
-| _Android phone model_ | Chrome for Android | Website: search, record, Arabic | |
-| _iPhone model_ | _iOS version_, Safari | Website: search, record; scan a marker with the Camera app | |
+| OPPO A54 5G (CPH2195), 4 GB RAM, 6.5 in | Android 13 (ColorOS 13), DLOVS APK | Install; scan genuine, fake and non-DLOVS QR codes; offline scan; search; Arabic | Works |
+| OPPO A54 5G (CPH2195) | Android 13, Chrome for Android | Website: search, record, Arabic | Works |
 | Laptop (above) | Windows 11, Chrome 156 and Edge 156 | Every page as guest, citizen, officer and administrator | Works |
 
 ## 5. Findings and improvements
 
 | Finding | Effect | Change |
 |---|---|---|
-| The Google Fonts stylesheet blocked the first paint (Lighthouse: about 0.7 s) | Slower first paint, worst on slow networks | The font now loads without blocking: the page shows in the system font first, then switches to Inter ([`web/index.html`](../../web/index.html)) |
-| Netlify injects its own script and a "Powered by Netlify" badge | Extra download; the badge covers content on phones | Comes from Netlify, not the app; can be switched off in the Netlify site settings |
+| The Google Fonts stylesheet blocked the first paint (Lighthouse estimated about 0.7 s) | Slower first paint, worst on slow networks | The font now loads without blocking: the page shows in the system font, then switches to Inter ([`web/index.html`](../../web/index.html)) |
+| Netlify injects its own script and a "Powered by Netlify" badge: 11 KB, but about 0.8 s of processing on the emulated low-end phone | Nearly as costly as the whole app; the badge covers content on phones | Added by Netlify's free plan, not the app; hiding it requires a paid plan. Future work: a paid plan, or a host that doesn't inject a badge (e.g. Render's static sites), which would also move the web app next to the API |
+| The app ships as one 134 KB JavaScript file for every page, about 1 s of processing on a low-end phone | Public visitors also download the staff pages | Future work: split the staff pages into a separate file loaded only after login |
 | About 0.4 s of each request is distance to the US server | Slower than necessary for users in South Sudan | Future work: host the API and database in Render's Frankfurt region, the closest to East Africa |
+
+### Before and after the font change
+
+Same pages, browser and settings, one run each (Lighthouse scores vary by about ±10 points between runs):
+
+| Page | Profile | Before: score / first paint | After: score / first paint | Render-blocking resources after |
+|---|---|---|---|---|
+| Verify a parcel | Low-end phone | 72 / 3.0 s | 77 / 3.5 s | None |
+| Verify a parcel | Desktop | 76 / 2.1 s | 82 / 1.9 s | None |
+| Ownership record | Low-end phone | 64 / 3.6 s | 60 / 3.8 s | None |
+| Ownership record | Desktop | 77 / 1.6 s | 69 / 1.9 s | None |
+
+The change removed the only render-blocking resource. The overall scores stayed within normal run-to-run variation,
+because the remaining time goes to the JavaScript bundle, Netlify's injected script and the API round trip (above),
+not the font.

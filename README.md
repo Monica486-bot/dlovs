@@ -1,7 +1,9 @@
 # DLOVS: Digital Land Ownership Verification System
 
-**Initial Software Product / Solution Demonstration** · FullStack track
+**Final Version of the Product** · FullStack track
 BSc. Software Engineering Capstone · Monica Akoi Dau Ahol · African Leadership University · Supervisor: Hubert Apana
+
+## Project overview
 
 DLOVS lets anyone in Juba check who legitimately owns a plot of land **before money changes hands**. Every registered
 parcel gets a signed QR code for its plot marker. Anyone can look a parcel up (no account needed) and see the
@@ -17,9 +19,17 @@ is written to an audit log that the database itself refuses to alter.
 
 ## Links
 
+- **Video demo and technical report:** https://docs.google.com/document/d/1fUCuazM6pZCw4Tq5WcNgAcQFJ244HxZ7burXXHvv1jk/edit?usp=sharing
+  (the walkthrough video link and the report are both in this document)
 - **GitHub repository:** https://github.com/Monica486-bot/dlovs
 - **Figma prototype (18 screens):** https://www.figma.com/design/2mrZb7K98KKKn21Zky1C9y/DLOVS-App-Screens?node-id=0-1&p=f&t=NDGbDICq0c3tA6cJ-0
-- **Video demo:** https://screenrec.com/share/fbS06nAG3K
+- **Live web app:** https://dlovs-juba.netlify.app (API: https://dlovs-api.onrender.com; the free server sleeps after
+  15 idle minutes, so the first request can take up to a minute)
+- **Android app (APK):** https://github.com/Monica486-bot/dlovs/releases/download/v1.0.0/DLOVS-v1.0.apk
+  ([release page](https://github.com/Monica486-bot/dlovs/releases/tag/v1.0.0)). If Play Protect says "App blocked",
+  tap *More details* → *Install anyway*.
+- **Technical report (PDF):** [docs/DLOVS-Technical-Report.pdf](docs/DLOVS-Technical-Report.pdf)
+- **Compatibility and live performance tests:** [docs/testing/compatibility.md](docs/testing/compatibility.md)
 
 ## Functional requirements
 
@@ -182,6 +192,20 @@ account can open.
 | <img src="docs/screenshots/mobile_home.png" width="190"> | <img src="docs/screenshots/mobile_record.png" width="190"> | <img src="docs/screenshots/mobile_fake_qr.png" width="190"> | <img src="docs/screenshots/mobile_offline_record.png" width="190"> |
 
 </details>
+
+## Technical requirements
+
+| Area | Requirement |
+|---|---|
+| **Runtime** | Node.js 20 or newer (developed on Node.js 24.11), npm 10+ |
+| **Database** | PostgreSQL 14 or newer |
+| **Backend** | Express 5.2, pg 8, jsonwebtoken 9, bcrypt 6, TypeScript 7; tests: Jest 30 + Supertest |
+| **Web** | React 19.2, Vite 8, TypeScript 7 |
+| **Mobile** | Expo SDK 57, React Native 0.86, Expo Router 57, expo-camera 57, tweetnacl 1.0 (offline Ed25519 check); EAS CLI to build the APK |
+| **Services (optional locally)** | Cloudinary (documents), Twilio (SMS), Expo push. Without them, documents are stored on disk and SMS codes are printed in the server log |
+| **Browsers** | Chrome or Edge 90+, Firefox, Safari (tested: Chrome 156, Edge 156, Chrome for Android) |
+| **Phones** | Android 9 or newer with a camera and GPS (tested: OPPO A54 5G, Android 13, 4 GB RAM) |
+| **Development machine** | Any Windows, macOS or Linux computer that runs Node.js and PostgreSQL (developed on Windows 11, Core i5, 8 GB RAM) |
 
 ## How to set up the environment and the project
 
@@ -603,7 +627,7 @@ Everything runs on free tiers, as budgeted in the proposal (Table 1):
 | **Render.com** | Express API + PostgreSQL | Free web services sleep when idle (slow first request); free databases expire after a set period. Upgrade or migrate before field testing. |
 | **Netlify** | Web app (static Vite build) | `web/public/_redirects` makes page refreshes work |
 | **Cloudinary** | Encrypted documents | Required on Render, whose disk is wiped on every deploy |
-| **Twilio** | SMS codes and alerts | Demo mode (no account needed) prints codes to the server log and on screen |
+| **Twilio** | SMS codes and alerts | Without an account, codes are printed to the server log (and also shown on screen outside production) |
 | **Expo EAS** | Mobile app APK and push notifications | `mobile/eas.json` has a `preview` profile that builds an APK |
 
 **Steps**
@@ -640,7 +664,7 @@ Everything runs on free tiers, as budgeted in the proposal (Table 1):
 - **Push notifications** need an EAS project ID and a real Android build (Expo Go no longer supports push); without
   them the app falls back to the Notifications screen and SMS.
 
-## Code files
+## Repository structure
 
 ```
 dlovs/
@@ -650,9 +674,9 @@ dlovs/
 │   ├── controllers/            auth, parcels, documents, disputes, requests, admin, audit
 │   ├── routes/                 endpoint → controller mapping with role checks
 │   ├── middleware/             auth (JWT + roles), upload (5 MB limit)
-│   ├── utils/                  qr, documentStorage (encryption), phoneCodes, sms, push, notify
+│   ├── utils/                  qr (Ed25519), documentStorage (encryption), passwords, phoneCodes, sms, push, notify
 │   ├── tests/                  Jest + Supertest API tests (npm test)
-│   └── scripts/                seed.js, createAdmin.js (plain JS utility scripts)
+│   └── scripts/                seed, createAdmin, load-schema, qr-keys, resign-qr (plain JS utility scripts)
 ├── web/                        React web app
 │   └── src/
 │       ├── pages/              staff pages; public/ (verify, sign-up, password reset); citizen/
@@ -668,5 +692,8 @@ dlovs/
 │       └── utils/              offline cache, GPS + Haversine, QR parsing, push notifications
 ├── render.yaml                 Render blueprint (API + PostgreSQL)
 ├── netlify.toml                Netlify build for the web app
-└── docs/screenshots/
+└── docs/
+    ├── DLOVS-Technical-Report.pdf   technical report
+    ├── screenshots/                 README screenshots
+    └── testing/                     compatibility and live performance results, with screenshots
 ```
