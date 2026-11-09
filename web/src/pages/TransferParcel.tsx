@@ -267,7 +267,7 @@ export default function TransferParcel() {
           <FourNames legend={t('Full name')} parts={form.names} onChange={(names) => setForm({ ...form, names })} disabled={confirming} />
           <div className="form-grid">
             <label>{t('National ID')}<input {...field('national_id')} required disabled={confirming} /></label>
-            <label>{t('Contact number')}<input {...field('contact_number')} disabled={confirming} dir="ltr" /></label>
+            <label>{t('Contact number')}<input {...field('contact_number')} disabled={confirming} inputMode="tel" placeholder="0912 345 678" dir="ltr" /></label>
             <DocumentTypeSelect label={t('Supporting document')} value={form.document_type} onChange={(document_type) => setForm({ ...form, document_type })} disabled={confirming} />
           </div>
           <TransferReasonSelect

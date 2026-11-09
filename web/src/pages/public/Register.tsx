@@ -52,7 +52,8 @@ export default function Register() {
         <FourNames legend={t('Full name')} parts={form.names} onChange={(names) => setForm({ ...form, names })} />
         <label>
           {t('Phone Number')}
-          <input {...field('phone_number')} autoComplete="tel" inputMode="tel" required dir="ltr" />
+          <input {...field('phone_number')} autoComplete="tel" inputMode="tel" placeholder="0912 345 678" required dir="ltr" />
+          <small className="hint">{t('Zain (091), MTN (092) or Digitel (098) number')}</small>
         </label>
         <label>
           {t('National ID (optional)')}

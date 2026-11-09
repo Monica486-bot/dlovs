@@ -7,7 +7,8 @@ import { notifyUsers, notifyOfficers, accountIdsForNationalId, askForIdCheck, al
 import { fourPartName } from '../utils/names';
 import { matchOwner } from '../utils/owners';
 import { transferReason, isTransferReasonError } from '../utils/transferReasons';
-import { sendSms, smsConfigured } from '../utils/sms';
+import { sendSms, smsConfigured, codesShownOnScreen } from '../utils/sms';
+import { optionalPhone, PHONE_FORMAT_ERROR } from '../utils/phone';
 import type { AuthUser } from '../middleware/auth';
 
 const CODE_TTL_MINUTES = 30;
@@ -164,6 +165,8 @@ async function sendConsentCode(accounts: { phone_number: string; user_id: number
   const text = `DLOVS: Officer ${officerName} is transferring parcel #${parcelId} to ${newOwnerName}. If you agreed, give the officer this code: ${code}. If you did NOT agree, do not share it and report this to the land office.`;
   await Promise.all(accounts.map((a) => sendSms(a.phone_number, text)));
   notifyUsers(accounts.map((a) => a.user_id), `Officer ${officerName} started transferring parcel #${parcelId} to ${newOwnerName}. A code was sent to your phone by SMS. Only give it to the officer if you agreed to this transfer.`, { link: '/my' });
+  // The owner's consent code is shown to the officer, so it never follows SHOW_CODES_ON_SCREEN:
+  // on screen it would let an officer transfer land without the owner agreeing.
   const exposeForDemo = !smsConfigured() && process.env.NODE_ENV !== 'production';
   return exposeForDemo ? code : undefined;
 }
@@ -211,10 +214,12 @@ export async function startTransfer(req: Request, res: Response) {
   if (names.error) return res.status(400).json({ error: names.error });
   const reason = transferReason(req.body.reason, req.body.reason_details);
   if (isTransferReasonError(reason)) return res.status(400).json({ error: reason.error });
+  const contactNumber = optionalPhone(new_owner?.contact_number);
+  if (contactNumber === undefined) return res.status(400).json({ error: PHONE_FORMAT_ERROR });
   const newOwner = {
     full_name: names.name!,
     national_id: new_owner?.national_id?.trim() || null,
-    contact_number: new_owner?.contact_number?.trim() || null,
+    contact_number: contactNumber,
     document_type: new_owner?.document_type?.trim() || null,
   };
   const client = await pool.connect();
@@ -499,8 +504,7 @@ export async function sendAcceptCode(req: Request, res: Response) {
       [hashCode(code), CODE_TTL_MINUTES, request.request_id]
     );
     await sendSms(request.buyer_phone, `DLOVS: your code to accept parcel #${request.parcel_id} is ${code}. Only enter it if you agreed to this transfer and checked the plot.`);
-    const exposeForDemo = !smsConfigured() && process.env.NODE_ENV !== 'production';
-    res.json({ sent_to: maskPhone(request.buyer_phone), dev_code: exposeForDemo ? code : undefined });
+    res.json({ sent_to: maskPhone(request.buyer_phone), dev_code: codesShownOnScreen() ? code : undefined });
   } catch (err) {
     sendError(res, err, 'Failed to send the code');
   }

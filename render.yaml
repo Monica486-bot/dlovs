@@ -48,6 +48,9 @@ services:
       # E.164, e.g. +15551234567
       - key: TWILIO_FROM_NUMBER
         sync: false
+      # "true" also shows sign-up and password-reset codes on screen, for user testing
+      - key: SHOW_CODES_ON_SCREEN
+        sync: false
 
 databases:
   - name: dlovs-db

@@ -66,7 +66,7 @@ export default function IncomingTransfer({ request, onDone }: IncomingTransferPr
         <>
           <Muted>{t('A code was sent to {phone}.', { phone: sent.sent_to })}</Muted>
           {sent.dev_code ? (
-            <Banner tone="info" title={t('Demo mode')}>{t('SMS is not configured. Code: {code}', { code: sent.dev_code })}</Banner>
+            <Banner tone="info" title={t('Demo mode')}>{t('Your code: {code}', { code: sent.dev_code })}</Banner>
           ) : null}
           <Field label={t('Code')} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
           <Button title={t('Accept the transfer')} onPress={accept} loading={busy} disabled={code.trim().length !== 6} />

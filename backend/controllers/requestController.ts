@@ -5,6 +5,7 @@ import { isExpoPushToken } from '../utils/push';
 import { fourPartName } from '../utils/names';
 import { matchOwner, normalise } from '../utils/owners';
 import { transferReason, isTransferReasonError } from '../utils/transferReasons';
+import { optionalPhone, PHONE_FORMAT_ERROR } from '../utils/phone';
 
 const STAFF_ROLES = ['land_officer', 'administrator'];
 const OWNS_LAND = `EXISTS (SELECT 1 FROM parcel p JOIN owner o ON o.owner_id = p.current_owner_id WHERE o.national_id = u.national_id)`;
@@ -105,6 +106,8 @@ export async function createTransferRequest(req: Request, res: Response) {
   const buyerName = buyer.name!;
   const reason = transferReason(req.body.reason, req.body.reason_details);
   if (isTransferReasonError(reason)) return res.status(400).json({ error: reason.error });
+  const buyerContact = optionalPhone(req.body.buyer_contact);
+  if (buyerContact === undefined) return res.status(400).json({ error: PHONE_FORMAT_ERROR });
   try {
     const parcel = await pool.query(
       `SELECT p.status, o.national_id AS owner_national_id, u.national_id AS my_national_id,
@@ -137,7 +140,7 @@ export async function createTransferRequest(req: Request, res: Response) {
       `INSERT INTO transfer_request (parcel_id, requested_by, buyer_full_name, buyer_national_id, buyer_contact, notes,
          transfer_reason, transfer_reason_details, buyer_user_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING request_id, status, created_at`,
-      [parcelId, req.user!.user_id, buyerName, buyerNationalId, req.body.buyer_contact?.trim() || null, req.body.notes?.trim() || null,
+      [parcelId, req.user!.user_id, buyerName, buyerNationalId, buyerContact, req.body.notes?.trim() || null,
         reason.reason, reason.details, buyerUser?.user_id || null]
     );
     if (buyerUser) {

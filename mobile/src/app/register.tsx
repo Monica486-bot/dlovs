@@ -66,7 +66,8 @@ export default function Register() {
         label={t('Phone number')}
         value={form.phone_number}
         onChangeText={set('phone_number')}
-        placeholder="+211900000000"
+        placeholder="0912 345 678"
+        hint={t('Zain (091), MTN (092) or Digitel (098) number')}
         keyboardType="phone-pad"
         autoComplete="tel"
       />

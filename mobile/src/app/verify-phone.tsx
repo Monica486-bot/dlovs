@@ -46,7 +46,7 @@ export default function VerifyPhone() {
       <Muted>{t('We sent a 6-digit code by SMS. It expires in 10 minutes.')}</Muted>
       {devCode ? (
         <Banner tone="info" title={t('Demo mode')}>
-          {t('SMS is not configured. Code: {code}', { code: devCode })}
+          {t('Your code: {code}', { code: devCode })}
         </Banner>
       ) : null}
       <Field label={t('Phone number')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />

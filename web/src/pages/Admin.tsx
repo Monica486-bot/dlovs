@@ -161,7 +161,7 @@ export default function Admin() {
         <h3>{t('Create Staff Account')}</h3>
         <form onSubmit={createUser} className="form-grid">
           <label>{t('Full Name')}<input {...field('full_name')} required /></label>
-          <label>{t('Phone Number')}<input {...field('phone_number')} required dir="ltr" /></label>
+          <label>{t('Phone Number')}<input {...field('phone_number')} inputMode="tel" placeholder="0912 345 678" required dir="ltr" /></label>
           <label>{t('Temporary Password')}<input type="password" minLength={8} {...field('password')} required /></label>
           <label>
             {t('Role')}

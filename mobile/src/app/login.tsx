@@ -42,7 +42,7 @@ export default function Login() {
         label={t('Phone number')}
         value={phone}
         onChangeText={setPhone}
-        placeholder="+211900000000"
+        placeholder="0912 345 678"
         keyboardType="phone-pad"
         autoComplete="tel"
       />

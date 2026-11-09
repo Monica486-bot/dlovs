@@ -276,7 +276,7 @@ function TransferRequest({ parcel, reasons, pending, onSent }: TransferRequestPr
         />
       ))}
       <Field label={t("Buyer's national ID")} value={form.buyer_national_id} onChangeText={set('buyer_national_id')} autoCapitalize="characters" />
-      <Field label={t("Buyer's phone (optional)")} value={form.buyer_contact} onChangeText={set('buyer_contact')} keyboardType="phone-pad" placeholder="+211900000000" />
+      <Field label={t("Buyer's phone (optional)")} value={form.buyer_contact} onChangeText={set('buyer_contact')} keyboardType="phone-pad" placeholder="0912 345 678" />
       <Text style={styles.docTitle}>{t('Reason for transfer')}</Text>
       <Chips
         label={t('Reason for transfer')}

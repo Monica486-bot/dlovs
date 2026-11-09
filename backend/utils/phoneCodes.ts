@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import pool from '../db/pool';
-import { sendSms, smsConfigured } from './sms';
+import { sendSms, codesShownOnScreen } from './sms';
 
 const TTL_MINUTES = 10;
 const MAX_ATTEMPTS = 5;
@@ -37,8 +37,7 @@ export async function issueCode(phoneNumber: string, purpose: string): Promise<{
       ? `Your DLOVS verification code is ${code}. It expires in ${TTL_MINUTES} minutes.`
       : `Your DLOVS password reset code is ${code}. It expires in ${TTL_MINUTES} minutes. If you didn't ask for this, ignore it.`;
   await sendSms(phoneNumber, text);
-  const exposeForDemo = !smsConfigured() && process.env.NODE_ENV !== 'production';
-  return { devCode: exposeForDemo ? code : undefined };
+  return { devCode: codesShownOnScreen() ? code : undefined };
 }
 
 export async function checkCode(phoneNumber: string, purpose: string, code: unknown): Promise<void> {

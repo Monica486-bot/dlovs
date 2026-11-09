@@ -54,7 +54,7 @@ export default function VerifyPhone() {
         <DevCode code={devCode} />
         <label>
           {t('Phone Number')}
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" required dir="ltr" />
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="0912 345 678" required dir="ltr" />
         </label>
         <label>
           {t('Code')}

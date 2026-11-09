@@ -62,7 +62,7 @@ export default function ForgotPassword() {
         label={t('Phone number')}
         value={phone}
         onChangeText={setPhone}
-        placeholder="+211900000000"
+        placeholder="0912 345 678"
         keyboardType="phone-pad"
         autoComplete="tel"
         editable={step === 'phone'}
@@ -70,7 +70,7 @@ export default function ForgotPassword() {
       {info ? <Banner tone="info">{info}</Banner> : null}
       {devCode ? (
         <Banner tone="info" title={t('Demo mode')}>
-          {t('SMS is not configured. Code: {code}', { code: devCode })}
+          {t('Your code: {code}', { code: devCode })}
         </Banner>
       ) : null}
       {step === 'phone' ? (

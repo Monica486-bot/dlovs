@@ -74,7 +74,7 @@ export default function RegisterParcel() {
           <FourNames legend={t('Owner Full Name')} parts={form.owner_names} onChange={(owner_names) => setForm({ ...form, owner_names })} />
           <div className="field-row">
             <label>{t('National ID')}<input {...field('national_id')} /></label>
-            <label>{t('Owner Phone Number')}<input {...field('owner_contact')} dir="ltr" /></label>
+            <label>{t('Owner Phone Number')}<input {...field('owner_contact')} inputMode="tel" placeholder="0912 345 678" dir="ltr" /></label>
           </div>
           <DocumentTypeSelect label={t('Document Type')} value={form.document_type} onChange={(document_type) => setForm({ ...form, document_type })} />
           {error && <div className="error-text">{error}</div>}

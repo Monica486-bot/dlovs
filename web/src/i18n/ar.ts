@@ -619,6 +619,7 @@ export default {
 
   // Figma-aligned interface wording
   'Demo code:': 'رمز تجريبي:',
+  'Zain (091), MTN (092) or Digitel (098) number': 'رقم زين (091) أو إم تي إن (092) أو ديجيتل (098)',
   '{type} for parcel #{id} rejected.': 'تم رفض {type} للقطعة رقم {id}.',
   Approve: 'اعتماد',
   Reason: 'السبب',

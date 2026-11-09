@@ -1,11 +1,12 @@
 // FR01 registration with SMS code, FR02 guest access, FR03 / NFR03 role-based access.
 import { app, TEST_PASSWORD, pool, request, closeDatabase, createStaff, createCitizen, createParcel } from './helpers';
+import { normalisePhone } from '../utils/phone';
 
 afterAll(closeDatabase);
 
 describe('FR01 phone registration', () => {
   test('an account cannot log in until the SMS code is confirmed', async () => {
-    const phone = '+211955000001';
+    const phone = '+211915000001';
     const reg = await request(app)
       .post('/api/auth/register')
       .send({ full_name: 'New Citizen Lado Wani', phone_number: phone, password: TEST_PASSWORD });
@@ -30,7 +31,7 @@ describe('FR01 phone registration', () => {
   test('citizens sign up with their four names, as on the ID card', async () => {
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ full_name: 'Akoi Deng', phone_number: '+211955000003', password: TEST_PASSWORD });
+      .send({ full_name: 'Akoi Deng', phone_number: '+211915000003', password: TEST_PASSWORD });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/four names/);
   });
@@ -38,13 +39,13 @@ describe('FR01 phone registration', () => {
   test('public sign-up can only create citizen accounts', async () => {
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ full_name: 'Sneaky Person Chol Deng', phone_number: '+211955000002', password: TEST_PASSWORD, role: 'administrator' });
+      .send({ full_name: 'Sneaky Person Chol Deng', phone_number: '+211915000002', password: TEST_PASSWORD, role: 'administrator' });
     expect(res.status).toBe(201);
     expect(res.body.role).toBe('citizen');
   });
 
   test('passwords are stored as bcrypt hashes', async () => {
-    const { rows } = await pool.query(`SELECT password_hash FROM "user" WHERE phone_number = '+211955000002'`);
+    const { rows } = await pool.query(`SELECT password_hash FROM "user" WHERE phone_number = '+211915000002'`);
     expect(rows[0].password_hash).toMatch(/^\$2[aby]\$/);
   });
 
@@ -56,17 +57,50 @@ describe('FR01 phone registration', () => {
       ['password123', /too common/],
       ['12345678', /too common/],
       ['aaaaaaaaaa', /too common/],
-      ['+211955000077', /phone number/],
-      ['0955000077', /phone number/],
+      ['+211915000077', /phone number/],
+      ['0915000077', /phone number/],
       ['x'.repeat(73), /too long/],
     ];
     for (const [password, reason] of cases) {
-      const res = await signUp('+211955000077', password);
+      const res = await signUp('+211915000077', password);
       expect(res.status).toBe(400);
       expect(res.body.error).toMatch(reason);
     }
     // a long passphrase with no symbols is fine: no forced character rules
-    expect((await signUp('+211955000077', 'mango tree by the river')).status).toBe(201);
+    expect((await signUp('+211915000077', 'mango tree by the river')).status).toBe(201);
+  });
+});
+
+describe('South Sudan phone numbers (Zain 91, MTN 92, Digitel 98)', () => {
+  test('the usual ways of typing a number all become +211XXXXXXXXX', () => {
+    for (const typed of ['0912 345 678', '912345678', '+211 912-345-678', '211912345678', '00211912345678', '(091) 234-5678']) {
+      expect(normalisePhone(typed)).toMatch(/^\+21191\d{7}$/);
+    }
+    expect(normalisePhone('0922 000 111')).toBe('+211922000111');
+    expect(normalisePhone('0981 000 111')).toBe('+211981000111');
+  });
+
+  test('numbers from other operators, other countries or the wrong length are refused', () => {
+    for (const typed of ['0955 000 111', '0971 000 111', '+254712345678', '091234567', '09123456789', 'abc', '']) {
+      expect(normalisePhone(typed)).toBeNull();
+    }
+  });
+
+  test('sign up with a local number, then log in with it typed differently', async () => {
+    const reg = await request(app).post('/api/auth/register')
+      .send({ full_name: 'Local Number Achol Deng Kuol', phone_number: '0925 000 010', password: TEST_PASSWORD });
+    expect(reg.status).toBe(201);
+    expect(reg.body.phone_number).toBe('+211925000010');
+    await request(app).post('/api/auth/verify-phone').send({ phone_number: '925000010', code: reg.body.dev_code }).expect(200);
+    const login = await request(app).post('/api/auth/login').send({ phone_number: '+211 925 000 010', password: TEST_PASSWORD });
+    expect(login.status).toBe(200);
+  });
+
+  test('sign-up refuses a number that is not Zain, MTN or Digitel', async () => {
+    const res = await request(app).post('/api/auth/register')
+      .send({ full_name: 'Wrong Number Garang Deng Ajak', phone_number: '+211955000010', password: TEST_PASSWORD });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/Zain.*MTN.*Digitel/);
   });
 });
 

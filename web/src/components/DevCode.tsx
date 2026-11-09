@@ -4,8 +4,8 @@ interface DevCodeProps {
   code?: string | null;
 }
 
-// Shown only when the server returns the code because no SMS provider is
-// configured (never in production).
+// Shown only when the server returns the code: when no SMS provider is set up
+// outside production, or when SHOW_CODES_ON_SCREEN is on for user testing.
 export default function DevCode({ code }: DevCodeProps) {
   const { t } = useT();
   if (!code) return null;

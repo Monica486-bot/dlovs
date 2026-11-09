@@ -21,7 +21,7 @@ const prefix = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
 let counter = 0;
 function uniquePhone(): string {
   counter += 1;
-  return `+2119${prefix}${String(counter).padStart(3, '0')}`;
+  return `+21191${prefix.slice(0, 4)}${String(counter).padStart(3, '0')}`;
 }
 
 export function uniqueNationalId(): string {

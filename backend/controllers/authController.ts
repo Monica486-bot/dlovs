@@ -6,10 +6,9 @@ import { secret } from '../utils/secrets';
 import { issueCode, checkCode, CodeError } from '../utils/phoneCodes';
 import { fourPartName } from '../utils/names';
 import { passwordProblem } from '../utils/passwords';
+import { normalisePhone, phoneForLookup, PHONE_FORMAT_ERROR } from '../utils/phone';
 
 const PLATFORMS = ['mobile', 'web'];
-const PHONE_PATTERN = /^\+?\d{9,15}$/;
-const normalisePhone = (phone: unknown): string => String(phone || '').replace(/[\s-]/g, '');
 
 function sendCodeError(res: Response, err: unknown, fallback: string): void {
   if (err instanceof CodeError) { res.status(err.status).json({ error: err.message }); return; }
@@ -27,11 +26,11 @@ function userPayload(user: Record<string, unknown>) {
 
 export async function register(req: Request, res: Response): Promise<void> {
   const { password, national_id, platform = 'mobile' } = req.body;
-  const phone_number = normalisePhone(req.body.phone_number);
-  if (!req.body.full_name?.trim() || !phone_number || !password) { res.status(400).json({ error: 'full_name, phone_number, and password are required' }); return; }
+  if (!req.body.full_name?.trim() || !req.body.phone_number || !password) { res.status(400).json({ error: 'full_name, phone_number, and password are required' }); return; }
   const names = fourPartName(req.body.full_name, 'your');
   if (names.error) { res.status(400).json({ error: names.error }); return; }
-  if (!PHONE_PATTERN.test(phone_number)) { res.status(400).json({ error: 'Enter the phone number with its country code, e.g. +211912345678' }); return; }
+  const phone_number = normalisePhone(req.body.phone_number);
+  if (!phone_number) { res.status(400).json({ error: PHONE_FORMAT_ERROR }); return; }
   const weak = passwordProblem(password, phone_number);
   if (weak) { res.status(400).json({ error: weak }); return; }
   if (!PLATFORMS.includes(platform)) { res.status(400).json({ error: `platform must be one of ${PLATFORMS.join(', ')}` }); return; }
@@ -54,7 +53,7 @@ export async function register(req: Request, res: Response): Promise<void> {
 }
 
 export async function verifyPhone(req: Request, res: Response): Promise<void> {
-  const phone_number = normalisePhone(req.body.phone_number);
+  const phone_number = phoneForLookup(req.body.phone_number);
   try {
     await checkCode(phone_number, 'verify', req.body.code);
     const result = await pool.query(`UPDATE "user" SET phone_verified = true WHERE phone_number = $1 RETURNING user_id`, [phone_number]);
@@ -64,7 +63,7 @@ export async function verifyPhone(req: Request, res: Response): Promise<void> {
 }
 
 export async function resendVerification(req: Request, res: Response): Promise<void> {
-  const phone_number = normalisePhone(req.body.phone_number);
+  const phone_number = phoneForLookup(req.body.phone_number);
   try {
     const result = await pool.query('SELECT phone_verified FROM "user" WHERE phone_number = $1', [phone_number]);
     if (result.rows.length === 0) { res.status(404).json({ error: 'No account with this phone number' }); return; }
@@ -75,7 +74,7 @@ export async function resendVerification(req: Request, res: Response): Promise<v
 }
 
 export async function login(req: Request, res: Response): Promise<void> {
-  const phone_number = normalisePhone(req.body.phone_number);
+  const phone_number = phoneForLookup(req.body.phone_number);
   const { password } = req.body;
   if (!phone_number || !password) { res.status(400).json({ error: 'phone_number and password are required' }); return; }
   try {
@@ -140,7 +139,7 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
 }
 
 export async function forgotPassword(req: Request, res: Response): Promise<void> {
-  const phone_number = normalisePhone(req.body.phone_number);
+  const phone_number = phoneForLookup(req.body.phone_number);
   if (!phone_number) { res.status(400).json({ error: 'phone_number is required' }); return; }
   try {
     const result = await pool.query('SELECT role, is_active FROM "user" WHERE phone_number = $1', [phone_number]);
@@ -154,7 +153,7 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
 }
 
 export async function resetPasswordWithCode(req: Request, res: Response): Promise<void> {
-  const phone_number = normalisePhone(req.body.phone_number);
+  const phone_number = phoneForLookup(req.body.phone_number);
   const { code, new_password } = req.body;
   const weak = passwordProblem(new_password, phone_number);
   if (weak) { res.status(400).json({ error: weak }); return; }

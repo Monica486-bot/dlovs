@@ -8,6 +8,14 @@ export function smsConfigured(): boolean {
   return Boolean(ACCOUNT_SID && AUTH_TOKEN && FROM_NUMBER);
 }
 
+// Whether a code the user needs for their own account (sign-up, password reset, accepting a transfer)
+// is also returned to show on screen. Always outside production when SMS isn't set up; in production
+// only when SHOW_CODES_ON_SCREEN=true, for user testing where not everyone can receive SMS.
+export function codesShownOnScreen(): boolean {
+  if (process.env.SHOW_CODES_ON_SCREEN === 'true') return true;
+  return !smsConfigured() && process.env.NODE_ENV !== 'production';
+}
+
 export async function sendSms(to: string, message: string): Promise<boolean> {
   if (!smsConfigured()) {
     if (process.env.NODE_ENV !== 'test') console.log(`[SMS not configured] to ${to}: ${message}`);

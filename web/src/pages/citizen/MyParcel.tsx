@@ -152,7 +152,7 @@ function TransferRequestForm({ parcelId, onSent }: TransferRequestFormProps) {
       <FourNames legend={t('New owner full name')} parts={form.buyer_names} onChange={(buyer_names) => setForm({ ...form, buyer_names })} />
       <div className="form-grid">
         <label>{t('New owner national ID')}<input {...field('buyer_national_id')} required /></label>
-        <label>{t('New owner phone number')}<input {...field('buyer_contact')} dir="ltr" /></label>
+        <label>{t('New owner phone number')}<input {...field('buyer_contact')} inputMode="tel" placeholder="0912 345 678" dir="ltr" /></label>
       </div>
       <TransferReasonSelect
         reason={form.reason}

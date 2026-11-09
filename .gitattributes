@@ -1,0 +1,7 @@
+# never convert line endings in binary files (a converted PDF or image is corrupted)
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.apk binary
+*.mp4 binary

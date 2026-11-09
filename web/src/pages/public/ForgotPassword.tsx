@@ -61,7 +61,7 @@ export default function ForgotPassword() {
         {step === 'phone' && (
           <form onSubmit={requestCode}>
             <p className="page-subtitle">{t('We will text you a code.')}</p>
-            <label>{t('Phone Number')}<input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" required dir="ltr" /></label>
+            <label>{t('Phone Number')}<input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="0912 345 678" required dir="ltr" /></label>
             {error && <div className="error-text">{error}</div>}
             <button className="btn block" type="submit" disabled={saving}>{t('Send Code')}</button>
           </form>

@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import pool from '../db/pool';
 import { alertOwner } from '../utils/notify';
 import { passwordProblem } from '../utils/passwords';
+import { normalisePhone, PHONE_FORMAT_ERROR } from '../utils/phone';
 
 const ROLES = ['citizen', 'land_officer', 'administrator'];
 const NATIONAL_ID_UNIQUE = 'user_national_id_citizen_unique';
@@ -20,9 +21,11 @@ export async function listUsers(_req: Request, res: Response): Promise<void> {
 }
 
 export async function createUser(req: Request, res: Response): Promise<void> {
-  const { full_name, phone_number, password, role, national_id } = req.body;
-  if (!full_name || !phone_number || !password || !role) { res.status(400).json({ error: 'full_name, phone_number, password, and role are required' }); return; }
+  const { full_name, password, role, national_id } = req.body;
+  if (!full_name || !req.body.phone_number || !password || !role) { res.status(400).json({ error: 'full_name, phone_number, password, and role are required' }); return; }
   if (!ROLES.includes(role)) { res.status(400).json({ error: `role must be one of ${ROLES.join(', ')}` }); return; }
+  const phone_number = normalisePhone(req.body.phone_number);
+  if (!phone_number) { res.status(400).json({ error: PHONE_FORMAT_ERROR }); return; }
   const weak = passwordProblem(password, phone_number);
   if (weak) { res.status(400).json({ error: weak }); return; }
   try {

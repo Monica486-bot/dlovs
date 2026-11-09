@@ -244,6 +244,7 @@ Optional settings in `backend/.env`. Everything works without them for a local d
 | Setting | Without it | With it |
 |---|---|---|
 | `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` + `TWILIO_FROM_NUMBER` | SMS codes are printed in the server log, and shown on screen in a "Demo mode" box | Codes and notifications are sent through Twilio |
+| `SHOW_CODES_ON_SCREEN` | In production, sign-up and password-reset codes only go by SMS | `true` also shows them on screen (with or without Twilio), for user testing where not everyone receives SMS. It means sign-up no longer proves the person owns the number. The owner's transfer-consent code is never shown on screen, because the officer would see it |
 | `CLOUDINARY_URL` | Encrypted documents are stored in `backend/uploads/` | Encrypted documents are stored in Cloudinary (needed on Render, which has no lasting disk) |
 | `DOCUMENT_ENCRYPTION_KEY` | A development key is derived from `JWT_SECRET` | **Required in production.** 64 hex characters; losing it makes stored documents unreadable |
 | `CORS_ORIGINS` | Any website may call the API | Only the listed web app addresses may |
@@ -657,8 +658,11 @@ Everything runs on free tiers, as budgeted in the proposal (Table 1):
   internet. Whether a genuine code has since been *replaced* by a transfer is only known offline if the phone has a
   saved copy of that parcel's record; otherwise the app asks the user to connect before relying on the owner's name.
 - **Twilio trial accounts** only send to numbers verified in the Twilio console, and add a "Sent from your Twilio
-  trial account" prefix. Field testing with 40 participants needs a paid account (or demo mode, where codes are shown
-  on screen).
+  trial account" prefix. Field testing with 40 participants needs a paid account, or `SHOW_CODES_ON_SCREEN=true`.
+- **Phone numbers must be Zain (091), MTN (092) or Digitel (098).** They can be typed as `0912 345 678`,
+  `912345678` or `+211 912 345 678` and are stored as `+211912345678` ([`backend/utils/phone.ts`](backend/utils/phone.ts)).
+  The prefixes are in one list there, so a new operator is a one-line change. Accounts created before this rule (such
+  as the `+2119000000xx` demo accounts) can still log in.
 - **Changing `QR_SIGNING_PRIVATE_KEY` invalidates every printed marker.** `npm run resign-qr` re-signs the stored
   codes; the markers on the ground must then be reprinted.
 - **Push notifications** need an EAS project ID and a real Android build (Expo Go no longer supports push); without

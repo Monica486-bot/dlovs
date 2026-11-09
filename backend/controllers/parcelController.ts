@@ -6,6 +6,7 @@ import { NEIGHBOURHOODS, CITY, canonicalNeighbourhood } from '../utils/neighbour
 import { fourPartName } from '../utils/names';
 import { matchOwner } from '../utils/owners';
 import { TRANSFER_REASONS } from '../utils/transferReasons';
+import { optionalPhone, PHONE_FORMAT_ERROR } from '../utils/phone';
 import type { AuthUser } from '../middleware/auth';
 
 const STAFF_ROLES = ['land_officer', 'administrator'];
@@ -53,6 +54,8 @@ export async function createParcel(req: Request, res: Response) {
   }
   const ownerName = fourPartName(owner.full_name);
   if (ownerName.error) return res.status(400).json({ error: ownerName.error });
+  const ownerContact = optionalPhone(owner.contact_number);
+  if (ownerContact === undefined) return res.status(400).json({ error: PHONE_FORMAT_ERROR });
   const nationalId: string | null = owner.national_id?.trim() || null;
   const client = await pool.connect();
   try {
@@ -67,7 +70,7 @@ export async function createParcel(req: Request, res: Response) {
       const ownerResult = await client.query(
         `INSERT INTO owner (full_name, contact_number, document_type, document_reference, national_id)
          VALUES ($1, $2, $3, $4, $5) RETURNING owner_id`,
-        [ownerName.name, owner.contact_number || null, owner.document_type || null, owner.document_reference || null, nationalId]
+        [ownerName.name, ownerContact, owner.document_type || null, owner.document_reference || null, nationalId]
       );
       owner_id = ownerResult.rows[0].owner_id;
     }
