@@ -153,6 +153,8 @@ function UploadDocument({ parcelId, types, onUploaded }: UploadDocumentProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  // the form opens from a button, so the screen shows the documents first
+  const [open, setOpen] = useState(false);
 
   async function pick() {
     setError('');
@@ -189,6 +191,9 @@ function UploadDocument({ parcelId, types, onUploaded }: UploadDocumentProps) {
     }
   }
 
+  if (!open) {
+    return <Button title={t('Upload a document')} variant="secondary" onPress={() => setOpen(true)} />;
+  }
   return (
     <Card>
       <Text style={styles.docTitle}>{t('Upload a document')}</Text>
@@ -198,6 +203,7 @@ function UploadDocument({ parcelId, types, onUploaded }: UploadDocumentProps) {
       {error ? <Banner tone="danger">{error}</Banner> : null}
       {done ? <Banner tone="success">{t('Uploaded. A land officer will review it.')}</Banner> : null}
       <Button title={t('Upload')} onPress={upload} loading={loading} disabled={!file} />
+      <Button title={t('Cancel')} variant="ghost" onPress={() => { setOpen(false); setFile(null); setError(''); setDone(false); }} />
     </Card>
   );
 }
@@ -215,6 +221,8 @@ function TransferRequest({ parcel, reasons, pending, onSent }: TransferRequestPr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
+  // the long form opens from a button, so it doesn't fill the screen until it's needed
+  const [open, setOpen] = useState(false);
   const set = (key: 'buyer_national_id' | 'buyer_contact' | 'notes' | 'reason_details') => (value: string) => setForm({ ...form, [key]: value });
 
   if (sent && pending) {
@@ -237,6 +245,10 @@ function TransferRequest({ parcel, reasons, pending, onSent }: TransferRequestPr
           : t('Waiting for a land officer, who will contact you and the buyer.')}
       </Muted>
     );
+  }
+
+  if (!open) {
+    return <Button title={t('Request Transfer')} variant="secondary" onPress={() => setOpen(true)} />;
   }
 
   async function submit() {
@@ -298,6 +310,7 @@ function TransferRequest({ parcel, reasons, pending, onSent }: TransferRequestPr
           || (form.reason === 'Other' && form.reason_details.trim().length < 3)
         }
       />
+      <Button title={t('Cancel')} variant="ghost" onPress={() => { setOpen(false); setError(''); }} />
     </Card>
   );
 }

@@ -23,6 +23,8 @@ export default function MyParcel() {
   const [requests, setRequests] = useState<TransferRequestListItem[]>([]);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  // the upload form opens from a button, like the transfer and dispute forms
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -69,12 +71,15 @@ export default function MyParcel() {
       <div className="card">
         <h3>{t('My documents')}</h3>
         <DocumentTable documents={documents} onChanged={done} />
-        {parcel.status !== 'deactivated' && (
+        {parcel.status !== 'deactivated' && (uploadOpen ? (
           <>
             <h4 style={{ marginBottom: 8 }}>{t('Upload Document')}</h4>
             <UploadDocument parcelId={parcel.parcel_id} onUploaded={done} />
+            <button type="button" className="btn secondary" onClick={() => setUploadOpen(false)}>{t('Cancel')}</button>
           </>
-        )}
+        ) : (
+          <button type="button" className="btn secondary" onClick={() => setUploadOpen(true)}>{t('Upload Document')}</button>
+        ))}
       </div>
 
       <div className="card">
