@@ -24,6 +24,8 @@ export default function Admin() {
   const [tempPassword, setTempPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  // the list, the create form and parcel deactivation are separate tabs, so the page isn't one long stack
+  const [tab, setTab] = useState<'accounts' | 'create' | 'parcel'>('accounts');
 
   const loadUsers = useCallback(async () => {
     try {
@@ -55,6 +57,7 @@ export default function Admin() {
     run(async () => {
       await api.post('/admin/users', form);
       setForm(EMPTY_FORM);
+      setTab('accounts');
     }, t('Created {role} account for {name}', { role: roleName(form.role), name: form.full_name }));
   }
 
@@ -99,9 +102,18 @@ export default function Admin() {
       <h2>{t('User Accounts')}</h2>
       <p className="page-subtitle">{t('All citizens and land officers registered on DLOVS')}</p>
 
+      <div className="tabs" role="tablist">
+        {([['accounts', t('User Accounts')], ['create', t('Create Staff Account')], ['parcel', t('Deactivate Fraudulent Parcel')]] as const).map(([key, label]) => (
+          <button key={key} role="tab" aria-selected={tab === key} className={tab === key ? 'active' : ''} onClick={() => { setTab(key); setError(''); }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       {error && <div className="error-text">{error}</div>}
       {success && <div className="notice success">{success}</div>}
 
+      {tab === 'accounts' && (<>
       <div className="stat-grid">
         <div className="stat"><span className="stat-value">{users.length}</span><span className="stat-label">{t('Total Users')}</span></div>
         <div className="stat"><span className="stat-value">{users.filter((u) => u.role === 'land_officer').length}</span><span className="stat-label">{t('Land Officers')}</span></div>
@@ -157,6 +169,9 @@ export default function Admin() {
           </table>
         </div>
       </div>
+      </>)}
+
+      {tab === 'create' && (
       <div className="card">
         <h3>{t('Create Staff Account')}</h3>
         <form onSubmit={createUser} className="form-grid">
@@ -175,7 +190,9 @@ export default function Admin() {
           </div>
         </form>
       </div>
+      )}
 
+      {tab === 'parcel' && (
       <div className="card">
         <h3>{t('Deactivate Fraudulent Parcel')}</h3>
         <form onSubmit={deactivateParcel} className="form-grid">
@@ -185,6 +202,7 @@ export default function Admin() {
           </div>
         </form>
       </div>
+      )}
 
     </div>
   );
