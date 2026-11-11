@@ -33,7 +33,7 @@ interface RequestOptions {
   timeout?: number;
 }
 
-async function request<T = unknown>(method: string, path: string, { body, params, form, timeout = TIMEOUT_MS }: RequestOptions = {}): Promise<T> {
+async function send<T>(method: string, path: string, { body, params, form, timeout = TIMEOUT_MS }: RequestOptions = {}): Promise<{ data: T; headers: Headers }> {
   const query = params
     ? '?' + new URLSearchParams(
         Object.entries(params)
@@ -69,11 +69,20 @@ async function request<T = unknown>(method: string, path: string, { body, params
   if (!response.ok) {
     throw new ApiError(data?.error || `Request failed (${response.status})`, response.status, data?.code);
   }
-  return data as T;
+  return { data: data as T, headers: response.headers };
+}
+
+async function request<T = unknown>(method: string, path: string, options?: RequestOptions): Promise<T> {
+  return (await send<T>(method, path, options)).data;
 }
 
 export const api = {
   get: <T = unknown>(path: string, params?: RequestOptions['params']) => request<T>('GET', path, { params }),
+  // a paged list: one page of results plus the total number of matches (X-Total-Count)
+  page: async <T = unknown>(path: string, params?: RequestOptions['params']) => {
+    const { data, headers } = await send<T[]>('GET', path, { params });
+    return { data, total: Number(headers.get('x-total-count') ?? data.length) };
+  },
   post: <T = unknown>(path: string, body?: unknown) => request<T>('POST', path, { body }),
   put: <T = unknown>(path: string, body?: unknown) => request<T>('PUT', path, { body }),
   delete: <T = unknown>(path: string, body?: unknown) => request<T>('DELETE', path, { body }),

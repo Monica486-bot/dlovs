@@ -114,6 +114,8 @@ export default {
   "No registered parcel within {n} m. Check any seller's documents with the land office before paying.": "لا توجد قطعة مسجلة ضمن {n} م. تحقق من مستندات أي بائع لدى مكتب الأراضي قبل الدفع.",
   "No results match these filters.": "لا توجد نتائج تطابق عوامل التصفية هذه.",
   "Your code: {code}": "رمزك: {code}",
+  "Load more": "عرض المزيد",
+  "Showing {n} of {total} matching parcels": "عرض {n} من أصل {total} قطعة مطابقة",
   "Zain (091), MTN (092) or Digitel (098) number": "رقم زين (091) أو إم تي إن (092) أو ديجيتل (098)",
   "No verified documents": "لا مستندات موثّقة",
   "Not a DLOVS code": "ليس رمزًا من DLOVS",

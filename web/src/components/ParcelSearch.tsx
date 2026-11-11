@@ -45,20 +45,41 @@ export default function ParcelSearch({ recordPath }: ParcelSearchProps) {
   const [point, setPoint] = useState({ lat: urlLat, lng: urlLng, radius: urlRadius });
   const [filters, setFilters] = useState({ status: '', from: '', to: '', documents: '' });
   const [results, setResults] = useState<ParcelSearchResult[] | null>(null);
+  // search returns 50 at a time; the total number of matches comes in a header
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
 
   const hasSearch = urlBy === 'near' ? Boolean(urlLat && urlLng) : Boolean(urlQuery);
+  const request = urlBy === 'near'
+    ? { by: 'near', lat: urlLat, lng: urlLng, radius: urlRadius }
+    : { by: urlBy, query: urlQuery };
+  const fetchPage = (offset: number) => api.get<ParcelSearchResult[]>('/parcels/search', { params: { ...request, offset } })
+    .then(({ data, headers }) => ({ data, total: Number(headers['x-total-count'] ?? data.length) }));
+
   useEffect(() => {
     if (!hasSearch) return;
     let cancelled = false;
-    const request = urlBy === 'near'
-      ? { by: 'near', lat: urlLat, lng: urlLng, radius: urlRadius }
-      : { by: urlBy, query: urlQuery };
-    api.get<ParcelSearchResult[]>('/parcels/search', { params: request })
-      .then(({ data }) => { if (!cancelled) { setResults(data); setError(''); } })
+    fetchPage(0)
+      .then((page) => { if (!cancelled) { setResults(page.data); setTotal(page.total); setError(''); } })
       .catch((err) => { if (!cancelled) { setResults(null); setError(errorMessage(err, t('Search failed'))); } });
     return () => { cancelled = true; };
+    // fetchPage only depends on the URL values listed here
   }, [urlBy, urlQuery, urlLat, urlLng, urlRadius, hasSearch, t]);
+
+  async function loadMore() {
+    if (!results) return;
+    setLoadingMore(true);
+    try {
+      const page = await fetchPage(results.length);
+      setResults([...results, ...page.data]);
+      setTotal(page.total);
+    } catch (err) {
+      setError(errorMessage(err, t('Search failed')));
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -183,6 +204,14 @@ export default function ParcelSearch({ recordPath }: ParcelSearchProps) {
               </tbody>
             </table>
           </div>
+          {results.length < total && (
+            <div className="load-more">
+              <span className="muted">{t('Showing {n} of {total} matching parcels', { n: results.length, total })}</span>
+              <button type="button" className="btn secondary" onClick={loadMore} disabled={loadingMore}>
+                {loadingMore ? t('Loading…') : t('Load more')}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>

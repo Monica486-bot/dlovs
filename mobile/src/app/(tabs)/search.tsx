@@ -58,6 +58,10 @@ export default function Search() {
   const [query, setQuery] = useState('');
   const [radius, setRadius] = useState(200);
   const [results, setResults] = useState<SearchResult[] | null>(null);
+  // search returns 50 at a time; remember what was searched so "Load more" can fetch the next page
+  const [total, setTotal] = useState(0);
+  const [searched, setSearched] = useState<Record<string, string | number>>({});
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -80,9 +84,9 @@ export default function Search() {
           setError(t('Could not get your location. Allow location access and try again outdoors.'));
           return;
         }
-        setResults(await api.get<SearchResult[]>('/parcels/search', { by: 'near', lat: position.lat, lng: position.lng, radius }));
+        await firstPage({ by: 'near', lat: position.lat, lng: position.lng, radius });
       } else {
-        setResults(await api.get<SearchResult[]>('/parcels/search', { query: query.trim(), by: mode }));
+        await firstPage({ query: query.trim(), by: mode });
       }
     } catch (err) {
       setResults(null);
@@ -93,6 +97,27 @@ export default function Search() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function firstPage(params: Record<string, string | number>) {
+    const page = await api.page<SearchResult>('/parcels/search', params);
+    setSearched(params);
+    setResults(page.data);
+    setTotal(page.total);
+  }
+
+  async function loadMore() {
+    if (!results) return;
+    setLoadingMore(true);
+    try {
+      const page = await api.page<SearchResult>('/parcels/search', { ...searched, offset: results.length });
+      setResults([...results, ...page.data]);
+      setTotal(page.total);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -211,6 +236,12 @@ export default function Search() {
             />
           ))}
         </List>
+      )}
+      {results && results.length < total && (
+        <>
+          <Muted>{t('Showing {n} of {total} matching parcels', { n: results.length, total })}</Muted>
+          <Button title={t('Load more')} variant="secondary" onPress={loadMore} loading={loadingMore} />
+        </>
       )}
     </Screen>
   );

@@ -154,6 +154,8 @@ export default {
   'Failed to load parcel': 'تعذّر تحميل القطعة',
   'There is no DLOVS record for parcel #{id}.': 'لا يوجد سجل في DLOVS للقطعة رقم {id}.',
   'Loading…': 'جارٍ التحميل…',
+  'Load more': 'عرض المزيد',
+  'Showing {n} of {total} matching parcels': 'عرض {n} من أصل {total} قطعة مطابقة',
   'Documents on file': 'المستندات المحفوظة',
   'The owner has not uploaded any documents.': 'لم يرفع المالك أي مستندات.',
   'Only the owner and land officers can open the files themselves.': 'لا يستطيع فتح الملفات نفسها إلا المالك وموظفو الأراضي.',
