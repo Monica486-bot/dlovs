@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import pool from '../db/pool';
 import { notifyUsers, notifyOfficers, ownerAccountIds } from '../utils/notify';
+import { recordAction } from '../repositories/auditRepository';
 
 const MAX_OPEN_DISPUTES_PER_ACCOUNT = 3;
 
@@ -89,10 +90,7 @@ export async function resolveDispute(req: Request, res: Response): Promise<void>
     if (parseInt(remaining.rows[0].count, 10) === 0) {
       await client.query(`UPDATE parcel SET status = 'active' WHERE parcel_id = $1 AND status = 'disputed'`, [dispute.parcel_id]);
     }
-    await client.query(
-      `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'RESOLVE_DISPUTE', $2, $3)`,
-      [req.user!.user_id, dispute.parcel_id, resolutionNotes]
-    );
+    await recordAction(client, { officerId: req.user!.user_id, action: 'RESOLVE_DISPUTE', parcelId: dispute.parcel_id, details: resolutionNotes });
     await client.query('COMMIT');
     const owners = await ownerAccountIds(dispute.parcel_id);
     notifyUsers([dispute.reported_by, ...owners], `The ${dispute.dispute_type} dispute on parcel #${dispute.parcel_id} has been resolved: ${resolutionNotes}`, { link: `/verify/${dispute.parcel_id}`, sms: true });

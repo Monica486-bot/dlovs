@@ -3,6 +3,7 @@ import pool from '../db/pool';
 import { saveDocument, readDocument } from '../utils/documentStorage';
 import { notifyUsers, notifyOfficers, alertOwner } from '../utils/notify';
 import type { AuthUser } from '../middleware/auth';
+import { recordAction } from '../repositories/auditRepository';
 
 const STAFF_ROLES = ['land_officer', 'administrator'];
 export const DOCUMENT_TYPES = ['Allocation Letter', 'Customary Certificate', 'Witness Agreement', 'Sale Agreement', 'Title Deed', 'Other'];
@@ -78,10 +79,7 @@ export async function uploadDocument(req: Request, res: Response) {
     );
     const documentId = result.rows[0].document_id;
     if (STAFF_ROLES.includes(req.user!.role)) {
-      await pool.query(
-        `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'UPLOAD_DOCUMENT', $2, $3)`,
-        [req.user!.user_id, parcelId, `Uploaded ${documentType} (${originalName}) on the owner's behalf`]
-      );
+      await recordAction(pool, { officerId: req.user!.user_id, action: 'UPLOAD_DOCUMENT', parcelId, details: `Uploaded ${documentType} (${originalName}) on the owner's behalf` });
       alertOwner(parcelId, req.user!, `uploaded a ${documentType} to parcel #${parcelId} on your behalf.`);
     }
     notifyOfficers(`New ${documentType} uploaded for parcel #${parcelId}, waiting for review`, { link: '/documents' });
@@ -149,15 +147,12 @@ export async function reviewDocument(req: Request, res: Response) {
       `UPDATE document SET verification_status = $1, verified_by = $2, verification_date = now(), rejection_reason = $3 WHERE document_id = $4`,
       [decision, req.user!.user_id, decision === 'rejected' ? reason : null, doc.document_id]
     );
-    await client.query(
-      `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, $2, $3, $4)`,
-      [
-        req.user!.user_id,
-        decision === 'verified' ? 'VERIFY_DOCUMENT' : 'REJECT_DOCUMENT',
-        doc.parcel_id,
-        `${decision === 'verified' ? 'Verified' : 'Rejected'} ${doc.document_type} #${doc.document_id}${reason ? `: ${reason}` : ''}`,
-      ]
-    );
+    await recordAction(client, {
+      officerId: req.user!.user_id,
+      action: decision === 'verified' ? 'VERIFY_DOCUMENT' : 'REJECT_DOCUMENT',
+      parcelId: doc.parcel_id,
+      details: `${decision === 'verified' ? 'Verified' : 'Rejected'} ${doc.document_type} #${doc.document_id}${reason ? `: ${reason}` : ''}`,
+    });
     await client.query('COMMIT');
     notifyUsers(
       [doc.uploaded_by],

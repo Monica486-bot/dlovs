@@ -17,7 +17,9 @@ const app = express();
 app.set('trust proxy', 1);
 app.use(helmet());
 const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean);
-app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : {}));
+// search paging headers (parcelController searchParcel) must be readable by the web app
+const exposedHeaders = ['X-Total-Count', 'X-Page-Size', 'X-Offset'];
+app.use(cors(allowedOrigins.length ? { origin: allowedOrigins, exposedHeaders } : { exposedHeaders }));
 app.use(express.json({ limit: '100kb' }));
 if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 

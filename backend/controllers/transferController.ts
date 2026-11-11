@@ -3,13 +3,15 @@ import { Request, Response } from 'express';
 import { Pool, PoolClient } from 'pg';
 import pool from '../db/pool';
 import { generateQrDataUrl } from '../utils/qr';
-import { notifyUsers, notifyOfficers, accountIdsForNationalId, askForIdCheck, alertOwner } from '../utils/notify';
+import { notifyUsers, notifyOfficers, accountIdsForNationalId, askForIdCheck, alertOwner, track } from '../utils/notify';
 import { fourPartName } from '../utils/names';
 import { matchOwner } from '../utils/owners';
 import { transferReason, isTransferReasonError } from '../utils/transferReasons';
 import { sendSms, smsConfigured, codesShownOnScreen } from '../utils/sms';
 import { optionalPhone, PHONE_FORMAT_ERROR } from '../utils/phone';
 import type { AuthUser } from '../middleware/auth';
+import { recordAction } from '../repositories/auditRepository';
+import { createOwner } from '../repositories/ownerRepository';
 
 const CODE_TTL_MINUTES = 30;
 const MAX_CODE_ATTEMPTS = 5;
@@ -91,15 +93,8 @@ async function executeTransfer(client: PoolClient, {
 }) {
   const match = await matchOwner(client, newOwner.national_id, newOwner.full_name);
   if (match.mismatch) throw new TransferError(409, match.mismatch, 'NATIONAL_ID_NAME_MISMATCH');
-  let newOwnerId: number = match.owner?.owner_id ?? 0;
+  const newOwnerId = match.owner?.owner_id ?? await createOwner(client, newOwner);
   const newOwnerName = match.owner?.full_name ?? newOwner.full_name;
-  if (!newOwnerId) {
-    const ownerResult = await client.query(
-      `INSERT INTO owner (full_name, contact_number, document_type, national_id) VALUES ($1, $2, $3, $4) RETURNING owner_id`,
-      [newOwner.full_name, newOwner.contact_number || null, newOwner.document_type || null, newOwner.national_id || null]
-    );
-    newOwnerId = ownerResult.rows[0].owner_id;
-  }
   const qrVersion = (current.qr_version as number) + 1;
   const qr = await generateQrDataUrl(parcelId, qrVersion);
   await client.query(
@@ -111,10 +106,7 @@ async function executeTransfer(client: PoolClient, {
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [parcelId, current.current_owner_id, newOwnerId, officerId, notes?.trim() || 'Ownership transfer processed', reason.reason, reason.details]
   );
-  await client.query(
-    `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'PROCESS_TRANSFER', $2, $3)`,
-    [officerId, parcelId, `Transferred from ${current.owner_name} to ${newOwnerName}; reason: ${reasonText(reason)}; consent: ${consent}; new QR code issued (version ${qrVersion})`]
-  );
+  await recordAction(client, { officerId: officerId, action: 'PROCESS_TRANSFER', parcelId, details: `Transferred from ${current.owner_name} to ${newOwnerName}; reason: ${reasonText(reason)}; consent: ${consent}; new QR code issued (version ${qrVersion})` });
   if (requestId) {
     await client.query(
       `UPDATE transfer_request SET status = 'completed', handled_by = $1, handled_at = now() WHERE request_id = $2`,
@@ -136,14 +128,21 @@ async function notifyTransfer(
   done: { newOwnerName: string; closedRequesters: unknown[] },
   requestedBy?: number
 ) {
-  const [previousOwners, newOwners] = await Promise.all([
-    accountIdsForNationalId(current.owner_national_id as string | null),
-    accountIdsForNationalId(newOwner.national_id),
-  ]);
-  notifyUsers([...previousOwners, requestedBy].filter(Boolean) as number[], `Parcel #${parcelId} has been transferred from you to ${done.newOwnerName}.`, { link: '/my', sms: true });
-  notifyUsers(newOwners, `Parcel #${parcelId} is now registered to you.`, { link: `/my/parcels/${parcelId}`, sms: true });
-  askForIdCheck(newOwner.national_id, parcelId);
-  notifyUsers(done.closedRequesters as number[], `Your transfer request for parcel #${parcelId} was closed because the parcel was transferred to ${done.newOwnerName}.`, { link: '/my/requests', sms: true });
+  // tracked like the other notifications, so the tests can wait for it before closing the database
+  return track((async () => {
+    try {
+      const [previousOwners, newOwners] = await Promise.all([
+        accountIdsForNationalId(current.owner_national_id as string | null),
+        accountIdsForNationalId(newOwner.national_id),
+      ]);
+      notifyUsers([...previousOwners, requestedBy].filter(Boolean) as number[], `Parcel #${parcelId} has been transferred from you to ${done.newOwnerName}.`, { link: '/my', sms: true });
+      notifyUsers(newOwners, `Parcel #${parcelId} is now registered to you.`, { link: `/my/parcels/${parcelId}`, sms: true });
+      askForIdCheck(newOwner.national_id, parcelId);
+      notifyUsers(done.closedRequesters as number[], `Your transfer request for parcel #${parcelId} was closed because the parcel was transferred to ${done.newOwnerName}.`, { link: '/my/requests', sms: true });
+    } catch (err) {
+      console.error('Notification failed:', (err as Error).message);
+    }
+  })());
 }
 
 function completed(parcelId: number, done: { newOwnerId: number; newOwnerName: string; qrVersion: number; qr: { dataUrl: string } }) {
@@ -171,13 +170,15 @@ async function sendConsentCode(accounts: { phone_number: string; user_id: number
   return exposeForDemo ? code : undefined;
 }
 
-async function notifyOtherOfficers(exceptUserId: number, message: string) {
-  try {
-    const result = await pool.query(`SELECT user_id FROM "user" WHERE role = 'land_officer' AND is_active AND user_id != $1`, [exceptUserId]);
-    notifyUsers(result.rows.map((r: Record<string, unknown>) => r.user_id as number), message, { link: '/transfer-approvals' });
-  } catch (err) {
-    console.error('Notification failed:', (err as Error).message);
-  }
+function notifyOtherOfficers(exceptUserId: number, message: string) {
+  return track((async () => {
+    try {
+      const result = await pool.query(`SELECT user_id FROM "user" WHERE role = 'land_officer' AND is_active AND user_id != $1`, [exceptUserId]);
+      notifyUsers(result.rows.map((r: Record<string, unknown>) => r.user_id as number), message, { link: '/transfer-approvals' });
+    } catch (err) {
+      console.error('Notification failed:', (err as Error).message);
+    }
+  })());
 }
 
 async function lockPending(client: PoolClient, transferId: number, status: string) {
@@ -265,10 +266,7 @@ export async function startTransfer(req: Request, res: Response) {
          RETURNING transfer_id`,
         [...pendingColumns, hashCode(code), CODE_TTL_MINUTES]
       );
-      await client.query(
-        `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'START_TRANSFER', $2, $3)`,
-        [req.user!.user_id, parcelId, `Started transfer from ${current.owner_name} to ${newOwner.full_name} (${reasonText(reason)}); SMS code sent to the owner`]
-      );
+      await recordAction(client, { officerId: req.user!.user_id, action: 'START_TRANSFER', parcelId, details: `Started transfer from ${current.owner_name} to ${newOwner.full_name} (${reasonText(reason)}); SMS code sent to the owner` });
       await client.query('COMMIT');
       const devCode = await sendConsentCode(accounts, code, parcelId, newOwner.full_name, req.user!.full_name);
       return res.status(202).json({ status: 'awaiting_owner', transfer_id: inserted.rows[0].transfer_id, sent_to: accounts.map((a: { phone_number: string }) => maskPhone(a.phone_number)), dev_code: devCode });
@@ -284,10 +282,7 @@ export async function startTransfer(req: Request, res: Response) {
        RETURNING transfer_id`,
       [...pendingColumns, consentDocument]
     );
-    await client.query(
-      `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'START_TRANSFER', $2, $3)`,
-      [req.user!.user_id, parcelId, `Started transfer from ${current.owner_name} to ${newOwner.full_name} (${reasonText(reason)}); consent document: ${consentDocument}`]
-    );
+    await recordAction(client, { officerId: req.user!.user_id, action: 'START_TRANSFER', parcelId, details: `Started transfer from ${current.owner_name} to ${newOwner.full_name} (${reasonText(reason)}); consent document: ${consentDocument}` });
     await client.query('COMMIT');
     notifyOtherOfficers(req.user!.user_id, `Transfer of parcel #${parcelId} to ${newOwner.full_name} needs a second officer's approval`);
     res.status(202).json({ status: 'awaiting_approval', transfer_id: inserted.rows[0].transfer_id });
@@ -377,10 +372,7 @@ export async function approveTransfer(req: Request, res: Response) {
       `UPDATE pending_transfer SET status = 'completed', decided_by = $1, decided_at = now() WHERE transfer_id = $2`,
       [req.user!.user_id, pending.transfer_id]
     );
-    await client.query(
-      `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'APPROVE_TRANSFER', $2, $3)`,
-      [req.user!.user_id, pending.parcel_id, `Approved transfer #${pending.transfer_id} to ${done.newOwnerName} after checking: ${pending.consent_document}`]
-    );
+    await recordAction(client, { officerId: req.user!.user_id, action: 'APPROVE_TRANSFER', parcelId: pending.parcel_id, details: `Approved transfer #${pending.transfer_id} to ${done.newOwnerName} after checking: ${pending.consent_document}` });
     await client.query('COMMIT');
     notifyTransfer(pending.parcel_id, current, newOwner, done);
     notifyUsers([pending.started_by], `${approver} approved the transfer of parcel #${pending.parcel_id} to ${done.newOwnerName}.`, { link: `/parcels/${pending.parcel_id}` });
@@ -405,10 +397,7 @@ export async function rejectTransfer(req: Request, res: Response) {
       `UPDATE pending_transfer SET status = 'rejected', decided_by = $1, decided_at = now(), decision_notes = $2 WHERE transfer_id = $3`,
       [req.user!.user_id, reason, pending.transfer_id]
     );
-    await client.query(
-      `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'REJECT_TRANSFER', $2, $3)`,
-      [req.user!.user_id, pending.parcel_id, `Rejected transfer #${pending.transfer_id} to ${pending.new_owner_name}: ${reason}`]
-    );
+    await recordAction(client, { officerId: req.user!.user_id, action: 'REJECT_TRANSFER', parcelId: pending.parcel_id, details: `Rejected transfer #${pending.transfer_id} to ${pending.new_owner_name}: ${reason}` });
     await client.query('COMMIT');
     notifyUsers([pending.started_by], `${req.user!.full_name} rejected the transfer of parcel #${pending.parcel_id}: ${reason}`, { link: `/parcels/${pending.parcel_id}` });
     res.json({ status: 'rejected' });
@@ -435,10 +424,7 @@ export async function cancelTransfer(req: Request, res: Response) {
       `UPDATE pending_transfer SET status = 'cancelled', decided_by = $1, decided_at = now(), code_hash = NULL WHERE transfer_id = $2`,
       [req.user!.user_id, pending.transfer_id]
     );
-    await client.query(
-      `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'CANCEL_TRANSFER', $2, $3)`,
-      [req.user!.user_id, pending.parcel_id, `Cancelled transfer #${pending.transfer_id} to ${pending.new_owner_name}`]
-    );
+    await recordAction(client, { officerId: req.user!.user_id, action: 'CANCEL_TRANSFER', parcelId: pending.parcel_id, details: `Cancelled transfer #${pending.transfer_id} to ${pending.new_owner_name}` });
     await client.query('COMMIT');
     if (pending.consent_method === 'owner_code') {
       alertOwner(pending.parcel_id, req.user!, `cancelled the transfer of parcel #${pending.parcel_id} to ${pending.new_owner_name}. The code you received no longer works.`);

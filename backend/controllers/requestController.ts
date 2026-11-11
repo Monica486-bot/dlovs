@@ -6,6 +6,8 @@ import { fourPartName } from '../utils/names';
 import { matchOwner, normalise } from '../utils/owners';
 import { transferReason, isTransferReasonError } from '../utils/transferReasons';
 import { optionalPhone, PHONE_FORMAT_ERROR } from '../utils/phone';
+import { recordAction } from '../repositories/auditRepository';
+import { findOwnerById, portfolio } from '../repositories/ownerRepository';
 
 const STAFF_ROLES = ['land_officer', 'administrator'];
 const OWNS_LAND = `EXISTS (SELECT 1 FROM parcel p JOIN owner o ON o.owner_id = p.current_owner_id WHERE o.national_id = u.national_id)`;
@@ -80,10 +82,7 @@ export async function closeUnregisteredReport(req: Request, res: Response) {
     );
     if (result.rows.length === 0) return res.status(409).json({ error: 'Report not found or already closed' });
     const report = result.rows[0];
-    await pool.query(
-      `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'CLOSE_REPORT', $2, $3)`,
-      [req.user!.user_id, parcelId, `Unregistered plot report #${report.report_id} (${report.neighbourhood}) ${status}: ${notes}`]
-    );
+    await recordAction(pool, { officerId: req.user!.user_id, action: 'CLOSE_REPORT', parcelId, details: `Unregistered plot report #${report.report_id} (${report.neighbourhood}) ${status}: ${notes}` });
     notifyUsers([report.reported_by],
       status === 'registered'
         ? `The plot you reported in ${report.neighbourhood} is now registered${parcelId ? ` as parcel #${parcelId}` : ''}.`
@@ -214,10 +213,7 @@ export async function rejectTransferRequest(req: Request, res: Response) {
     );
     if (result.rows.length === 0) return res.status(409).json({ error: 'Request not found or already handled' });
     const request = result.rows[0];
-    await pool.query(
-      `INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, 'REJECT_TRANSFER_REQUEST', $2, $3)`,
-      [req.user!.user_id, request.parcel_id, `Rejected transfer request #${request.request_id} to ${request.buyer_full_name}: ${notes}`]
-    );
+    await recordAction(pool, { officerId: req.user!.user_id, action: 'REJECT_TRANSFER_REQUEST', parcelId: request.parcel_id, details: `Rejected transfer request #${request.request_id} to ${request.buyer_full_name}: ${notes}` });
     notifyUsers([request.requested_by], `Your request to transfer parcel #${request.parcel_id} to ${request.buyer_full_name} was not approved: ${notes}`, { link: '/my/requests', sms: true });
     res.json({ message: 'Transfer request rejected' });
   } catch (err) {
@@ -265,16 +261,13 @@ export async function decideIdCheck(req: Request, res: Response) {
       );
     if (result.rows.length === 0) return res.status(409).json({ error: 'No pending ID check for this account' });
     const citizen = result.rows[0];
-    await pool.query(
-      `INSERT INTO audit_log (officer_id, action_type, details) VALUES ($1, $2, $3)`,
-      [
-        req.user!.user_id,
-        decision === 'verified' ? 'VERIFY_NATIONAL_ID' : 'REJECT_NATIONAL_ID',
-        decision === 'verified'
-          ? `Checked the ID card of ${citizen.full_name} (#${citizen.user_id}) in person: national ID ${citizen.national_id}`
-          : `Rejected national ID ${citizen.national_id} for ${citizen.full_name} (#${citizen.user_id}): ${reason}`,
-      ]
-    );
+    await recordAction(pool, {
+      officerId: req.user!.user_id,
+      action: decision === 'verified' ? 'VERIFY_NATIONAL_ID' : 'REJECT_NATIONAL_ID',
+      details: decision === 'verified'
+        ? `Checked the ID card of ${citizen.full_name} (#${citizen.user_id}) in person: national ID ${citizen.national_id}`
+        : `Rejected national ID ${citizen.national_id} for ${citizen.full_name} (#${citizen.user_id}): ${reason}`,
+    });
     notifyUsers([citizen.user_id],
       decision === 'verified'
         ? 'Your national ID has been confirmed. Parcels registered to it now appear under My Parcels.'
@@ -317,31 +310,12 @@ export async function markNotificationsRead(req: Request, res: Response) {
 
 export async function getOwnerPortfolio(req: Request, res: Response) {
   try {
-    const ownerResult = await pool.query('SELECT owner_id, full_name, national_id, contact_number FROM owner WHERE owner_id = $1', [req.params.id]);
-    const owner = ownerResult.rows[0];
+    const owner = await findOwnerById(pool, String(req.params.id));
     if (!owner) return res.status(404).json({ error: 'Owner not found' });
     const staffView = STAFF_ROLES.includes(req.user?.role ?? '');
-    const [parcels, previous] = await Promise.all([
-      pool.query(
-        `SELECT p.parcel_id, p.neighbourhood, p.gps_lat, p.gps_lng, p.area_sqm, p.status, p.registered_date,
-                (SELECT COUNT(*)::int FROM document d WHERE d.parcel_id = p.parcel_id AND d.verification_status = 'verified') AS verified_documents
-         FROM parcel p JOIN owner o ON o.owner_id = p.current_owner_id
-         WHERE o.owner_id = $1 OR (o.national_id IS NOT NULL AND o.national_id = $2)
-         ORDER BY p.registered_date, p.parcel_id`,
-        [owner.owner_id, owner.national_id]
-      ),
-      pool.query(
-        `SELECT DISTINCT ON (h.parcel_id) h.parcel_id, h.transfer_date, nw.full_name AS transferred_to
-         FROM ownership_history h
-         JOIN owner pr ON pr.owner_id = h.previous_owner_id
-         JOIN owner nw ON nw.owner_id = h.new_owner_id
-         WHERE pr.owner_id = $1 OR (pr.national_id IS NOT NULL AND pr.national_id = $2)
-         ORDER BY h.parcel_id, h.transfer_date DESC`,
-        [owner.owner_id, owner.national_id]
-      ),
-    ]);
+    const { parcels, previouslyOwned } = await portfolio(pool, owner);
     const { national_id, contact_number, ...publicOwner } = owner;
-    res.json({ owner: staffView ? owner : publicOwner, parcels: parcels.rows, previously_owned: previous.rows });
+    res.json({ owner: staffView ? owner : publicOwner, parcels, previously_owned: previouslyOwned });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load owner' });

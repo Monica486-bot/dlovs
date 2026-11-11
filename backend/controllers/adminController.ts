@@ -4,13 +4,14 @@ import pool from '../db/pool';
 import { alertOwner } from '../utils/notify';
 import { passwordProblem } from '../utils/passwords';
 import { normalisePhone, PHONE_FORMAT_ERROR } from '../utils/phone';
+import { recordAction } from '../repositories/auditRepository';
 
 const ROLES = ['citizen', 'land_officer', 'administrator'];
 const NATIONAL_ID_UNIQUE = 'user_national_id_citizen_unique';
 const NATIONAL_ID_TAKEN = 'This national ID is already linked to another account. If it is yours, visit the land office.';
 
-async function logAdminAction(userId: number, actionType: string, details: string, parcelId: number | string | null = null): Promise<void> {
-  await pool.query(`INSERT INTO audit_log (officer_id, action_type, parcel_id, details) VALUES ($1, $2, $3, $4)`, [userId, actionType, parcelId, details]);
+function logAdminAction(userId: number, actionType: string, details: string, parcelId: number | string | null = null): Promise<void> {
+  return recordAction(pool, { officerId: userId, action: actionType, parcelId, details });
 }
 
 export async function listUsers(_req: Request, res: Response): Promise<void> {

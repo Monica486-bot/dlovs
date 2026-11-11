@@ -8,7 +8,7 @@ import type { AuthUser } from '../middleware/auth';
 // closing the database.
 const pending = new Set<Promise<void>>();
 
-function track(work: Promise<void>): Promise<void> {
+export function track(work: Promise<void>): Promise<void> {
   pending.add(work);
   work.finally(() => pending.delete(work));
   return work;
