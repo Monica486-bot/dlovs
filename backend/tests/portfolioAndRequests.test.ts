@@ -4,6 +4,17 @@ import { app, pool, request, closeDatabase, createStaff, createCitizen, createPa
 
 afterAll(closeDatabase);
 
+// Follows the paging headers to collect every result's parcel ID.
+async function allSearchResults(query: Record<string, unknown>): Promise<number[]> {
+  const found: number[] = [];
+  for (let offset = 0; ; ) {
+    const res = await request(app).get('/api/parcels/search').query({ ...query, offset }).expect(200);
+    found.push(...res.body.map((p: { parcel_id: number }) => p.parcel_id));
+    offset += res.body.length;
+    if (res.body.length === 0 || offset >= Number(res.headers['x-total-count'])) return found;
+  }
+}
+
 let officer: Awaited<ReturnType<typeof createStaff>>;
 beforeAll(async () => {
   officer = await createStaff('land_officer');
@@ -21,18 +32,20 @@ describe('FR06 verification pathways', () => {
     expect(ids(await find({ query: 'Block 7', by: 'neighbourhood' }))).toContain(parcel.parcel_id);
     const byId = (query: string) => find({ query, by: 'national_id' }).set('Authorization', `Bearer ${officer.token}`);
     expect(ids(await byId(nationalId))).toEqual([parcel.parcel_id]);
-    expect(ids(await byId(nationalId.slice(0, -1)))).toEqual([]);
-    const near = await find({ by: 'near', lat: 4.8594, lng: 31.5713, radius: 50 });
+    // a partial ID (the prefix without the final number) must not match any national ID
+    expect(ids(await byId(nationalId.replace(/\d+$/, '')))).toEqual([]);
+    const near = await find({ by: 'near', lat: Number(parcel.gps_lat), lng: Number(parcel.gps_lng), radius: 50 });
     expect(ids(near)).toContain(parcel.parcel_id);
     expect(near.body.find((p: { parcel_id: unknown }) => p.parcel_id === parcel.parcel_id).distance_m).toBe(0);
   });
 
   test('GPS search keeps parcels inside the radius and drops those outside, at any bearing', async () => {
     const parcel = await createParcel(officer.token);
+    const [lat0, lng0] = [Number(parcel.gps_lat), Number(parcel.gps_lng)];
     const metresPerDegree = 111320;
     const near = async (dNorth: number, dEast: number, radius: number) => {
-      const lat = 4.8594 + dNorth / metresPerDegree;
-      const lng = 31.5713 + dEast / (metresPerDegree * Math.cos((4.8594 * Math.PI) / 180));
+      const lat = lat0 + dNorth / metresPerDegree;
+      const lng = lng0 + dEast / (metresPerDegree * Math.cos((lat0 * Math.PI) / 180));
       const res = await request(app).get('/api/parcels/search').query({ by: 'near', lat, lng, radius }).expect(200);
       return res.body.find((p: { parcel_id: unknown }) => p.parcel_id === parcel.parcel_id);
     };
@@ -61,14 +74,35 @@ describe('FR06 verification pathways', () => {
     expect(munuki.neighbourhood).toBe('Munuki');
     expect(munuki.city).toBe('Juba');
 
-    const ids = async (query: Record<string, unknown>) =>
-      (await request(app).get('/api/parcels/search').query(query)).body.map((p: { parcel_id: number }) => p.parcel_id);
+    const ids = (query: Record<string, unknown>) => allSearchResults(query);
     const juba = await ids({ query: 'Juba', by: 'neighbourhood' });
     expect(juba).toEqual(expect.arrayContaining([munuki.parcel_id, gudele.parcel_id]));
     expect(await ids({ query: 'juba' })).toEqual(expect.arrayContaining([munuki.parcel_id, gudele.parcel_id]));
     const area = await ids({ query: 'Hai Munuki', by: 'neighbourhood' });
     expect(area).toContain(munuki.parcel_id);
     expect(area).not.toContain(gudele.parcel_id);
+  });
+
+  test('search pages through every match: 50 at a time, with the total in a header', async () => {
+    // 53 parcels for one owner name no other test uses, inserted directly to keep the test fast
+    const name = `Paging ${String.fromCharCode(...Array.from({ length: 8 }, () => 97 + Math.floor(Math.random() * 26)))} Deng Kuol`;
+    const owner = await pool.query('INSERT INTO owner (full_name) VALUES ($1) RETURNING owner_id', [name]);
+    const inserted = await pool.query(
+      `INSERT INTO parcel (gps_lat, gps_lng, neighbourhood, unique_qr_code, qr_signature, registered_by, current_owner_id)
+       SELECT 4.85, 31.58, 'Munuki', $3::text || '-' || i, 'test', $2::int, $1::int FROM generate_series(1, 53) AS i
+       RETURNING parcel_id`,
+      [owner.rows[0].owner_id, officer.user.user_id, `paging-${owner.rows[0].owner_id}`]
+    );
+    const created = inserted.rows.map((r: { parcel_id: number }) => r.parcel_id).sort((x: number, y: number) => x - y);
+    const first = await request(app).get('/api/parcels/search').query({ query: name, by: 'owner_name' }).expect(200);
+    expect(first.body).toHaveLength(50);
+    expect(first.headers['x-total-count']).toBe('53');
+    expect(first.headers['x-page-size']).toBe('50');
+    const second = await request(app).get('/api/parcels/search').query({ query: name, by: 'owner_name', offset: 50 }).expect(200);
+    expect(second.body).toHaveLength(3);
+    expect(second.headers['x-offset']).toBe('50');
+    expect([...first.body, ...second.body].map((p: { parcel_id: number }) => p.parcel_id)).toEqual(created);
+    await request(app).get('/api/parcels/search').query({ query: name, by: 'owner_name', offset: -1 }).expect(400);
   });
 
   test('the neighbourhood list is public', async () => {

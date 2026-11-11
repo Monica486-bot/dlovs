@@ -42,14 +42,14 @@ async function uploadDocument(session: { token: string }, parcelId: number, file
 describe('metric (d): 100% of 20 officer transactions are in the audit log', () => {
   const transactions: { officer: number; action: string; parcel: number }[] = [];
 
-  test('5 parcel record creations', async () => {
+  async function createParcels() {
     for (let i = 0; i < 5; i++) {
       const parcel = await createParcel(registrar.token, { neighbourhood: i % 2 ? 'Gudele' : 'Munuki' });
       transactions.push({ officer: registrar.user.user_id, action: 'CREATE_PARCEL', parcel: parcel.parcel_id as number });
     }
-  });
+  }
 
-  test('5 document approvals', async () => {
+  async function approveDocuments() {
     for (let i = 0; i < 5; i++) {
       const { owner, parcel } = await ownedParcel();
       const upload = await uploadDocument(owner, parcel.parcel_id as number);
@@ -61,9 +61,9 @@ describe('metric (d): 100% of 20 officer transactions are in the audit log', () 
       expect(review.status).toBe(200);
       transactions.push({ officer: reviewer.user.user_id, action: 'VERIFY_DOCUMENT', parcel: parcel.parcel_id as number });
     }
-  });
+  }
 
-  test('5 land transfers', async () => {
+  async function transferParcels() {
     for (let i = 0; i < 5; i++) {
       const parcel = await createParcel(registrar.token);
       const res = await transferWithApproval(registrar.token, reviewer.token, parcel.parcel_id as number, {
@@ -72,9 +72,9 @@ describe('metric (d): 100% of 20 officer transactions are in the audit log', () 
       expect(res.status).toBe(200);
       transactions.push({ officer: registrar.user.user_id, action: 'PROCESS_TRANSFER', parcel: parcel.parcel_id as number });
     }
-  });
+  }
 
-  test('5 dispute resolutions', async () => {
+  async function resolveDisputes() {
     const citizen = await createCitizen();
     for (let i = 0; i < 5; i++) {
       const parcel = await createParcel(registrar.token);
@@ -90,6 +90,19 @@ describe('metric (d): 100% of 20 officer transactions are in the audit log', () 
       expect(resolve.status).toBe(200);
       transactions.push({ officer: reviewer.user.user_id, action: 'RESOLVE_DISPUTE', parcel: parcel.parcel_id as number });
     }
+  }
+
+  // the 20 transactions run before any test here, so the checks hold in any test order
+  beforeAll(async () => {
+    await createParcels();
+    await approveDocuments();
+    await transferParcels();
+    await resolveDisputes();
+  }, 600000); // 20 full transactions take longer than the default per-hook timeout
+
+  test('5 parcel creations, 5 document approvals, 5 transfers and 5 dispute resolutions all succeed', () => {
+    const count = (action: string) => transactions.filter((t) => t.action === action).length;
+    expect([count('CREATE_PARCEL'), count('VERIFY_DOCUMENT'), count('PROCESS_TRANSFER'), count('RESOLVE_DISPUTE')]).toEqual([5, 5, 5, 5]);
   });
 
   test('every one of the 20 transactions has exactly one audit entry with officer and timestamp', async () => {

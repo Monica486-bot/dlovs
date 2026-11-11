@@ -72,14 +72,22 @@ export async function createCitizen({ nationalId = uniqueNationalId(), verifiedB
   return { ...session, phone, nationalId };
 }
 
+// A random point in Juba for each test parcel, so a GPS search around one test's parcel
+// is never crowded out by parcels that other test files created earlier.
+export function randomJubaPoint(): { lat: number; lng: number } {
+  return { lat: Number((4.80 + Math.random() * 0.12).toFixed(7)), lng: Number((31.50 + Math.random() * 0.12).toFixed(7)) };
+}
+
 export async function createParcel(
   officerToken: string,
-  { ownerName = 'Akoi Deng Majok Garang', nationalId = uniqueNationalId(), neighbourhood = 'Munuki' } = {}
+  { ownerName = 'Akoi Deng Majok Garang', nationalId = uniqueNationalId(), neighbourhood = 'Munuki', ...point } = {} as
+    { ownerName?: string; nationalId?: string; neighbourhood?: string; lat?: number; lng?: number }
 ): Promise<Record<string, unknown>> {
+  const { lat, lng } = point.lat !== undefined && point.lng !== undefined ? { lat: point.lat, lng: point.lng } : randomJubaPoint();
   const res = await supertest(app)
     .post('/api/parcels')
     .set('Authorization', `Bearer ${officerToken}`)
-    .send({ gps_lat: 4.8594, gps_lng: 31.5713, neighbourhood, area_sqm: 600, owner: { full_name: ownerName, national_id: nationalId } });
+    .send({ gps_lat: lat, gps_lng: lng, neighbourhood, area_sqm: 600, owner: { full_name: ownerName, national_id: nationalId } });
   if (res.status !== 201) throw new Error(`create parcel failed: ${res.status} ${JSON.stringify(res.body)}`);
   return res.body;
 }
