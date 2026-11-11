@@ -12,6 +12,7 @@
     "load-schema": "node scripts/load-schema.js",
     "qr-keys": "node scripts/qr-keys.js",
     "resign-qr": "tsc && node scripts/resign-qr.js",
+    "load-test": "tsc && node scripts/load-test.js",
     "test": "jest --runInBand"
   },
   "keywords": [],
