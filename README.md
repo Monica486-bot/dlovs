@@ -3,6 +3,8 @@
 **Final Version of the Product** · FullStack track
 BSc. Software Engineering Capstone · Monica Akoi Dau Ahol · African Leadership University · Supervisor: Hubert Apana
 
+**▶ Video walkthrough: https://screenrec.com/share/sPjguqm0th** (public link, no sign-in needed)
+
 ## Project overview
 
 DLOVS lets anyone in Juba check who legitimately owns a plot of land **before money changes hands**. Every registered
@@ -19,8 +21,7 @@ is written to an audit log that the database itself refuses to alter.
 
 ## Links
 
-- **Video demo and technical report:** https://docs.google.com/document/d/1fUCuazM6pZCw4Tq5WcNgAcQFJ244HxZ7burXXHvv1jk/edit?usp=sharing
-  (the walkthrough video link and the report are both in this document)
+- **Video walkthrough:** https://screenrec.com/share/sPjguqm0th (public, no sign-in needed)
 - **GitHub repository:** https://github.com/Monica486-bot/dlovs
 - **Figma prototype (18 screens):** https://www.figma.com/design/2mrZb7K98KKKn21Zky1C9y/DLOVS-App-Screens?node-id=0-1&p=f&t=NDGbDICq0c3tA6cJ-0
 - **Live web app:** https://dlovs-juba.netlify.app (API: https://dlovs-api.onrender.com; the free server sleeps after
@@ -506,7 +507,7 @@ CREATE TRIGGER ownership_history_append_only BEFORE UPDATE OR DELETE ON ownershi
   FOR EACH ROW EXECUTE FUNCTION dlovs_append_only();   -- raises "ownership_history is append-only"
 ```
 
-**No double sales**: [`backend/controllers/parcelController.ts`](backend/controllers/parcelController.ts). Tested
+**No double sales**: [`backend/controllers/transferController.ts`](backend/controllers/transferController.ts) (`lockParcel`). Tested
 with two officers transferring the same plot at the same instant: one succeeds, the other is refused:
 
 ```js
@@ -517,7 +518,7 @@ if (expected_owner_id != null && Number(expected_owner_id) !== current.current_o
 }
 ```
 
-**"Near me" search**: [`backend/controllers/parcelController.ts`](backend/controllers/parcelController.ts). The
+**"Near me" search**: [`backend/repositories/parcelRepository.ts`](backend/repositories/parcelRepository.ts). The
 exact great-circle (Haversine) distance is expensive, so an indexed latitude/longitude box around the search circle
 removes distant parcels first. A degree of longitude shrinks towards the poles, so the box is widened by
 `1 / cos(latitude)`:
@@ -560,14 +561,16 @@ const t = (text, vars) => {
 
 ### Automated tests
 
-`npm test` in `backend/` runs **57 Jest + Supertest tests** against a separate `dlovs_test` database that is rebuilt
-from `schema.sql` on every run. All 57 pass.
+`npm test` in `backend/` runs **59 Jest + Supertest tests** against a separate `dlovs_test` database that is rebuilt
+from `schema.sql` on every run. On 10 November 2026 all 59 passed in the normal order and in three shuffled orders
+(`npx jest --runInBand --randomize --seed=11`, `222` and `3333`). No test depends on another test or file having run
+first: each test parcel gets its own random location, and the 20 audit-log transactions are set up before their checks.
 
 | Test file | Tests | What it proves |
 |---|---|---|
-| [`auditTrail.test.ts`](backend/tests/auditTrail.test.ts) | 12 | **Evaluation metric (d):** 20 officer transactions (5 registrations, 5 document approvals, 5 transfers, 5 dispute resolutions), each with exactly one audit entry naming the officer, with a timestamp. FR10 file type, 5 MB limit and encryption at rest; FR14 separation of duties; FR12 dispute limits |
-| [`auth.test.ts`](backend/tests/auth.test.ts) | 8 | FR01 SMS sign-up (wrong, reused and locked codes); the password rule (short, common, phone-number passwords refused); FR02 guest access; FR03 role checks; deactivated accounts refused on their next request |
-| [`portfolioAndRequests.test.ts`](backend/tests/portfolioAndRequests.test.ts) | 13 | FR06 all four pathways find the same parcel; GPS search at the edge of the radius in every direction; national ID search refused to the public; FR09 portfolio; FR13 plot reports; transfer requests; ID checks; FR15 push tokens |
+| [`auditTrail.test.ts`](backend/tests/auditTrail.test.ts) | 9 | **Evaluation metric (d):** 20 officer transactions (5 registrations, 5 document approvals, 5 transfers, 5 dispute resolutions), each with exactly one audit entry naming the officer, with a timestamp. FR10 file type, 5 MB limit and encryption at rest; FR14 separation of duties; FR12 dispute limits |
+| [`auth.test.ts`](backend/tests/auth.test.ts) | 12 | FR01 SMS sign-up (wrong, reused and locked codes); Zain, MTN and Digitel number formats; the password rule (short, common, phone-number passwords refused); FR02 guest access; FR03 role checks; deactivated accounts refused on their next request |
+| [`portfolioAndRequests.test.ts`](backend/tests/portfolioAndRequests.test.ts) | 14 | FR06 all four pathways find the same parcel; search paging (50 per page, total in `X-Total-Count`); GPS search at the edge of the radius in every direction; national ID search refused to the public; FR09 portfolio; FR13 plot reports; transfer requests; ID checks; FR15 push tokens |
 | [`qrAndTransfer.test.ts`](backend/tests/qrAndTransfer.test.ts) | 9 | FR05 Ed25519-signed, forged and *replaced* QR codes, checked offline with only the public key; FR11 transfers issue a new QR, refuse disputed parcels and simultaneous double sales; FR08 / NFR07 append-only triggers reject `UPDATE`, `DELETE` and `TRUNCATE` |
 | [`transferConsent.test.ts`](backend/tests/transferConsent.test.ts) | 15 | Owner consent by SMS code or a second officer; transfer reasons; buyer-accepted transfers; owners told of every officer action; one person per national ID; one transfer at a time |
 
@@ -577,18 +580,25 @@ with the API in UTC+3 and PostgreSQL in UTC+2 every code read as expired. Databa
 
 ### Performance (NFR01, NFR05)
 
-Measured with 50 requests per endpoint against the API running locally, with a database of **50,000 parcels and
-40,000 owners** (the NFR05 target), spread over a 13 km square around Juba:
+`npm run load-test` in `backend/` ([`scripts/load-test.js`](backend/scripts/load-test.js)) fills a separate
+`dlovs_load` database with **50,000 parcels and 40,000 owners** (the NFR05 target), spread over a 13 km square around
+Juba, starts the API locally and times 50 requests per endpoint after 5 warm-up requests. Results from 10 November 2026
+([`docs/testing/load-test-results.md`](docs/testing/load-test-results.md)):
 
-| Request | Median | 95th percentile | Response size |
-|---|---|---|---|
-| Verify a parcel (full record, history, disputes, documents) | 11 ms | 29 ms | 0.7 KB |
-| Search by parcel ID | 15 ms | 18 ms | 0.2 KB |
-| Search by owner name | 45 ms | 69 ms | 0.2 KB |
-| Search by neighbourhood (50 results) | 8 ms | 15 ms | 11 KB |
-| Near me, 500 m | 8 ms | 12 ms | 12 KB |
-| Near me, 5 km (the maximum) | 218 ms | 320 ms | 12 KB |
-| Owner portfolio | 11 ms | 21 ms | 0.3 KB |
+| Request | Median | 95th percentile | Largest response | Total matches |
+|---|---|---|---|---|
+| Verify a parcel (full record, history, disputes, documents) | 16 ms | 31 ms | 0.7 KB | - |
+| Search by parcel ID | 12 ms | 17 ms | 0.2 KB | 1 |
+| Search by owner name (first page of 50) | 73 ms | 107 ms | 10.9 KB | 625 |
+| Search by neighbourhood (first page of 50) | 127 ms | 135 ms | 10.7 KB | 1,041 |
+| Search the whole city, "Juba" (page 20) | 212 ms | 314 ms | 10.7 KB | 50,000 |
+| Near me, 500 m | 14 ms | 18 ms | 11.8 KB | 216 |
+| Near me, 5 km (the maximum) | 269 ms | 410 ms | 11.8 KB | 18,210 |
+| Owner portfolio | 18 ms | 28 ms | 0.5 KB | - |
+
+Search returns 50 results per page with the total number of matches in an `X-Total-Count` header, and the web and
+mobile apps offer *Load more*. Counting every match costs time on broad searches (a city-wide search takes about
+0.2 s), but no result is silently cut off, as happened when search stopped at the first 50 parcels.
 
 Every response is far below NFR01's 50 KB limit. At 3G speeds (around 1 Mbit/s) the largest, 12 KB, takes about
 0.1 s to download, so the 3-second target leaves room for network latency. The web app is 149 KB gzipped (JavaScript
@@ -596,7 +606,8 @@ and CSS, no map tiles or images).
 
 The "near me" search was the one bottleneck: it calculated the Haversine distance for every parcel in the database
 (163 ms for a 500 m search). It now filters by an indexed latitude/longitude box first, and only counts documents for
-the closest 50 (see *Code highlights*), bringing 500 m down to 8 ms with identical results.
+the page being returned (see *Code highlights*), which brought a 500 m search down to 8 ms with identical results
+(14 ms in the run above, which also counts every match for paging).
 
 Still to measure in the field: response times over real 2G/3G networks in Juba, and the first request after Render's
 free tier has put the API to sleep (this can take tens of seconds, so wake the API before each testing session).
@@ -675,7 +686,8 @@ dlovs/
 ├── backend/                    Node.js / Express API
 │   ├── db/schema.sql           database schema, append-only triggers
 │   ├── db/migrations/          upgrades for existing databases (safe to re-run)
-│   ├── controllers/            auth, parcels, documents, disputes, requests, admin, audit
+│   ├── controllers/            auth, parcels, documents, disputes, requests, admin, audit (HTTP handling and rules)
+│   ├── repositories/           parcel, owner, user and audit-log SQL; parcelController has no SQL of its own
 │   ├── routes/                 endpoint → controller mapping with role checks
 │   ├── middleware/             auth (JWT + roles), upload (5 MB limit)
 │   ├── utils/                  qr (Ed25519), documentStorage (encryption), passwords, phoneCodes, sms, push, notify
