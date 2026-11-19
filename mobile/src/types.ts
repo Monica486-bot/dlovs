@@ -112,6 +112,7 @@ export interface ParcelVerification {
   disputes: Pick<Dispute, 'dispute_id' | 'dispute_type' | 'status' | 'created_at'>[];
   documents: Pick<ParcelDocument, 'document_id' | 'document_type' | 'file_type' | 'verification_status' | 'upload_date'>[];
   gps_check: { gps_match: boolean | null; distance_meters: number | null } | null;
+  names_hidden?: boolean;
 }
 
 // A verification saved on the phone for offline use (utils/cache)

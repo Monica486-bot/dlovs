@@ -28,7 +28,8 @@ describe('FR06 verification pathways', () => {
     const ids = (res: { body: { parcel_id: number }[] }) => res.body.map((p) => p.parcel_id);
 
     expect(ids(await find({ query: String(parcel.parcel_id), by: 'parcel_id' }))).toContain(parcel.parcel_id);
-    expect(ids(await find({ query: 'nyandeng path', by: 'owner_name' }))).toContain(parcel.parcel_id);
+    const byName = (query: string) => find({ query, by: 'owner_name' }).set('Authorization', `Bearer ${officer.token}`);
+    expect(ids(await byName('nyandeng path'))).toContain(parcel.parcel_id);
     expect(ids(await find({ query: 'Block 7', by: 'neighbourhood' }))).toContain(parcel.parcel_id);
     const byId = (query: string) => find({ query, by: 'national_id' }).set('Authorization', `Bearer ${officer.token}`);
     expect(ids(await byId(nationalId))).toEqual([parcel.parcel_id]);
@@ -94,15 +95,16 @@ describe('FR06 verification pathways', () => {
       [owner.rows[0].owner_id, officer.user.user_id, `paging-${owner.rows[0].owner_id}`]
     );
     const created = inserted.rows.map((r: { parcel_id: number }) => r.parcel_id).sort((x: number, y: number) => x - y);
-    const first = await request(app).get('/api/parcels/search').query({ query: name, by: 'owner_name' }).expect(200);
+    const asOfficer = { Authorization: `Bearer ${officer.token}` };
+    const first = await request(app).get('/api/parcels/search').set(asOfficer).query({ query: name, by: 'owner_name' }).expect(200);
     expect(first.body).toHaveLength(50);
     expect(first.headers['x-total-count']).toBe('53');
     expect(first.headers['x-page-size']).toBe('50');
-    const second = await request(app).get('/api/parcels/search').query({ query: name, by: 'owner_name', offset: 50 }).expect(200);
+    const second = await request(app).get('/api/parcels/search').set(asOfficer).query({ query: name, by: 'owner_name', offset: 50 }).expect(200);
     expect(second.body).toHaveLength(3);
     expect(second.headers['x-offset']).toBe('50');
     expect([...first.body, ...second.body].map((p: { parcel_id: number }) => p.parcel_id)).toEqual(created);
-    await request(app).get('/api/parcels/search').query({ query: name, by: 'owner_name', offset: -1 }).expect(400);
+    await request(app).get('/api/parcels/search').set(asOfficer).query({ query: name, by: 'owner_name', offset: -1 }).expect(400);
   });
 
   test('the neighbourhood list is public', async () => {
@@ -119,7 +121,7 @@ describe('FR06 verification pathways', () => {
 });
 
 describe('FR09 owner portfolio', () => {
-  test('anyone can see all parcels of an owner, without their national ID or phone', async () => {
+  test("an owner's portfolio is for land officers, not the public", async () => {
     const nationalId = uniqueNationalId();
     const first = await createParcel(officer.token, { ownerName: 'Portfolio Owner Deng Lual', nationalId, neighbourhood: 'Munuki' });
     await createParcel(officer.token, { ownerName: 'Portfolio Owner Deng Lual', nationalId, neighbourhood: 'Gudele' });
@@ -129,15 +131,34 @@ describe('FR09 owner portfolio', () => {
     expect(ownerId).toBeTruthy();
 
     const guest = await request(app).get(`/api/owners/${ownerId}`);
-    expect(guest.status).toBe(200);
-    expect(guest.body.owner.full_name).toBe('Portfolio Owner Deng Lual');
-    expect(guest.body.owner.national_id).toBeUndefined();
-    expect(guest.body.owner.contact_number).toBeUndefined();
-    expect(guest.body.parcels.map((p: { neighbourhood: string }) => p.neighbourhood).sort()).toEqual(['Gudele', 'Munuki']);
-    expect(guest.body.parcels[0].gps_lat).toBeTruthy();
+    expect(guest.status).toBe(403);
+    expect(guest.body.code).toBe('STAFF_ONLY_PORTFOLIO');
 
     const staff = await request(app).get(`/api/owners/${ownerId}`).set('Authorization', `Bearer ${officer.token}`);
+    expect(staff.status).toBe(200);
+    expect(staff.body.owner.full_name).toBe('Portfolio Owner Deng Lual');
     expect(staff.body.owner.national_id).toBe(nationalId);
+    expect(staff.body.parcels.map((p: { neighbourhood: string }) => p.neighbourhood).sort()).toEqual(['Gudele', 'Munuki']);
+  });
+});
+
+describe('owner privacy for the public', () => {
+  test('guests see partly hidden names and cannot search by owner name', async () => {
+    const parcel = await createParcel(officer.token, { ownerName: 'Privacy Owner Garang Deng', neighbourhood: 'Munuki' });
+    const guestSearch = (query: Record<string, unknown>) => request(app).get('/api/parcels/search').query(query);
+
+    const byName = await guestSearch({ query: 'Privacy Owner', by: 'owner_name' });
+    expect(byName.status).toBe(403);
+    expect(byName.body.code).toBe('STAFF_ONLY_SEARCH');
+    // the general search box doesn't match names for the public either
+    const any = await guestSearch({ query: 'Privacy Owner', by: 'any' });
+    expect(any.body.map((p: { parcel_id: number }) => p.parcel_id)).not.toContain(parcel.parcel_id);
+
+    const byId = await guestSearch({ query: String(parcel.parcel_id), by: 'parcel_id' });
+    expect(byId.body[0].owner_name).toBe('Privacy O***');
+    const record = await request(app).get(`/api/parcels/${parcel.parcel_id}/verify`);
+    expect(record.body.parcel.owner_name).toBe('Privacy O***');
+    expect(record.body.ownership_history[0].new_owner_name).toBe('Privacy O***');
   });
 });
 

@@ -119,9 +119,14 @@ describe('FR02 guest access / FR03 role-based access', () => {
 
     const record = await request(app).get(`/api/parcels/${parcel.parcel_id}/verify`);
     expect(record.status).toBe(200);
-    expect(record.body.parcel.owner_name).toBe('Akoi Deng Majok Garang');
+    // guests see the owner's name partly hidden; officers see it in full
+    expect(record.body.parcel.owner_name).toBe('Akoi D***');
+    expect(record.body.names_hidden).toBe(true);
     expect(record.body.parcel.national_id).toBeUndefined();
     expect(record.body.parcel.qr_signature).toBeUndefined();
+    const staffView = await request(app).get(`/api/parcels/${parcel.parcel_id}/verify`).set('Authorization', `Bearer ${officer.token}`);
+    expect(staffView.body.parcel.owner_name).toBe('Akoi Deng Majok Garang');
+    expect(staffView.body.names_hidden).toBe(false);
   });
 
   test('guests and citizens cannot create parcel records', async () => {

@@ -149,6 +149,7 @@ export interface VerifyResult {
   disputes: DisputeSummary[];
   documents: DocumentSummary[];
   gps_check: { gps_match: boolean | null; distance_meters: number | null } | null;
+  names_hidden?: boolean;
 }
 
 // GET /parcels/mine

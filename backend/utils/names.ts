@@ -1,3 +1,11 @@
+// Owner names are partly hidden from the public, so a list of someone's land can't be read off DLOVS:
+// "Nyandeng Kuol Ajak Mayen" becomes "Nyandeng K***".
+export function maskName(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const [first, second] = name.trim().split(/\s+/);
+  return second ? `${first} ${second[0]}***` : `${first[0]}***`;
+}
+
 const PARTS = 4;
 const HAS_LETTER = /\p{L}/u;
 

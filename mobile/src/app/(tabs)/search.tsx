@@ -21,13 +21,12 @@ interface SearchMode {
   keyboard?: KeyboardTypeOptions;
 }
 
-// Verification pathways 2–3 (FR06): parcel ID, and owner name / neighbourhood /
-// GPS location. (Pathway 1, the QR code, is Scan. Pathway 4, national ID, is
-// for land officers only, since a national ID is private.)
+// Verification pathways 2–3 (FR06): parcel ID, neighbourhood and GPS location.
+// (Pathway 1, the QR code, is Scan. Searching by owner name or national ID is
+// for land officers only, to protect owners' privacy.)
 const MODES: SearchMode[] = [
-  { key: 'any', label: 'Any', icon: 'search', placeholder: 'Parcel ID, owner name, or area' },
+  { key: 'any', label: 'Any', icon: 'search', placeholder: 'Parcel ID or area' },
   { key: 'parcel_id', label: 'Parcel ID', icon: 'pricetag', placeholder: 'e.g. 12', keyboard: 'number-pad' },
-  { key: 'owner_name', label: 'Owner', icon: 'person', placeholder: 'e.g. Akoi Deng' },
   { key: 'neighbourhood', label: 'Area', icon: 'business', placeholder: 'e.g. Munuki' },
   { key: 'near', label: 'Near me', icon: 'locate' },
 ];

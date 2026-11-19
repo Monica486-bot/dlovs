@@ -17,7 +17,7 @@ const BUYER = 'Achol Mayen Kuol Ajak';
 
 const start = (parcelId: number, body: Record<string, unknown> = {}, by = officer) =>
   request(app).post(`/api/parcels/${parcelId}/transfer`).set(auth(by)).send({ reason: 'Sale', new_owner: { full_name: BUYER, national_id: uniqueNationalId() }, ...body });
-const ownerOf = async (parcelId: number) => (await request(app).get(`/api/parcels/${parcelId}/verify`)).body.parcel.owner_name;
+const ownerOf = async (parcelId: number) => (await request(app).get(`/api/parcels/${parcelId}/verify`).set(auth(officer))).body.parcel.owner_name;
 const actions = async (parcelId: number) =>
   (await pool.query('SELECT action_type, officer_id FROM audit_log WHERE parcel_id = $1 ORDER BY log_id', [parcelId])).rows;
 

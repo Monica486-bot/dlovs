@@ -11,6 +11,8 @@ export const SEARCH_CONDITIONS: Record<string, string> = {
   owner_name: "o.full_name ILIKE '%' || $1 || '%'",
   national_id: 'o.national_id = $1',
   any: "CAST(p.parcel_id AS TEXT) = $1 OR p.neighbourhood ILIKE '%' || $1 || '%' OR p.city ILIKE $1 OR o.full_name ILIKE '%' || $1 || '%'",
+  // the public "any" search: the same, without matching owner names
+  any_public: "CAST(p.parcel_id AS TEXT) = $1 OR p.neighbourhood ILIKE '%' || $1 || '%' OR p.city ILIKE $1",
 };
 
 const DISTANCE_SQL = `(2 * 6371000 * asin(sqrt(

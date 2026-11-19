@@ -75,7 +75,7 @@ describe('FR11 land transfer', () => {
     const newSignature = signatureFromCode(rows[0].unique_qr_code);
     expect(newSignature).not.toBe(oldSignature);
 
-    const record = await request(app).get(`/api/parcels/${parcel.parcel_id}/verify`).query({ signature: newSignature });
+    const record = await request(app).get(`/api/parcels/${parcel.parcel_id}/verify`).set('Authorization', `Bearer ${officer.token}`).query({ signature: newSignature });
     expect(record.body.qr_check).toBe('valid');
     expect(record.body.parcel.owner_name).toBe('Buyer One Achol Mayen');
     expect(record.body.ownership_history.map((h: Record<string, unknown>) => h.new_owner_name)).toEqual(['Seller One Lomoro Taban', 'Buyer One Achol Mayen']);
@@ -88,7 +88,7 @@ describe('FR11 land transfer', () => {
     const oldSignature = signatureFromCode(parcel.unique_qr_code as string);
     expect((await transfer(parcel.parcel_id as number, { new_owner: { full_name: 'New Owner Rebecca Ayen', national_id: uniqueNationalId() } })).status).toBe(200);
 
-    const res = await request(app).get(`/api/parcels/${parcel.parcel_id}/verify`).query({ signature: oldSignature });
+    const res = await request(app).get(`/api/parcels/${parcel.parcel_id}/verify`).set('Authorization', `Bearer ${officer.token}`).query({ signature: oldSignature });
     expect(res.status).toBe(200);
     expect(res.body.qr_check).toBe('superseded');
     expect(res.body.qr_issued_at).toBeTruthy();

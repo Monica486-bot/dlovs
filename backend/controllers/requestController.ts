@@ -313,6 +313,13 @@ export async function getOwnerPortfolio(req: Request, res: Response) {
     const owner = await findOwnerById(pool, String(req.params.id));
     if (!owner) return res.status(404).json({ error: 'Owner not found' });
     const staffView = STAFF_ROLES.includes(req.user?.role ?? '');
+    // A list of everything someone owns is private: only staff and the owner themselves may see it.
+    if (!staffView) {
+      const me = req.user ? (await pool.query('SELECT national_id, national_id_verified_at FROM "user" WHERE user_id = $1', [req.user.user_id])).rows[0] : null;
+      if (!me?.national_id_verified_at || !owner.national_id || me.national_id !== owner.national_id) {
+        return res.status(403).json({ error: "An owner's list of parcels is available to land officers only", code: 'STAFF_ONLY_PORTFOLIO' });
+      }
+    }
     const { parcels, previouslyOwned } = await portfolio(pool, owner);
     const { national_id, contact_number, ...publicOwner } = owner;
     res.json({ owner: staffView ? owner : publicOwner, parcels, previously_owned: previouslyOwned });

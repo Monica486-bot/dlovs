@@ -20,8 +20,8 @@ const MODES = {
   national_id: 'National ID',
   near: 'Near a GPS point',
 };
-// a national ID is private: only land officers and administrators search by it
-const STAFF_ONLY = ['national_id'];
+// national IDs and owner names are private: only land officers and administrators search by them
+const STAFF_ONLY = ['national_id', 'owner_name'];
 const RADII = [50, 100, 200, 500, 1000];
 
 interface ParcelSearchProps {
@@ -113,7 +113,7 @@ export default function ParcelSearch({ recordPath }: ParcelSearchProps) {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={by === 'any' ? t('Search by owner name or plot location') : ''}
+                placeholder={by === 'any' ? (isStaff ? t('Search by owner name or plot location') : t('Search by parcel ID or plot location')) : ''}
                 aria-label={t('Search terms')}
                 required
               />

@@ -78,9 +78,12 @@ export default function PublicParcel() {
         </div>
       )}
       <RecordWarnings parcel={parcel} disputes={disputes} />
+      {record.names_hidden && (
+        <p className="muted">{t("Owners' names are partly hidden to protect their privacy. Land officers can see them in full.")}</p>
+      )}
 
       <div className="detail-grid">
-        <OwnerFacts parcel={parcel} documents={documents} ownerLink={isStaff ? `/owners/${parcel.current_owner_id}` : `/verify/owners/${parcel.current_owner_id}`} />
+        <OwnerFacts parcel={parcel} documents={documents} ownerLink={isStaff ? `/owners/${parcel.current_owner_id}` : undefined} />
         <div className="card">
           <h3>{t('Documents on file')}</h3>
           {documents.length === 0 ? (

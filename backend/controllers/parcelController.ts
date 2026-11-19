@@ -3,7 +3,7 @@ import pool from '../db/pool';
 import { generateQrDataUrl, checkSignature, QR_PUBLIC_KEY } from '../utils/qr';
 import { askForIdCheck, alertOwner } from '../utils/notify';
 import { NEIGHBOURHOODS, CITY, canonicalNeighbourhood } from '../utils/neighbourhoods';
-import { fourPartName } from '../utils/names';
+import { fourPartName, maskName } from '../utils/names';
 import { matchOwner } from '../utils/owners';
 import { TRANSFER_REASONS } from '../utils/transferReasons';
 import { optionalPhone, PHONE_FORMAT_ERROR } from '../utils/phone';
@@ -18,7 +18,17 @@ import type { AuthUser } from '../middleware/auth';
 const STAFF_ROLES = ['land_officer', 'administrator'];
 const isStaff = (user: AuthUser | undefined) => Boolean(user && STAFF_ROLES.includes(user.role));
 
-const STAFF_ONLY_SEARCHES = ['national_id'];
+// A national ID or a name must not reveal someone's land to the public.
+const STAFF_ONLY_SEARCHES = ['national_id', 'owner_name'];
+
+// Staff, and an owner whose national ID an officer has verified, see full names on that owner's record;
+// everyone else sees them partly hidden.
+async function seesFullNames(user: AuthUser | undefined, ownerNationalId: string | null): Promise<boolean> {
+  if (isStaff(user)) return true;
+  if (!user || !ownerNationalId) return false;
+  const status = await nationalIdStatus(user.user_id);
+  return Boolean(status?.national_id_verified_at) && status.national_id === ownerNationalId;
+}
 
 export async function createParcel(req: Request, res: Response) {
   const { gps_lat, gps_lng, area_sqm, owner } = req.body;
@@ -91,9 +101,9 @@ export async function getQrCode(req: Request, res: Response) {
 // the total and position travel in headers, exposed to browsers in app.ts.
 const MAX_OFFSET = 100000;
 
-function sendSearchPage(res: Response, page: parcels.SearchPage, offset: number) {
+function sendSearchPage(res: Response, page: parcels.SearchPage, offset: number, user: AuthUser | undefined) {
   res.set({ 'X-Total-Count': String(page.total), 'X-Page-Size': String(parcels.SEARCH_PAGE_SIZE), 'X-Offset': String(offset) });
-  res.json(page.rows);
+  res.json(isStaff(user) ? page.rows : page.rows.map((row) => ({ ...row, owner_name: maskName(row.owner_name as string) })));
 }
 
 export async function searchParcel(req: Request, res: Response) {
@@ -113,7 +123,7 @@ export async function searchParcel(req: Request, res: Response) {
       if (!Number.isFinite(radius) || radius <= 0 || radius > 5000) {
         return res.status(400).json({ error: 'radius must be between 1 and 5000 metres' });
       }
-      return sendSearchPage(res, await parcels.searchNear(lat, lng, radius, offset), offset);
+      return sendSearchPage(res, await parcels.searchNear(lat, lng, radius, offset), offset, req.user);
     }
     let query = (String(req.query.query ?? '')).trim();
     if (by === 'neighbourhood' || by === 'any') query = query.replace(/^hai\s+/i, '') || query;
@@ -122,9 +132,11 @@ export async function searchParcel(req: Request, res: Response) {
       return res.status(400).json({ error: `by must be one of ${[...Object.keys(parcels.SEARCH_CONDITIONS), 'near'].join(', ')}` });
     }
     if (STAFF_ONLY_SEARCHES.includes(by) && !isStaff(req.user)) {
-      return res.status(403).json({ error: 'Only land officers can search by national ID', code: 'STAFF_ONLY_SEARCH' });
+      const field = by === 'national_id' ? 'national ID' : 'owner name';
+      return res.status(403).json({ error: `Only land officers can search by ${field}`, code: 'STAFF_ONLY_SEARCH' });
     }
-    sendSearchPage(res, await parcels.searchByText(by, query, offset), offset);
+    const condition = by === 'any' && !isStaff(req.user) ? 'any_public' : by;
+    sendSearchPage(res, await parcels.searchByText(condition, query, offset), offset, req.user);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Search failed' });
@@ -141,6 +153,7 @@ export async function verifyParcel(req: Request, res: Response) {
     if (qr_check === 'invalid') {
       return res.status(400).json({ error: 'Invalid QR signature: this code may be tampered with', code: 'QR_INVALID' });
     }
+    const fullNames = await seesFullNames(req.user, parcel.national_id);
     if (!isStaff(req.user)) {
       delete parcel.national_id;
       delete parcel.document_reference;
@@ -148,6 +161,13 @@ export async function verifyParcel(req: Request, res: Response) {
       delete parcel.qr_signature;
     }
     const details = await parcels.recordDetails(id);
+    if (!fullNames) {
+      parcel.owner_name = maskName(parcel.owner_name);
+      for (const entry of details.history) {
+        entry.previous_owner_name = maskName(entry.previous_owner_name);
+        entry.new_owner_name = maskName(entry.new_owner_name);
+      }
+    }
     const lastTransfer = details.history.length > 1 ? details.history[details.history.length - 1].transfer_date : null;
     let gps_match: boolean | null = null;
     let distance_meters: number | null = null;
@@ -163,6 +183,7 @@ export async function verifyParcel(req: Request, res: Response) {
     });
     res.json({
       parcel,
+      names_hidden: !fullNames,
       qr_check,
       qr_issued_at: qr_check === 'superseded' ? lastTransfer : undefined,
       ownership_history: details.history,

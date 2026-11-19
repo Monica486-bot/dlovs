@@ -217,7 +217,10 @@ export default function ParcelRecord() {
             />
           </View>
         </View>
-        {state === 'live' && parcel.current_owner_id ? (
+        {record!.names_hidden ? (
+          <Muted>{t("Owners' names are partly hidden to protect their privacy. Land officers can see them in full.")}</Muted>
+        ) : null}
+        {state === 'live' && parcel.current_owner_id && !record!.names_hidden ? (
           <ListItem
             icon="albums"
             title={t('All parcels owned by {name}', { name: parcel.owner_name })}
