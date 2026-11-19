@@ -138,7 +138,7 @@ export default {
   "Parcel #{id}": "القطعة رقم {id}",
   "Parcel #{id} now shows a dispute warning. A land officer will review it.": "تُظهر القطعة رقم {id} الآن تحذير نزاع. سيراجعه موظف أراضٍ.",
   "Parcel ID": "رقم القطعة",
-  "Parcel ID, owner name, or area": "رقم القطعة أو اسم المالك أو المنطقة",
+  "Parcel ID or area": "رقم القطعة أو المنطقة",
   "Password": "كلمة المرور",
   "Password (at least 8 characters)": "كلمة المرور (8 أحرف على الأقل)",
   "Password must be at least 8 characters": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل",
@@ -322,4 +322,8 @@ export default {
   "Your saved copy shows ownership changed after this marker was issued. Whoever shows it may no longer own the plot.": "تُظهر نسختك المحفوظة أن الملكية تغيرت بعد إصدار هذه العلامة. من يعرضها قد لا يملك القطعة بعد الآن.",
   "Your saved copy is out of date": "نسختك المحفوظة قديمة",
   "This marker was issued after your saved copy, so ownership has changed since. Connect to the internet before paying.": "صدرت هذه العلامة بعد نسختك المحفوظة، لذا تغيرت الملكية منذ ذلك الحين. اتصل بالإنترنت قبل الدفع.",
+  "Owners' names are partly hidden to protect their privacy. Land officers can see them in full.": "أسماء الملّاك مخفية جزئياً لحماية خصوصيتهم. يرى موظفو الأراضي الأسماء كاملة.",
+  "Privacy Policy": "سياسة الخصوصية",
+  "I have read the": "لقد قرأت",
+  "and agree that DLOVS may store my details as it describes.": "وأوافق على أن يحفظ DLOVS بياناتي كما هو موضح فيها.",
 };

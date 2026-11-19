@@ -115,6 +115,11 @@ a { color: var(--navy); }
 .public-shell { min-height: 100vh; display: flex; flex-direction: column; }
 .public-main { flex: 1; width: 100%; max-width: 1040px; margin: 0 auto; padding: 32px 24px; }
 .public-footer { text-align: center; color: var(--faint); font-size: 0.8rem; padding: 16px; }
+.public-footer a { color: var(--navy); font-weight: 600; text-decoration: none; }
+.policy-list { margin: 0; padding-inline-start: 20px; }
+.policy-list li { margin-bottom: 8px; line-height: 1.55; }
+.consent-check { display: flex; align-items: flex-start; gap: 8px; font-size: 0.875rem; margin: 4px 0 14px; text-transform: none; letter-spacing: normal; font-weight: 400; color: var(--text); }
+.consent-check input { width: auto; margin-top: 3px; }
 
 .hero { margin-bottom: 20px; }
 .hero h1 { color: var(--text); margin: 0 0 6px; font-size: 1.75rem; }

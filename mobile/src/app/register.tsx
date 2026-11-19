@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { Linking, StyleSheet, Switch, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Banner, Button, Field, Muted, Screen } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +10,9 @@ import { errorMessage } from '../api/client';
 // four names, as on the national ID card or passport
 const NAME_PARTS = ['First name', 'Middle name', 'Second middle name', 'Surname'];
 
+// the same privacy policy the website shows
+const PRIVACY_URL = 'https://dlovs-juba.netlify.app/privacy';
+
 // FR01: citizens register with phone number and password (no email), then
 // confirm the number with the SMS code on the next screen.
 export default function Register() {
@@ -17,6 +20,7 @@ export default function Register() {
   const { t } = useT();
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const [form, setForm] = useState({ names: ['', '', '', ''], phone_number: '', national_id: '', password: '', confirm: '' });
+  const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -47,7 +51,7 @@ export default function Register() {
     }
   }
 
-  const incomplete = form.names.some((n) => !n.trim()) || !form.phone_number.trim() || form.password.length < 8;
+  const incomplete = form.names.some((n) => !n.trim()) || !form.phone_number.trim() || form.password.length < 8 || !agreed;
 
   return (
     <Screen>
@@ -88,6 +92,14 @@ export default function Register() {
         autoComplete="new-password"
       />
       <Field label={t('Confirm password')} value={form.confirm} onChangeText={set('confirm')} secureTextEntry />
+      <View style={styles.consent}>
+        <Switch value={agreed} onValueChange={setAgreed} accessibilityLabel={t('Privacy Policy')} />
+        <Text style={styles.consentText}>
+          {t('I have read the')}{' '}
+          <Text style={styles.link} onPress={() => Linking.openURL(PRIVACY_URL)}>{t('Privacy Policy')}</Text>{' '}
+          {t('and agree that DLOVS may store my details as it describes.')}
+        </Text>
+      </View>
       {error ? <Banner tone="danger">{error}</Banner> : null}
       <Button title={t('Create Account')} onPress={submit} loading={loading} disabled={incomplete} />
     </Screen>
@@ -96,4 +108,7 @@ export default function Register() {
 
 const styles = StyleSheet.create({
   heading: { fontSize: 14, fontWeight: '600', color: colors.text },
+  consent: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 8 },
+  consentText: { flex: 1, fontSize: 13, color: colors.text },
+  link: { color: colors.navyLight, fontWeight: '600', textDecorationLine: 'underline' },
 });

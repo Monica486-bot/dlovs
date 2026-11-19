@@ -12,6 +12,7 @@ import ForgotPassword from './pages/public/ForgotPassword';
 import PublicVerify from './pages/public/PublicVerify';
 import PublicParcel from './pages/public/PublicParcel';
 import PublicOwner from './pages/public/PublicOwner';
+import PrivacyPolicy from './pages/public/PrivacyPolicy';
 import MyParcels from './pages/citizen/MyParcels';
 import MyParcel from './pages/citizen/MyParcel';
 import ReportPlot from './pages/citizen/ReportPlot';
@@ -77,6 +78,7 @@ function AppRoutes() {
       <Route path="/verify" element={publicPage(<PublicVerify />)} />
       <Route path="/verify/:id" element={publicPage(<PublicParcel />)} />
       <Route path="/verify/owners/:id" element={publicPage(<PublicOwner />)} />
+      <Route path="/privacy" element={publicPage(<PrivacyPolicy />)} />
       <Route path="/login" element={publicPage(<Login />)} />
       <Route path="/register" element={publicPage(<Register />)} />
       <Route path="/verify-phone" element={publicPage(<VerifyPhone />)} />

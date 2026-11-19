@@ -51,7 +51,9 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
         </nav>
       </header>
       <main className="public-main">{children}</main>
-      <footer className="public-footer">{t('DLOVS · Digital Land Ownership Verification System · Juba')}</footer>
+      <footer className="public-footer">
+        {t('DLOVS · Digital Land Ownership Verification System · Juba')} · <Link to="/privacy">{t('Privacy Policy')}</Link>
+      </footer>
     </div>
   );
 }

@@ -15,6 +15,7 @@ export default function Register() {
   const [form, setForm] = useState({ names: EMPTY_NAMES, phone_number: '', national_id: '', password: '', confirm: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const field = (name: Exclude<keyof typeof form, 'names'>) => ({
     value: form[name],
     onChange: (e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, [name]: e.target.value }),
@@ -63,8 +64,12 @@ export default function Register() {
           <label>{t('Password (at least 8 characters)')}<input type="password" {...field('password')} minLength={8} autoComplete="new-password" required /></label>
           <label>{t('Confirm password')}<input type="password" {...field('confirm')} autoComplete="new-password" required /></label>
         </div>
+        <label className="consent-check">
+          <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} required />
+          <span>{t('I have read the')} <Link to="/privacy" target="_blank">{t('Privacy Policy')}</Link> {t('and agree that DLOVS may store my details as it describes.')}</span>
+        </label>
         {error && <div className="error-text">{error}</div>}
-        <button className="btn block" type="submit" disabled={saving}>{saving ? t('Creating account…') : t('Create Account')}</button>
+        <button className="btn block" type="submit" disabled={saving || !agreed}>{saving ? t('Creating account…') : t('Create Account')}</button>
         <div className="auth-links"><Link to="/login">{t('Already have an account? Log in')}</Link></div>
       </form>
     </div>
